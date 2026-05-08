@@ -769,8 +769,13 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
   }, [shots, scrollContainerRef]);
 
   const jumpTo = useCallback((id) => {
-    const el = document.getElementById(`shot-${id}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Use rAF to ensure React has committed the DOM
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`shot-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
   }, []);
 
   const toggleSeq = (sid) => setCollapsedSeqs(prev => ({ ...prev, [sid]: !prev[sid] }));
@@ -870,7 +875,6 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
                       <div className="min-w-0 flex-1">
                         <div className="text-[#aaa] truncate">{s.title || `Shot ${localIdx + 1}`}</div>
                         <div className="text-[10px] text-[#555]">
-                          {seqName && <span className="text-[#444]">{seqName} · </span>}
                           {s.startTime || '--:--'}{s.duration ? ` · ${s.duration}` : ''}
                         </div>
                       </div>
