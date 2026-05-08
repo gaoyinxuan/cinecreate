@@ -69,6 +69,38 @@ db.version(2).stores({
     await tx.table('projects').put(p);
   }
 });
+// v4 migration: add sequences table, migrate flat shots → sequence-based
+db.version(3).stores({
+  projects: 'id',
+  sequences: 'id, projectId, orderIndex',
+  shots: 'id, projectId, sequenceId, orderIndex',
+  meta: 'key'
+}).upgrade(async tx => {
+  const allProjects = await tx.table('projects').toArray();
+  const allShots = await tx.table('shots').toArray();
+  // Create default sequence per project, assign shots
+  for (const p of allProjects) {
+    const seqId = uid();
+    await tx.table('sequences').put({
+      id: seqId, projectId: p.id,
+      name: '默认序列', description: '',
+      startTime: '', endTime: '',
+      coverBlob: null, videoBlob: null, videoVersion: '',
+      orderIndex: 0, createdAt: Date.now()
+    });
+    const projShots = allShots.filter(s => s.projectId === p.id);
+    for (const s of projShots) {
+      s.sequenceId = seqId;
+      if (!s.tags || !Array.isArray(s.tags)) s.tags = [];
+      await tx.table('shots').put(s);
+    }
+  }
+  // Remove project-level videoOutput (moved to sequences)
+  for (const p of allProjects) {
+    delete p.videoOutput;
+    await tx.table('projects').put(p);
+  }
+});
 
 // ═══════════════════════════════════════════════
 // Utils
@@ -208,6 +240,113 @@ function TagInput({ tags, onChange }) {
         onChange={e => setInput(e.target.value)}
         onBlur={() => { if (input.trim()) add(input); }}
       />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// PresetTags Component (replaces TagInput - fixed options)
+// ═══════════════════════════════════════════════
+const PRESET_TAGS = {
+  scene:  { label:'场景', opts: ['Interior','Exterior','Day','Night'] },
+  shot:   { label:'镜头', opts: ['Wide Shot','Medium Shot','Close-up','Extreme CU'] },
+  motion: { label:'运动', opts: ['Static','Slow Motion','Pan','Tracking'] },
+};
+function PresetTags({ tags, onChange }) {
+  const [open, setOpen] = useState(false);
+  const toggle = (tag) => {
+    const next = tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag];
+    onChange(next);
+  };
+  const activeCount = (tags || []).length;
+  return (
+    <div className="relative" onMouseLeave={() => setOpen(false)}>
+      <button className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1
+        ${activeCount ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20' : 'text-[#555] hover:text-[#888] border border-transparent hover:border-[#2a2b48]'}`}
+        onClick={() => setOpen(!open)}>
+        <span>🏷</span>
+        {activeCount > 0 && <span className="text-[10px]">{activeCount}</span>}
+        <span className="text-[10px] ml-1 opacity-50">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-2 bg-[#181830] border border-[#2a2b48] rounded-xl p-3 shadow-2xl z-50 w-80"
+          onClick={e => e.stopPropagation()}>
+          {Object.entries(PRESET_TAGS).map(([key, group]) => (
+            <div key={key} className="mb-2 last:mb-0">
+              <div className="text-[10px] text-[#555] uppercase tracking-wider mb-1.5">{group.label}</div>
+              <div className="flex flex-wrap gap-1">
+                {group.opts.map(opt => {
+                  const active = (tags || []).includes(opt);
+                  return (
+                    <button key={opt}
+                      className={`text-[10px] px-2 py-1 rounded-full transition-colors
+                        ${active ? 'bg-indigo-500 text-white' : 'bg-[#111122] text-[#666] hover:text-[#aaa] hover:bg-[#1a1a32]'}`}
+                      onClick={() => toggle(opt)}>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// SequenceTabs Component
+// ═══════════════════════════════════════════════
+function SequenceTabs({ sequences, activeSeqId, onSelect, onCreate, onRename, onDelete, shotsBySeq }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const toast = useToast();
+
+  const startRename = (s) => { setEditingId(s.id); setEditName(s.name); };
+  const confirmRename = (id) => {
+    const name = editName.trim();
+    if (!name) { toast('序列名称不能为空'); return; }
+    onRename(id, name);
+    setEditingId(null);
+  };
+  return (
+    <div className="flex items-center gap-1 px-4 py-2 bg-[#0d0d1a] border-b border-[#1e1e3a] overflow-x-auto">
+      {/* All tab */}
+      <button
+        className={`shrink-0 text-xs px-3 py-1.5 rounded-lg transition-colors
+          ${!activeSeqId ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-[#666] hover:text-[#aaa] border border-transparent hover:border-[#2a2b48]'}`}
+        onClick={() => onSelect(null)}>全部</button>
+      <span className="text-[#333] mx-1">|</span>
+      {sequences.map(s => {
+        const count = (shotsBySeq[s.id] || []).length;
+        const active = s.id === activeSeqId;
+        return (
+          <div key={s.id} className={`shrink-0 group flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors
+            ${active ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' : 'text-[#777] hover:text-[#aaa] border border-transparent hover:border-[#2a2b48]'}`}
+            onClick={() => onSelect(s.id)}
+            onDoubleClick={() => startRename(s)}>
+            {editingId === s.id ? (
+              <input className="bg-[#111122] border border-indigo-500 rounded px-1 py-0 text-xs text-[#e8e8f0] outline-none w-20"
+                value={editName} onChange={e => setEditName(e.target.value)}
+                onBlur={() => confirmRename(s.id)}
+                onKeyDown={e => { if (e.key==='Enter') confirmRename(s.id); if (e.key==='Escape') setEditingId(null); }}
+                autoFocus onClick={e => e.stopPropagation()} />
+            ) : (
+              <span>{s.name}</span>
+            )}
+            <span className="text-[10px] text-[#555]">({count})</span>
+            <span className="hidden group-hover:flex items-center ml-1 gap-0.5">
+              <button className="text-[#555] hover:text-[#aaa]" onClick={e=>{e.stopPropagation();startRename(s);}}>✎</button>
+              <button className="text-[#555] hover:text-red-400" onClick={e=>{e.stopPropagation();if(confirm('删除序列及其中所有分镜？'))onDelete(s.id);}}>✕</button>
+            </span>
+          </div>
+        );
+      })}
+      <button className="shrink-0 text-[#555] hover:text-indigo-400 text-lg px-2 transition-colors" onClick={()=>{
+        const name = prompt('新建序列名称：');
+        if (name && name.trim()) onCreate(name.trim());
+      }} title="新建序列">+</button>
     </div>
   );
 }
@@ -415,7 +554,7 @@ function VariantGallery({ variants, onUpdate, onLightbox, onCompare }) {
 // ═══════════════════════════════════════════════
 // ShotCard Component (v3)
 // ═══════════════════════════════════════════════
-function ShotCard({ shot, index, total, onChange, onDelete, onDragStart, onDragOver, onDragLeave, onDrop }) {
+function ShotCard({ shot, index, onChange, onDelete }) {
   const [lightboxImg, setLightboxImg] = useState(null);
   const [compareMode, setCompareMode] = useState(null);
   const variants = shot.variants || [];
@@ -438,17 +577,9 @@ function ShotCard({ shot, index, total, onChange, onDelete, onDragStart, onDragO
 
   return (
     <div id={`shot-${shot.id}`}
-      className="bg-[#1a1b32] border border-[#2a2b48] rounded-xl overflow-hidden hover:border-[#3d3e64] transition-colors group"
-      draggable
-      onDragStart={(e) => { e.dataTransfer.setData('text/plain', shot.id); onDragStart(index); }}
-      onDragOver={(e) => { e.preventDefault(); onDragOver(index); }}
-      onDragLeave={(e) => onDragLeave(index)}
-      onDrop={(e) => { e.preventDefault(); onDrop(index); }}
-      onDragEnd={() => onDragStart(-1)}
-    >
+      className="bg-[#1a1b32] border border-[#2a2b48] rounded-xl overflow-hidden hover:border-[#3d3e64] transition-colors group">
       {/* header */}
       <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-white/5">
-        <span className="cursor-grab text-[#555] text-lg tracking-wider select-none active:cursor-grabbing">⋮⋮</span>
         <span className="bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">场景 {index + 1}</span>
         {durationSec !== null && (
           <span className="text-xs text-indigo-400 font-mono ml-1">⏱ {formatDurationHuman(durationSec)}</span>
@@ -506,7 +637,7 @@ function ShotCard({ shot, index, total, onChange, onDelete, onDragStart, onDragO
           </div>
 
           {/* tags */}
-          <TagInput tags={shot.tags || []} onChange={tags => onChange({ ...shot, tags })} />
+          <PresetTags tags={shot.tags || []} onChange={tags => onChange({ ...shot, tags })} />
         </div>
       </div>
 
@@ -552,12 +683,10 @@ function DropZone({ onFiles, message }) {
 // ═══════════════════════════════════════════════
 // ShotBoard Component
 // ═══════════════════════════════════════════════
-function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots, onAddImages, navigatorRef }) {
+function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onAddImages, navigatorRef }) {
   const scrollRef = useRef(null);
-  const [dragIdx, setDragIdx] = useState(-1);
-  const toast = useToast();
 
-  // Expose scroll container ref for ShotNavigator
+  // Expose scroll container ref for Timeline
   useEffect(() => { if (navigatorRef) navigatorRef.current = scrollRef.current; }, [navigatorRef, shots]);
 
   // Ctrl+V paste listener
@@ -576,15 +705,6 @@ function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots,
     document.addEventListener('paste', handler);
     return () => document.removeEventListener('paste', handler);
   }, [onAddImages]);
-
-  const handleDragStart = useCallback((idx) => setDragIdx(idx), []);
-  const handleDragOver = useCallback(() => {}, []);
-  const handleDragLeave = useCallback(() => {}, []);
-  const handleDrop = useCallback((targetIdx) => {
-    if (dragIdx < 0 || dragIdx === targetIdx) { setDragIdx(-1); return; }
-    onReorderShots(dragIdx, targetIdx);
-    setDragIdx(-1);
-  }, [dragIdx, onReorderShots]);
 
   if (!project) {
     return (
@@ -609,13 +729,8 @@ function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots,
               key={shot.id}
               shot={shot}
               index={i}
-              total={shots.length}
               onChange={onChangeShot}
               onDelete={() => onDeleteShot(shot.id)}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
             />
           ))}
           <DropZone onFiles={onAddImages} message="继续添加分镜..." />
@@ -626,14 +741,15 @@ function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots,
 }
 
 // ═══════════════════════════════════════════════
-// ShotNavigator Component (right-side nav axis)
+// Timeline Component (v4: drag reorder + sequence grouping)
 // ═══════════════════════════════════════════════
-function ShotNavigator({ shots, scrollContainerRef }) {
+function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorderShots }) {
   const [collapsed, setCollapsed] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
-  const navRef = useRef(null);
+  const [dragIdx, setDragIdx] = useState(-1);
+  const [collapsedSeqs, setCollapsedSeqs] = useState({});
 
-  // IntersectionObserver: track which shot card is visible
+  // IntersectionObserver
   useEffect(() => {
     const container = scrollContainerRef?.current;
     if (!container || !shots.length) return;
@@ -645,12 +761,10 @@ function ShotNavigator({ shots, scrollContainerRef }) {
         }
       }
     }, { root: container, threshold: 0.3 });
-
     shots.forEach((s, i) => {
       const el = document.getElementById(`shot-${s.id}`);
       if (el) { el.dataset.shotIndex = i; observer.observe(el); }
     });
-
     return () => observer.disconnect();
   }, [shots, scrollContainerRef]);
 
@@ -659,51 +773,122 @@ function ShotNavigator({ shots, scrollContainerRef }) {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
+  const toggleSeq = (sid) => setCollapsedSeqs(prev => ({ ...prev, [sid]: !prev[sid] }));
+
   if (!shots.length) return null;
 
   if (collapsed) {
     return (
       <div className="w-8 bg-[#12122a] border-l border-[#1e1e3a] flex items-center justify-center cursor-pointer hover:bg-[#1a1a32] transition-colors shrink-0"
-        onClick={() => setCollapsed(false)} title="展开导航轴">
-        <div className="flex flex-col items-center gap-1.5">
-          <span className="text-xs text-[#555]" style={{writingMode:'vertical-rl'}}>分镜轴</span>
-        </div>
+        onClick={() => setCollapsed(false)} title="展开时间轴">
+        <span className="text-xs text-[#555]" style={{writingMode:'vertical-rl'}}>时间轴</span>
       </div>
     );
   }
 
+  // Group shots by sequence
+  const groups = [];
+  const seqMap = {};
+  sequences.forEach(s => { seqMap[s.id] = s; });
+  if (!activeSeqId) {
+    // "All" mode: group by sequence
+    const bySeq = {};
+    shots.forEach(s => {
+      const sid = s.sequenceId || '__none__';
+      if (!bySeq[sid]) bySeq[sid] = [];
+      bySeq[sid].push(s);
+    });
+    for (const [sid, shts] of Object.entries(bySeq)) {
+      const seq = seqMap[sid];
+      groups.push({ seq, seqId: sid, shots: shts });
+    }
+    // Sort groups by sequence orderIndex
+    groups.sort((a, b) => {
+      const ao = a.seq ? a.seq.orderIndex : 999;
+      const bo = b.seq ? b.seq.orderIndex : 999;
+      return ao - bo;
+    });
+  } else {
+    groups.push({ seq: seqMap[activeSeqId], seqId: activeSeqId, shots });
+  }
+
+  // Find active shot's global index for drag
+  const globalIdx = (sid, localIdx) => {
+    if (!activeSeqId) {
+      let offset = 0;
+      for (const g of groups) {
+        if (g.seqId === sid) return offset + localIdx;
+        offset += g.shots.length;
+      }
+    }
+    return localIdx;
+  };
+
   return (
-    <div className="w-44 bg-[#12122a] border-l border-[#1e1e3a] flex flex-col h-full shrink-0 overflow-hidden">
+    <div className="w-48 bg-[#12122a] border-l border-[#1e1e3a] flex flex-col h-full shrink-0 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1e1e3a]">
-        <span className="text-xs text-[#666] font-semibold">分镜轴</span>
+        <span className="text-xs text-[#666] font-semibold">时间轴</span>
         <button className="text-[#555] hover:text-[#aaa] text-xs transition-colors"
           onClick={() => setCollapsed(true)} title="收起">◀</button>
       </div>
-      <div ref={navRef} className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
-        {shots.map((s, i) => {
-          const primary = s.variants?.find(v => v.isPrimary) || s.variants?.[0];
-          const isActive = i === activeIdx;
+      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+        {groups.map(group => {
+          const seq = group.seq;
+          const isCollapsed = collapsedSeqs[group.seqId];
           return (
-            <div key={s.id}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-xs
-                ${isActive ? 'bg-indigo-500/15 border border-indigo-500/20' : 'hover:bg-white/[0.04] border border-transparent'}`}
-              onClick={() => jumpTo(s.id)}>
-              <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
-                ${isActive ? 'bg-indigo-500 text-white' : 'bg-[#1e1e3a] text-[#666]'}`}>
-                {i + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[#aaa] truncate">{s.title || `场景 ${i + 1}`}</div>
-                <div className="text-[10px] text-[#555]">
-                  {s.startTime ? `${s.startTime}` : '--:--'}
-                  {s.duration ? ` · ${s.duration}` : ''}
+            <div key={group.seqId} className="mb-1">
+              {/* Sequence group header */}
+              {!activeSeqId && seq && (
+                <div className="flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-white/[0.03] rounded text-xs"
+                  onClick={() => toggleSeq(group.seqId)}>
+                  <span className="text-[10px]">{isCollapsed ? '▶' : '▼'}</span>
+                  <span className="text-[#888] font-medium truncate flex-1">{seq.name}</span>
+                  <span className="text-[10px] text-[#555]">{group.shots.length}</span>
                 </div>
-              </div>
-              {primary && (
-                <div className="w-10 h-6 rounded overflow-hidden shrink-0 bg-[#111122]">
-                  <img src={URL.createObjectURL(primary.imageBlob)} className="w-full h-full object-cover" alt=""
-                    onLoad={e => { setTimeout(() => URL.revokeObjectURL(e.target.src), 5000); }} />
-                </div>
+              )}
+              {!activeSeqId && seq && isCollapsed ? null : (
+                group.shots.map((s, localIdx) => {
+                  const primary = s.variants?.find(v => v.isPrimary) || s.variants?.[0];
+                  const gIdx = globalIdx(group.seqId, localIdx);
+                  const isActive = gIdx === activeIdx;
+                  const isDragging = gIdx === dragIdx;
+                  return (
+                    <div key={s.id}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-xs
+                        ${isActive ? 'bg-indigo-500/15 border border-indigo-500/20' : 'hover:bg-white/[0.04] border border-transparent'}
+                        ${isDragging ? 'opacity-30' : ''}`}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', s.id);
+                        setDragIdx(gIdx);
+                      }}
+                      onDragOver={(e) => { e.preventDefault(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragIdx >= 0 && dragIdx !== gIdx) onReorderShots(dragIdx, gIdx);
+                        setDragIdx(-1);
+                      }}
+                      onDragEnd={() => setDragIdx(-1)}
+                      onClick={() => jumpTo(s.id)}>
+                      <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
+                        ${isActive ? 'bg-indigo-500 text-white' : 'bg-[#1e1e3a] text-[#666]'}`}>
+                        {gIdx + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[#aaa] truncate">{s.title || `场景 ${gIdx + 1}`}</div>
+                        <div className="text-[10px] text-[#555]">
+                          {s.startTime || '--:--'}{s.duration ? ` · ${s.duration}` : ''}
+                        </div>
+                      </div>
+                      {primary && (
+                        <div className="w-10 h-6 rounded overflow-hidden shrink-0 bg-[#111122]">
+                          <img src={URL.createObjectURL(primary.imageBlob)} className="w-full h-full object-cover" alt=""
+                            onLoad={e => { setTimeout(() => URL.revokeObjectURL(e.target.src), 5000); }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           );
@@ -953,8 +1138,10 @@ function Toolbar({ project, searchQuery, onSearchChange, onUpload, onExportJSON,
 // ═══════════════════════════════════════════════
 function App() {
   const [projects, setProjects] = useState([]);
+  const [sequences, setSequences] = useState([]);
   const [shots, setShots] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  const [activeSeqId, setActiveSeqId] = useState(null); // null = "all"
   const [searchQuery, setSearchQuery] = useState('');
   const [loaded, setLoaded] = useState(false);
   const navigatorRef = useRef(null);
@@ -963,44 +1150,56 @@ function App() {
   // Load
   useEffect(() => {
     (async () => {
-      const [projs, shts, meta] = await Promise.all([
+      const [projs, seqs, shts, meta] = await Promise.all([
         db.projects.toArray(),
+        db.sequences.orderBy('orderIndex').toArray(),
         db.shots.orderBy('orderIndex').toArray(),
         db.meta.get('activeProjectId')
       ]);
-      // Ensure v3 defaults on loaded data
-      setProjects(projs.map(p => ({ videoOutput: null, aiConfig: {}, ...p })));
-      setShots(shts.map(s => ({ variants: [], metadata: {}, ...s })));
+      setProjects(projs.map(p => ({ aiConfig: {}, ...p })));
+      setSequences(seqs);
+      setShots(shts.map(s => ({ variants: [], metadata: {}, tags: [], ...s })));
       if (meta && projs.find(p => p.id === meta.value)) setActiveId(meta.value);
       else if (projs.length) setActiveId(projs[0].id);
       setLoaded(true);
     })();
   }, []);
 
-  // Persist active project
+  // Persist
   useEffect(() => { if (activeId) db.meta.put({ key: 'activeProjectId', value: activeId }); }, [activeId]);
 
-  // Auto-save shots (debounced, transactional)
+  // Auto-save
   const saveShots = useCallback(debounce(async (s) => {
-    await db.transaction('rw', db.shots, async () => {
-      await db.shots.clear();
-      if (s.length) await db.shots.bulkPut(s);
-    });
+    await db.transaction('rw', db.shots, async () => { await db.shots.clear(); if (s.length) await db.shots.bulkPut(s); });
   }, 400), []);
-  useEffect(() => { if (loaded) saveShots(shots); }, [shots, loaded]);
-
-  // Auto-save projects
+  const saveSequences = useCallback(debounce(async (s) => {
+    await db.transaction('rw', db.sequences, async () => { await db.sequences.clear(); if (s.length) await db.sequences.bulkPut(s); });
+  }, 400), []);
   const saveProjects = useCallback(debounce(async (p) => {
-    await db.transaction('rw', db.projects, async () => {
-      await db.projects.clear();
-      if (p.length) await db.projects.bulkPut(p);
-    });
+    await db.transaction('rw', db.projects, async () => { await db.projects.clear(); if (p.length) await db.projects.bulkPut(p); });
   }, 400), []);
+  useEffect(() => { if (loaded) { saveShots(shots); saveSequences(sequences); } }, [shots, sequences, loaded]);
   useEffect(() => { if (loaded) saveProjects(projects); }, [projects, loaded]);
 
+  // Reset active sequence when project changes
+  useEffect(() => { setActiveSeqId(null); }, [activeId]);
+
   const activeProject = useMemo(() => projects.find(p => p.id === activeId), [projects, activeId]);
+  const projectSequences = useMemo(() => sequences.filter(s => s.projectId === activeId), [sequences, activeId]);
+  const shotsBySeq = useMemo(() => {
+    const map = {};
+    shots.filter(s => s.projectId === activeId).forEach(s => {
+      const sid = s.sequenceId || '__none__';
+      if (!map[sid]) map[sid] = [];
+      map[sid].push(s);
+    });
+    return map;
+  }, [shots, activeId]);
+
+  // Visible shots: filtered by active sequence + search
   const projectShots = useMemo(() => {
-    const list = shots.filter(s => s.projectId === activeId);
+    let list = shots.filter(s => s.projectId === activeId);
+    if (activeSeqId) list = list.filter(s => s.sequenceId === activeSeqId);
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
     return list.filter(s =>
@@ -1010,46 +1209,63 @@ function App() {
       (s.metadata?.prompt || '').toLowerCase().includes(q) ||
       (s.variants || []).some(v => v.label?.toLowerCase().includes(q) || Object.values(v.tags || {}).some(t => t.toLowerCase().includes(q)))
     );
-  }, [shots, activeId, searchQuery]);
+  }, [shots, activeId, activeSeqId, searchQuery]);
 
   // ── Project CRUD ──
   const createProject = useCallback((name) => {
-    const p = { id: uid(), name, createdAt: Date.now(), updatedAt: Date.now(), videoOutput: null, aiConfig: {} };
+    const pid = uid();
+    const p = { id: pid, name, createdAt: Date.now(), updatedAt: Date.now(), aiConfig: {} };
+    const defaultSeq = { id: uid(), projectId: pid, name: '默认序列', description: '', startTime: '', endTime: '',
+      coverBlob: null, videoBlob: null, videoVersion: '', orderIndex: 0, createdAt: Date.now() };
     setProjects(prev => [...prev, p]);
-    setActiveId(p.id);
+    setSequences(prev => [...prev, defaultSeq]);
+    setActiveId(pid);
   }, []);
   const renameProject = useCallback((id, name) => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, name, updatedAt: Date.now() } : p));
   }, []);
   const deleteProject = useCallback((id) => {
     setProjects(prev => prev.filter(p => p.id !== id));
+    setSequences(prev => prev.filter(s => s.projectId !== id));
     setShots(prev => prev.filter(s => s.projectId !== id));
     if (activeId === id) setActiveId(null);
   }, [activeId]);
-  const updateVideoOutput = useCallback((videoOutput) => {
-    setProjects(prev => prev.map(p => p.id === activeId ? { ...p, videoOutput } : p));
-  }, [activeId]);
+
+  // ── Sequence CRUD ──
+  const createSequence = useCallback((name) => {
+    if (!activeId) return;
+    const s = { id: uid(), projectId: activeId, name, description: '', startTime: '', endTime: '',
+      coverBlob: null, videoBlob: null, videoVersion: '', orderIndex: sequences.filter(s=>s.projectId===activeId).length, createdAt: Date.now() };
+    setSequences(prev => [...prev, s]);
+    setActiveSeqId(s.id);
+  }, [activeId, sequences]);
+  const renameSequence = useCallback((id, name) => {
+    setSequences(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+  }, []);
+  const deleteSequence = useCallback((id) => {
+    setSequences(prev => prev.filter(s => s.id !== id));
+    setShots(prev => prev.filter(s => s.sequenceId !== id));
+    if (activeSeqId === id) setActiveSeqId(null);
+  }, [activeSeqId]);
+  const updateSeqVideo = useCallback((seqId, videoData) => {
+    setSequences(prev => prev.map(s => s.id === seqId ? { ...s, videoBlob: videoData?.videoBlob, videoVersion: videoData?.videoVersion, coverBlob: videoData?.coverBlob } : s));
+  }, []);
 
   // ── Shot CRUD ──
   const addImages = useCallback((files) => {
     if (!activeId) { toast('请先选择或创建项目'); return; }
+    const sid = activeSeqId || (projectSequences[0]?.id);
+    const baseIdx = shots.filter(s => s.projectId === activeId && s.sequenceId === sid).length;
     const newShots = files.map((f, i) => ({
-      id: uid(),
-      projectId: activeId,
-      title: '',
-      description: '',
+      id: uid(), projectId: activeId, sequenceId: sid,
+      title: '', description: '',
       variants: [{ id: uid(), imageBlob: f, label: '主方案', isPrimary: true, tags: {} }],
-      startTime: '',
-      endTime: '',
-      duration: '',
-      tags: [],
-      metadata: {},
-      orderIndex: shots.filter(s => s.projectId === activeId).length + i,
-      createdAt: Date.now()
+      startTime: '', endTime: '', duration: '', tags: [], metadata: {},
+      orderIndex: baseIdx + i, createdAt: Date.now()
     }));
     setShots(prev => [...prev, ...newShots]);
     toast(`已添加 ${files.length} 个分镜`);
-  }, [activeId, shots, toast]);
+  }, [activeId, activeSeqId, projectSequences, shots, toast]);
 
   const updateShot = useCallback((updated) => {
     setShots(prev => prev.map(s => s.id === updated.id ? updated : s));
@@ -1060,23 +1276,27 @@ function App() {
       const target = prev.find(s => s.id === id);
       if (!target) return prev;
       const filtered = prev.filter(s => s.id !== id);
-      const projShots = filtered.filter(s => s.projectId === target.projectId);
-      const otherShots = filtered.filter(s => s.projectId !== target.projectId);
-      projShots.forEach((s, i) => s.orderIndex = i);
-      return [...otherShots, ...projShots];
+      // Re-index within same sequence
+      const seqShots = filtered.filter(s => s.sequenceId === target.sequenceId && s.projectId === target.projectId);
+      const otherShots = filtered.filter(s => !(s.sequenceId === target.sequenceId && s.projectId === target.projectId));
+      seqShots.forEach((s, i) => s.orderIndex = i);
+      return [...otherShots, ...seqShots];
     });
   }, []);
 
   const reorderShots = useCallback((fromIdx, toIdx) => {
     setShots(prev => {
-      const projShots = prev.filter(s => s.projectId === activeId);
-      const otherShots = prev.filter(s => s.projectId !== activeId);
-      const [moved] = projShots.splice(fromIdx, 1);
-      projShots.splice(toIdx, 0, moved);
-      projShots.forEach((s, i) => s.orderIndex = i);
-      return [...otherShots, ...projShots];
+      // Get visible shots in current view (filtered by sequence)
+      const visible = activeSeqId
+        ? prev.filter(s => s.projectId === activeId && s.sequenceId === activeSeqId)
+        : prev.filter(s => s.projectId === activeId);
+      const others = prev.filter(s => !visible.some(v => v.id === s.id));
+      const [moved] = visible.splice(fromIdx, 1);
+      visible.splice(toIdx, 0, moved);
+      visible.forEach((s, i) => s.orderIndex = i);
+      return [...others, ...visible];
     });
-  }, [activeId]);
+  }, [activeId, activeSeqId]);
 
   // ── Export ──
   const exportJSON = useCallback(async () => {
@@ -1176,9 +1396,14 @@ function App() {
       />
       <div className="flex-1 flex flex-col min-w-0">
         {activeProject && (
-          <VideoOutputPanel
-            videoOutput={activeProject.videoOutput}
-            onUpdate={updateVideoOutput}
+          <SequenceTabs
+            sequences={projectSequences}
+            activeSeqId={activeSeqId}
+            onSelect={setActiveSeqId}
+            onCreate={createSequence}
+            onRename={renameSequence}
+            onDelete={deleteSequence}
+            shotsBySeq={shotsBySeq}
           />
         )}
         <Toolbar
@@ -1196,15 +1421,17 @@ function App() {
           shots={projectShots}
           onChangeShot={updateShot}
           onDeleteShot={deleteShot}
-          onReorderShots={reorderShots}
           onAddImages={addImages}
           navigatorRef={navigatorRef}
         />
       </div>
       {activeProject && (
-        <ShotNavigator
+        <Timeline
           shots={projectShots}
+          sequences={projectSequences}
+          activeSeqId={activeSeqId}
           scrollContainerRef={navigatorRef}
+          onReorderShots={reorderShots}
         />
       )}
     </div>
