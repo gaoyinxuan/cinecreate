@@ -1304,7 +1304,9 @@ function App() {
     const data = {
       project: { name: activeProject.name, createdAt: activeProject.createdAt },
       exportedAt: new Date().toISOString(),
+      sequences: projectSequences.map(seq => ({ name: seq.name, description: seq.description })),
       shots: await Promise.all(projectShots.map(async s => ({
+        sequenceId: s.sequenceId,
         title: s.title,
         description: s.description,
         startTime: s.startTime,
@@ -1323,7 +1325,7 @@ function App() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     saveAs(blob, `${activeProject.name}.json`);
     toast('JSON 已导出');
-  }, [activeProject, projectShots, toast]);
+  }, [activeProject, projectSequences, projectShots, toast]);
 
   const exportMD = useCallback(async () => {
     if (!activeProject || !projectShots.length) { toast('没有可导出的内容'); return; }
@@ -1349,7 +1351,7 @@ function App() {
     const blob = new Blob([md], { type: 'text/markdown' });
     saveAs(blob, `${activeProject.name}.md`);
     toast('Markdown 已导出');
-  }, [activeProject, projectShots, toast]);
+  }, [activeProject, projectSequences, projectShots, toast]);
 
   const exportZIP = useCallback(async () => {
     if (!activeProject || !projectShots.length) { toast('没有可导出的内容'); return; }
@@ -1372,13 +1374,14 @@ function App() {
       variants: (s.variants || []).map(v => ({ label: v.label, isPrimary: v.isPrimary, tags: v.tags }))
     }));
     zip.file(`${folder}/manifest.json`, JSON.stringify(manifest, null, 2));
-    if (activeProject.videoOutput?.videoBlob) {
-      zip.file(`${folder}/final_video.${activeProject.videoOutput.format?.includes('mp4') ? 'mp4' : 'webm'}`, activeProject.videoOutput.videoBlob);
-    }
+    // Include sequence-level videos
+    projectSequences.forEach(seq => {
+      if (seq.videoBlob) zip.file(`${folder}/seq_${seq.name}/output.mp4`, seq.videoBlob);
+    });
     const blob = await zip.generateAsync({ type: 'blob' });
     saveAs(blob, `${folder}.zip`);
     toast(`已导出 ${projectShots.length} 个分镜`);
-  }, [activeProject, projectShots, toast]);
+  }, [activeProject, projectSequences, projectShots, toast]);
 
   if (!loaded) {
     return <div className="h-screen flex items-center justify-center"><span className="text-[#555]">加载中...</span></div>;
