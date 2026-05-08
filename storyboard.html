@@ -44,28 +44,111 @@ db.version(1).stores({
   shots: 'id, projectId, orderIndex',
   meta: 'key'
 });
+// v3 migration: migrate imageBlob → variants, add metadata/aiConfig fields
+db.version(2).stores({
+  projects: 'id',
+  shots: 'id, projectId, orderIndex',
+  meta: 'key'
+}).upgrade(async tx => {
+  const allShots = await tx.table('shots').toArray();
+  for (const s of allShots) {
+    if (!s.variants) {
+      if (s.imageBlob) {
+        s.variants = [{ id: uid(), imageBlob: s.imageBlob, label: '主方案', isPrimary: true, tags: {} }];
+      } else {
+        s.variants = [];
+      }
+    }
+    if (!s.metadata) s.metadata = {};
+    await tx.table('shots').put(s);
+  }
+  const allProjects = await tx.table('projects').toArray();
+  for (const p of allProjects) {
+    if (!p.videoOutput) p.videoOutput = null;
+    if (!p.aiConfig) p.aiConfig = {};
+    await tx.table('projects').put(p);
+  }
+});
 
 // ═══════════════════════════════════════════════
 // Utils
 // ═══════════════════════════════════════════════
 function uid() { return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2); }
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
-function fmtTime(totalSeconds) {
-  if (!totalSeconds && totalSeconds !== 0) return '--:--';
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
+
+// Time utilities — supports MM:SS and HH:MM:SS
+function parseTimeToSeconds(str) {
+  if (!str || !str.trim()) return null;
+  const cleaned = str.trim();
+  // HH:MM:SS
+  const hms = cleaned.match(/^(\d{1,2}):(\d{1,2}):(\d{2})$/);
+  if (hms) {
+    const h = parseInt(hms[1]), m = parseInt(hms[2]), s = parseInt(hms[3]);
+    if (m > 59 || s > 59) return null;
+    return h * 3600 + m * 60 + s;
+  }
+  // MM:SS
+  const ms = cleaned.match(/^(\d{1,2}):(\d{2})$/);
+  if (ms) {
+    const m = parseInt(ms[1]), s = parseInt(ms[2]);
+    if (s > 59) return null;
+    return m * 60 + s;
+  }
+  // Pure number → treat as total seconds
+  const num = parseInt(cleaned);
+  if (!isNaN(num) && num >= 0) return num;
+  return null;
+}
+function formatSeconds(sec) {
+  if (sec === null || sec === undefined) return '';
+  if (sec >= 3600) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
-function parseTime(str) {
-  const m = str.match(/^(\d{1,2}):(\d{2})$/);
-  if (!m) return null;
-  return parseInt(m[1]) * 60 + parseInt(m[2]);
+function formatDurationHuman(sec) {
+  if (sec === null || sec === undefined) return '';
+  if (sec >= 3600) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `${h}h ${m}m ${s}s`;
+  }
+  if (sec >= 60) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+  return `${sec}s`;
 }
-function calcDuration(start, end) {
-  const a = parseTime(start), b = parseTime(end);
+function autoFormatTimecode(raw) {
+  // Strip non-digit, non-colon chars
+  let val = raw.replace(/[^0-9:]/g, '');
+  // Remove duplicate colons
+  val = val.replace(/:+/g, ':');
+  // Max 8 chars (HH:MM:SS)
+  val = val.slice(0, 8);
+  return val;
+}
+function validateTimecode(str) {
+  if (!str || !str.trim()) return null; // empty is ok
+  return parseTimeToSeconds(str) !== null;
+}
+function calcDurationSeconds(start, end) {
+  const a = parseTimeToSeconds(start), b = parseTimeToSeconds(end);
   if (a === null || b === null || b < a) return null;
   return b - a;
 }
+
+// Keep old functions for backward compat
+function fmtTime(sec) { return formatSeconds(sec); }
+function parseTime(str) { return parseTimeToSeconds(str); }
+function calcDuration(start, end) { return calcDurationSeconds(start, end); }
 function blobToDataUrl(blob) {
   return new Promise((resolve) => {
     const r = new FileReader();
@@ -130,71 +213,263 @@ function TagInput({ tags, onChange }) {
 }
 
 // ═══════════════════════════════════════════════
+// TimecodeInput Component
+// ═══════════════════════════════════════════════
+function TimecodeInput({ value, onChange, placeholder, hasError }) {
+  const [focused, setFocused] = useState(false);
+  const display = focused ? value : (value || placeholder || '00:00');
+  const isValid = !value || validateTimecode(value);
+
+  return (
+    <input
+      className={`bg-[#111122] border rounded px-2 py-1 text-[#ccc] w-20 text-center font-mono text-xs focus:outline-none transition-colors
+        ${hasError ? 'border-red-500/50 focus:border-red-400' : isValid ? 'border-[#2a2b48] focus:border-indigo-500' : 'border-yellow-500/50 focus:border-yellow-400'}`}
+      placeholder={placeholder || '00:00'}
+      value={focused ? value : (value || '')}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        if (!value || !value.trim()) return;
+        const parsed = parseTimeToSeconds(value);
+        if (parsed !== null) {
+          const formatted = formatSeconds(parsed);
+          if (formatted !== value) onChange(formatted);
+        }
+      }}
+      onChange={e => {
+        const cleaned = autoFormatTimecode(e.target.value);
+        onChange(cleaned);
+      }}
+    />
+  );
+}
+
+// ═══════════════════════════════════════════════
 // Lightbox Component
 // ═══════════════════════════════════════════════
-function Lightbox({ shot, onClose }) {
-  const url = useMemo(() => shot?.imageBlob ? URL.createObjectURL(shot.imageBlob) : null, [shot]);
+function Lightbox({ imageBlob, title, onClose }) {
+  const url = useMemo(() => imageBlob ? URL.createObjectURL(imageBlob) : null, [imageBlob]);
   useEffect(() => { return () => { if (url) URL.revokeObjectURL(url); }; }, [url]);
-  if (!shot) return null;
+  if (!imageBlob) return null;
   return (
     <div className="fixed inset-0 z-[998] bg-black/90 flex items-center justify-center cursor-zoom-out" onClick={onClose}>
       <span className="absolute top-5 right-6 text-3xl text-white opacity-70 hover:opacity-100 cursor-pointer">&times;</span>
-      <img src={url} className="max-w-[92vw] max-h-[92vh] rounded-lg shadow-2xl" alt={shot.title} />
+      <img src={url} className="max-w-[92vw] max-h-[92vh] rounded-lg shadow-2xl" alt={title || ''} />
+    </div>
+  );
+}
+
+// Compare mode: two images side by side
+function LightboxCompare({ imageA, imageB, labelA, labelB, onClose }) {
+  const urlA = useMemo(() => imageA ? URL.createObjectURL(imageA) : null, [imageA]);
+  const urlB = useMemo(() => imageB ? URL.createObjectURL(imageB) : null, [imageB]);
+  useEffect(() => { return () => { if (urlA) URL.revokeObjectURL(urlA); if (urlB) URL.revokeObjectURL(urlB); }; }, [urlA, urlB]);
+  return (
+    <div className="fixed inset-0 z-[998] bg-black/92 flex items-center justify-center gap-4 p-8 cursor-zoom-out" onClick={onClose}>
+      <span className="absolute top-5 right-6 text-3xl text-white opacity-70 hover:opacity-100 cursor-pointer">&times;</span>
+      <div className="flex flex-col items-center gap-2">
+        <span className="text-xs text-[#888]">{labelA || '方案 A'}</span>
+        <img src={urlA} className="max-w-[42vw] max-h-[85vh] rounded-lg shadow-2xl object-contain" alt="" />
+      </div>
+      <span className="text-2xl text-[#555] font-bold">VS</span>
+      <div className="flex flex-col items-center gap-2">
+        <span className="text-xs text-[#888]">{labelB || '方案 B'}</span>
+        <img src={urlB} className="max-w-[42vw] max-h-[85vh] rounded-lg shadow-2xl object-contain" alt="" />
+      </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════
-// ShotCard Component
+// Variant Tags Editor
 // ═══════════════════════════════════════════════
-function ShotCard({ shot, index, total, onChange, onDelete, onImageClick, onDragStart, onDragOver, onDragLeave, onDrop }) {
-  const imgUrl = useMemo(() => shot.imageBlob ? URL.createObjectURL(shot.imageBlob) : null, [shot.imageBlob]);
-  useEffect(() => { return () => { if (imgUrl) URL.revokeObjectURL(imgUrl); }; }, [imgUrl]);
-  const [startFocused, setStartFocused] = useState(false);
-  const [endFocused, setEndFocused] = useState(false);
+const VARIANT_TAG_KEYS = ['version', 'style', 'camera', 'lighting', 'motion'];
+function VariantTags({ tags, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {VARIANT_TAG_KEYS.map(key => (
+        <div key={key} className="flex items-center gap-1">
+          <span className="text-[10px] text-[#555] w-10 text-right">{key}</span>
+          <input
+            className="bg-[#0d0d1a] border border-[#1e1e3a] rounded px-1.5 py-0.5 text-[10px] text-[#aaa] w-20 outline-none focus:border-indigo-500/50 placeholder-[#333]"
+            placeholder="..."
+            value={tags?.[key] || ''}
+            onChange={e => onChange({ ...tags, [key]: e.target.value })}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  const durationDisplay = useMemo(() => {
-    const d = calcDuration(shot.startTime, shot.endTime);
-    return d !== null ? fmtTime(d) : null;
-  }, [shot.startTime, shot.endTime]);
+// ═══════════════════════════════════════════════
+// VariantGallery Component
+// ═══════════════════════════════════════════════
+function VariantGallery({ variants, onUpdate, onLightbox, onCompare }) {
+  const [dragOver, setDragOver] = useState(false);
+  const primary = variants.find(v => v.isPrimary) || variants[0];
 
-  const displayStart = startFocused ? shot.startTime : (shot.startTime || '00:00');
-  const displayEnd = endFocused ? shot.endTime : (shot.endTime || '00:00');
+  const addVariant = useCallback((files) => {
+    const imgs = Array.from(files).filter(f => f.type.match(/^image\/(png|jpe?g|webp)$/));
+    if (!imgs.length) return;
+    const newVariants = imgs.map((f, i) => ({
+      id: uid(), imageBlob: f, label: `方案 ${String.fromCharCode(65 + variants.length + i)}`, isPrimary: variants.length === 0, tags: {}
+    }));
+    onUpdate([...variants, ...newVariants]);
+  }, [variants, onUpdate]);
 
-  const field = (key) => (e) => onChange({ ...shot, [key]: e.target.value });
-  const timeField = (key) => (e) => {
-    let val = e.target.value.replace(/[^0-9:]/g, '').slice(0, 5);
-    onChange({ ...shot, [key]: val });
-  };
+  const setPrimary = useCallback((id) => {
+    onUpdate(variants.map(v => ({ ...v, isPrimary: v.id === id })));
+  }, [variants, onUpdate]);
+
+  const updateLabel = useCallback((id, label) => {
+    onUpdate(variants.map(v => v.id === id ? { ...v, label } : v));
+  }, [variants, onUpdate]);
+
+  const updateTags = useCallback((id, tags) => {
+    onUpdate(variants.map(v => v.id === id ? { ...v, tags } : v));
+  }, [variants, onUpdate]);
+
+  const deleteVariant = useCallback((id) => {
+    if (variants.length <= 1) return;
+    const remaining = variants.filter(v => v.id !== id);
+    if (!remaining.some(v => v.isPrimary)) remaining[0].isPrimary = true;
+    onUpdate(remaining);
+  }, [variants, onUpdate]);
+
+  const imgUrl = useCallback((blob) => blob ? URL.createObjectURL(blob) : null, []);
 
   return (
     <div
+      className={`space-y-3 ${dragOver ? 'ring-2 ring-indigo-500 rounded-lg' : ''}`}
+      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) addVariant(e.dataTransfer.files); }}
+    >
+      {/* Primary image */}
+      {primary && (
+        <div className="relative rounded-lg overflow-hidden bg-[#111122] border border-[#2a2b48] cursor-pointer group/img"
+          style={{ aspectRatio: '16/9' }}
+          onClick={() => onLightbox(primary.imageBlob, primary.label)}>
+          <img src={imgUrl(primary.imageBlob)} className="w-full h-full object-cover group-hover/img:opacity-80 transition-opacity" alt="" />
+          <span className="absolute top-2 left-2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+            {primary.label || '主方案'}
+          </span>
+          {variants.length > 1 && (
+            <button className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/img:opacity-100 transition-opacity"
+              onClick={e => { e.stopPropagation(); const alt = variants.find(v => !v.isPrimary); if (alt) onCompare(primary.imageBlob, alt.imageBlob, primary.label, alt.label); }}>
+              对比 →
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Variant thumbnails row */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {variants.map((v, i) => {
+          const isPrimary = v.isPrimary;
+          return (
+            <div key={v.id} className={`relative shrink-0 w-24 rounded-lg overflow-hidden border-2 transition-colors group/var
+              ${isPrimary ? 'border-indigo-400' : 'border-transparent hover:border-[#3d3e64]'}`}>
+              <div className="aspect-video bg-[#111122] cursor-pointer" onClick={() => onLightbox(v.imageBlob, v.label)}>
+                <img src={imgUrl(v.imageBlob)} className="w-full h-full object-cover" alt="" />
+              </div>
+              {/* Hover actions */}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/var:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                <input
+                  className="bg-transparent text-[10px] text-white text-center w-full outline-none border-b border-white/20 focus:border-white/50"
+                  value={v.label}
+                  onChange={e => updateLabel(v.id, e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                />
+                {!isPrimary && (
+                  <>
+                    <button className="text-[10px] text-yellow-400 hover:text-yellow-300"
+                      onClick={e => { e.stopPropagation(); setPrimary(v.id); }}>☆ 设为主图</button>
+                    <button className="text-[10px] text-red-400 hover:text-red-300"
+                      onClick={e => { e.stopPropagation(); deleteVariant(v.id); }}>✕ 删除</button>
+                  </>
+                )}
+              </div>
+              {isPrimary && <span className="absolute bottom-1 left-1 text-[9px] text-indigo-300 font-bold">主</span>}
+              <span className="absolute top-1 right-1 text-[9px] text-white/60">{String.fromCharCode(65 + i)}</span>
+            </div>
+          );
+        })}
+        {/* Add button */}
+        <label className="shrink-0 w-24 aspect-video rounded-lg border-2 border-dashed border-[#2a2b48] hover:border-indigo-500/50 flex items-center justify-center cursor-pointer transition-colors group/add">
+          <span className="text-2xl text-[#333] group-hover/add:text-[#666] transition-colors">+</span>
+          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+            onChange={e => { if (e.target.files.length) { addVariant(e.target.files); e.target.value = ''; } }} />
+        </label>
+      </div>
+
+      {/* Variant tags editor (for primary) */}
+      {primary && (
+        <VariantTags tags={primary.tags || {}} onChange={tags => updateTags(primary.id, tags)} />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ShotCard Component (v3)
+// ═══════════════════════════════════════════════
+function ShotCard({ shot, index, total, onChange, onDelete, onDragStart, onDragOver, onDragLeave, onDrop }) {
+  const [lightboxImg, setLightboxImg] = useState(null);
+  const [compareMode, setCompareMode] = useState(null);
+  const variants = shot.variants || [];
+
+  const durationSec = useMemo(() => calcDurationSeconds(shot.startTime, shot.endTime), [shot.startTime, shot.endTime]);
+  const endTimeError = useMemo(() => {
+    const a = parseTimeToSeconds(shot.startTime), b = parseTimeToSeconds(shot.endTime);
+    if (a !== null && b !== null && b < a) return true;
+    return false;
+  }, [shot.startTime, shot.endTime]);
+
+  const field = (key) => (val) => onChange({ ...shot, [key]: val });
+  const updateVariants = (v) => onChange({ ...shot, variants: v });
+  const updateTime = (key) => (val) => {
+    const updated = { ...shot, [key]: val };
+    const d = calcDurationSeconds(updated.startTime, updated.endTime);
+    if (d !== null) updated.duration = formatDurationHuman(d);
+    onChange(updated);
+  };
+
+  return (
+    <div id={`shot-${shot.id}`}
       className="bg-[#1a1b32] border border-[#2a2b48] rounded-xl overflow-hidden hover:border-[#3d3e64] transition-colors group"
       draggable
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', shot.id); onDragStart(index); }}
       onDragOver={(e) => { e.preventDefault(); onDragOver(index); }}
-      onDragLeave={() => onDragLeave(index)}
+      onDragLeave={(e) => onDragLeave(index)}
       onDrop={(e) => { e.preventDefault(); onDrop(index); }}
-      onDragEnd={onDragStart.bind(null, -1)}
+      onDragEnd={() => onDragStart(-1)}
     >
       {/* header */}
       <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-white/5">
         <span className="cursor-grab text-[#555] text-lg tracking-wider select-none active:cursor-grabbing">⋮⋮</span>
         <span className="bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">场景 {index + 1}</span>
-        {durationDisplay && <span className="text-xs text-[#666] ml-1">⏱ {durationDisplay}</span>}
-        <span className="text-xs text-[#555] ml-auto">{(shot.startTime||'00:00')} → {(shot.endTime||'00:00')}</span>
+        {durationSec !== null && (
+          <span className="text-xs text-indigo-400 font-mono ml-1">⏱ {formatDurationHuman(durationSec)}</span>
+        )}
+        <span className="text-xs text-[#555] ml-auto">
+          {(shot.startTime || '--:--')} → {(shot.endTime || '--:--')}
+        </span>
+        <span className="text-xs text-[#444]">{variants.length > 1 ? `${variants.length} 方案` : ''}</span>
         <button className="text-[#555] hover:text-red-400 text-sm px-1.5 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100"
           onClick={onDelete} title="删除">✕</button>
       </div>
 
       {/* body */}
       <div className="flex gap-4 p-4">
-        <div className="shrink-0 w-[220px] aspect-video rounded-lg overflow-hidden bg-[#111122] border border-[#2a2b48] cursor-pointer relative group/img" onClick={onImageClick}>
-          {imgUrl ? (
-            <img src={imgUrl} className="w-full h-full object-cover group-hover/img:opacity-80 transition-opacity" alt="" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[#444] text-sm">无图片</div>
-          )}
+        <div className="shrink-0 w-[260px]">
+          <VariantGallery
+            variants={variants}
+            onUpdate={updateVariants}
+            onLightbox={(blob, label) => setLightboxImg({ blob, label })}
+            onCompare={(a, b, la, lb) => setCompareMode({ a, b, la, lb })}
+          />
         </div>
 
         <div className="flex-1 flex flex-col gap-3 min-w-0">
@@ -202,39 +477,31 @@ function ShotCard({ shot, index, total, onChange, onDelete, onImageClick, onDrag
             className="bg-transparent text-base font-semibold text-[#e8e8f0] outline-none placeholder-[#444] border-b border-transparent focus:border-indigo-500 pb-1 transition-colors"
             placeholder="分镜标题（如：开场镜头）"
             value={shot.title}
-            onChange={field('title')}
+            onChange={e => field('title')(e.target.value)}
           />
           <textarea
             className="flex-1 bg-[#111122] border border-[#2a2b48] rounded-lg p-3 text-sm text-[#ccc] outline-none resize-none focus:border-indigo-500 transition-colors placeholder-[#444] min-h-[80px]"
             placeholder="分镜描述、旁白文案、镜头说明..."
             value={shot.description}
-            onChange={field('description')}
+            onChange={e => field('description')(e.target.value)}
           />
 
-          {/* time row */}
+          {/* time row with TimecodeInput */}
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-[#888]">
-              <span>开始</span>
-              <input
-                className="bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] w-16 text-center font-mono text-xs focus:outline-none focus:border-indigo-500"
-                placeholder="00:00" value={displayStart}
-                onFocus={() => setStartFocused(true)}
-                onBlur={() => { setStartFocused(false); const d = calcDuration(shot.startTime, shot.endTime); if (d !== null) onChange({...shot, duration: fmtTime(d)}); }}
-                onChange={timeField('startTime')}
-              />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-[#888] w-8">开始</span>
+              <TimecodeInput value={shot.startTime} onChange={updateTime('startTime')} placeholder="00:00" />
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#888]">
-              <span>结束</span>
-              <input
-                className="bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] w-16 text-center font-mono text-xs focus:outline-none focus:border-indigo-500"
-                placeholder="00:00" value={displayEnd}
-                onFocus={() => setEndFocused(true)}
-                onBlur={() => { setEndFocused(false); const d = calcDuration(shot.startTime, shot.endTime); if (d !== null) onChange({...shot, duration: fmtTime(d)}); }}
-                onChange={timeField('endTime')}
-              />
+            <span className="text-[#444] text-xs">→</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-[#888] w-8">结束</span>
+              <TimecodeInput value={shot.endTime} onChange={updateTime('endTime')} placeholder="00:00" hasError={endTimeError} />
             </div>
-            {durationDisplay && (
-              <span className="text-xs text-indigo-400 font-mono">时长 {durationDisplay}</span>
+            {durationSec !== null && (
+              <span className="text-xs text-indigo-400 font-mono font-semibold">{formatDurationHuman(durationSec)}</span>
+            )}
+            {endTimeError && (
+              <span className="text-xs text-red-400">结束时间不能小于开始时间</span>
             )}
           </div>
 
@@ -242,6 +509,10 @@ function ShotCard({ shot, index, total, onChange, onDelete, onImageClick, onDrag
           <TagInput tags={shot.tags || []} onChange={tags => onChange({ ...shot, tags })} />
         </div>
       </div>
+
+      {/* Lightbox / Compare */}
+      {lightboxImg && <Lightbox imageBlob={lightboxImg.blob} title={lightboxImg.label} onClose={() => setLightboxImg(null)} />}
+      {compareMode && <LightboxCompare imageA={compareMode.a} imageB={compareMode.b} labelA={compareMode.la} labelB={compareMode.lb} onClose={() => setCompareMode(null)} />}
     </div>
   );
 }
@@ -281,10 +552,13 @@ function DropZone({ onFiles, message }) {
 // ═══════════════════════════════════════════════
 // ShotBoard Component
 // ═══════════════════════════════════════════════
-function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots, onAddImages }) {
-  const [lightbox, setLightbox] = useState(null);
+function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots, onAddImages, navigatorRef }) {
+  const scrollRef = useRef(null);
   const [dragIdx, setDragIdx] = useState(-1);
   const toast = useToast();
+
+  // Expose scroll container ref for ShotNavigator
+  useEffect(() => { if (navigatorRef) navigatorRef.current = scrollRef.current; }, [navigatorRef, shots]);
 
   // Ctrl+V paste listener
   useEffect(() => {
@@ -325,7 +599,7 @@ function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots,
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto p-6">
       {shots.length === 0 ? (
         <DropZone onFiles={onAddImages} message="拖拽或粘贴 AI 生成的分镜图片到这里" />
       ) : (
@@ -336,9 +610,8 @@ function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots,
               shot={shot}
               index={i}
               total={shots.length}
-              onChange={(s) => onChangeShot(s)}
+              onChange={onChangeShot}
               onDelete={() => onDeleteShot(shot.id)}
-              onImageClick={() => setLightbox(shot)}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -348,15 +621,208 @@ function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots,
           <DropZone onFiles={onAddImages} message="继续添加分镜..." />
         </div>
       )}
-      {lightbox && <Lightbox shot={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════
-// Sidebar Component
+// ShotNavigator Component (right-side nav axis)
 // ═══════════════════════════════════════════════
-function Sidebar({ projects, activeId, onSelect, onCreate, onRename, onDelete }) {
+function ShotNavigator({ shots, scrollContainerRef }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const navRef = useRef(null);
+
+  // IntersectionObserver: track which shot card is visible
+  useEffect(() => {
+    const container = scrollContainerRef?.current;
+    if (!container || !shots.length) return;
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const idx = parseInt(entry.target.dataset.shotIndex);
+          if (!isNaN(idx)) setActiveIdx(idx);
+        }
+      }
+    }, { root: container, threshold: 0.3 });
+
+    shots.forEach((s, i) => {
+      const el = document.getElementById(`shot-${s.id}`);
+      if (el) { el.dataset.shotIndex = i; observer.observe(el); }
+    });
+
+    return () => observer.disconnect();
+  }, [shots, scrollContainerRef]);
+
+  const jumpTo = useCallback((id) => {
+    const el = document.getElementById(`shot-${id}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
+  if (!shots.length) return null;
+
+  if (collapsed) {
+    return (
+      <div className="w-8 bg-[#12122a] border-l border-[#1e1e3a] flex items-center justify-center cursor-pointer hover:bg-[#1a1a32] transition-colors shrink-0"
+        onClick={() => setCollapsed(false)} title="展开导航轴">
+        <div className="flex flex-col items-center gap-1.5">
+          <span className="text-xs text-[#555]" style={{writingMode:'vertical-rl'}}>分镜轴</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-44 bg-[#12122a] border-l border-[#1e1e3a] flex flex-col h-full shrink-0 overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1e1e3a]">
+        <span className="text-xs text-[#666] font-semibold">分镜轴</span>
+        <button className="text-[#555] hover:text-[#aaa] text-xs transition-colors"
+          onClick={() => setCollapsed(true)} title="收起">◀</button>
+      </div>
+      <div ref={navRef} className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+        {shots.map((s, i) => {
+          const primary = s.variants?.find(v => v.isPrimary) || s.variants?.[0];
+          const isActive = i === activeIdx;
+          return (
+            <div key={s.id}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-xs
+                ${isActive ? 'bg-indigo-500/15 border border-indigo-500/20' : 'hover:bg-white/[0.04] border border-transparent'}`}
+              onClick={() => jumpTo(s.id)}>
+              <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
+                ${isActive ? 'bg-indigo-500 text-white' : 'bg-[#1e1e3a] text-[#666]'}`}>
+                {i + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[#aaa] truncate">{s.title || `场景 ${i + 1}`}</div>
+                <div className="text-[10px] text-[#555]">
+                  {s.startTime ? `${s.startTime}` : '--:--'}
+                  {s.duration ? ` · ${s.duration}` : ''}
+                </div>
+              </div>
+              {primary && (
+                <div className="w-10 h-6 rounded overflow-hidden shrink-0 bg-[#111122]">
+                  <img src={URL.createObjectURL(primary.imageBlob)} className="w-full h-full object-cover" alt=""
+                    onLoad={e => { setTimeout(() => URL.revokeObjectURL(e.target.src), 5000); }} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// VideoOutputPanel Component
+// ═══════════════════════════════════════════════
+function VideoOutputPanel({ videoOutput, onUpdate }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const videoRef = useRef(null);
+
+  const handleFiles = useCallback((files) => {
+    const video = Array.from(files).find(f => f.type.match(/^video\/(mp4|webm)$/));
+    if (!video) return;
+    const info = {
+      videoBlob: video,
+      videoName: video.name,
+      fileSize: video.size,
+      format: video.type,
+      exportDate: new Date().toISOString(),
+      duration: '',
+      versionNote: '',
+      coverBlob: null
+    };
+    onUpdate(info);
+  }, [onUpdate]);
+
+  const updateField = (key) => (e) => onUpdate({ ...videoOutput, [key]: e.target.value });
+
+  if (!videoOutput && !collapsed) {
+    return (
+      <div className="border-b border-[#1e1e3a] p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs text-[#666] font-semibold uppercase tracking-wider">Final Output</span>
+          <span className="text-[10px] text-[#555]">最终视频</span>
+          <button className="ml-auto text-[#555] hover:text-[#aaa] text-xs transition-colors"
+            onClick={() => setCollapsed(true)}>收起 ▲</button>
+        </div>
+        <div
+          className="border-2 border-dashed border-[#2a2b48] hover:border-indigo-500/50 rounded-xl p-8 text-center cursor-pointer transition-all"
+          onDragOver={e => { e.preventDefault(); }}
+          onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+          onClick={() => document.getElementById('videoFileInput')?.click()}
+        >
+          <div className="text-3xl mb-2 opacity-40">🎥</div>
+          <div className="text-sm text-[#888]">导入最终视频成果</div>
+          <div className="text-xs text-[#555] mt-1">拖拽 MP4/WebM 到此处 或 点击上传</div>
+          <input id="videoFileInput" type="file" accept="video/mp4,video/webm" className="hidden"
+            onChange={e => { if (e.target.files.length) { handleFiles(e.target.files); e.target.value = ''; } }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!videoOutput) return null;
+
+  const url = videoOutput.videoBlob ? URL.createObjectURL(videoOutput.videoBlob) : null;
+
+  return (
+    <div className="border-b border-[#1e1e3a] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-[#666] font-semibold uppercase tracking-wider">Final Output</span>
+        <span className="text-[10px] text-green-400">✓ 已导入</span>
+        <button className="ml-auto text-[#555] hover:text-[#aaa] text-xs transition-colors"
+          onClick={() => setCollapsed(!collapsed)}>{collapsed ? '展开 ▼' : '收起 ▲'}</button>
+      </div>
+      {!collapsed && (
+        <div className="flex gap-4">
+          {/* Video preview */}
+          <div className="shrink-0 w-[220px]">
+            {url && (
+              <video ref={videoRef} src={url} controls className="w-full rounded-lg bg-black"
+                onLoadedMetadata={e => {
+                  const d = Math.round(e.target.duration);
+                  if (d && !videoOutput.duration) onUpdate({ ...videoOutput, duration: formatDurationHuman(d) });
+                }} />
+            )}
+          </div>
+          {/* Info */}
+          <div className="flex-1 flex flex-col gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-[#666] w-12">名称</span>
+              <input className="flex-1 bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] outline-none focus:border-indigo-500"
+                value={videoOutput.videoName || ''} onChange={updateField('videoName')} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[#666] w-12">格式</span>
+              <span className="text-[#888]">{videoOutput.format || '--'}</span>
+              <span className="text-[#666] ml-4 w-12">时长</span>
+              <span className="text-[#888]">{videoOutput.duration || '--'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[#666] w-12">日期</span>
+              <span className="text-[#888]">{videoOutput.exportDate ? new Date(videoOutput.exportDate).toLocaleString('zh-CN') : '--'}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-[#666] w-12 shrink-0 pt-1">备注</span>
+              <textarea className="flex-1 bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] outline-none focus:border-indigo-500 resize-none h-12"
+                placeholder="版本备注..."
+                value={videoOutput.versionNote || ''} onChange={updateField('versionNote')} />
+            </div>
+            <button className="self-start text-[10px] text-red-400 hover:text-red-300 transition-colors mt-1"
+              onClick={() => onUpdate(null)}>移除视频</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ProjectSidebar Component (renamed from Sidebar)
+// ═══════════════════════════════════════════════
+function ProjectSidebar({ projects, activeId, onSelect, onCreate, onRename, onDelete }) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const toast = useToast();
@@ -491,6 +957,7 @@ function App() {
   const [activeId, setActiveId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const navigatorRef = useRef(null);
   const toast = useToast();
 
   // Load
@@ -501,8 +968,9 @@ function App() {
         db.shots.orderBy('orderIndex').toArray(),
         db.meta.get('activeProjectId')
       ]);
-      setProjects(projs);
-      setShots(shts);
+      // Ensure v3 defaults on loaded data
+      setProjects(projs.map(p => ({ videoOutput: null, aiConfig: {}, ...p })));
+      setShots(shts.map(s => ({ variants: [], metadata: {}, ...s })));
       if (meta && projs.find(p => p.id === meta.value)) setActiveId(meta.value);
       else if (projs.length) setActiveId(projs[0].id);
       setLoaded(true);
@@ -518,7 +986,7 @@ function App() {
       await db.shots.clear();
       if (s.length) await db.shots.bulkPut(s);
     });
-  }, 300), []);
+  }, 400), []);
   useEffect(() => { if (loaded) saveShots(shots); }, [shots, loaded]);
 
   // Auto-save projects
@@ -527,7 +995,7 @@ function App() {
       await db.projects.clear();
       if (p.length) await db.projects.bulkPut(p);
     });
-  }, 300), []);
+  }, 400), []);
   useEffect(() => { if (loaded) saveProjects(projects); }, [projects, loaded]);
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeId), [projects, activeId]);
@@ -538,13 +1006,15 @@ function App() {
     return list.filter(s =>
       s.title.toLowerCase().includes(q) ||
       s.description.toLowerCase().includes(q) ||
-      (s.tags || []).some(t => t.toLowerCase().includes(q))
+      (s.tags || []).some(t => t.toLowerCase().includes(q)) ||
+      (s.metadata?.prompt || '').toLowerCase().includes(q) ||
+      (s.variants || []).some(v => v.label?.toLowerCase().includes(q) || Object.values(v.tags || {}).some(t => t.toLowerCase().includes(q)))
     );
   }, [shots, activeId, searchQuery]);
 
   // ── Project CRUD ──
   const createProject = useCallback((name) => {
-    const p = { id: uid(), name, createdAt: Date.now(), updatedAt: Date.now() };
+    const p = { id: uid(), name, createdAt: Date.now(), updatedAt: Date.now(), videoOutput: null, aiConfig: {} };
     setProjects(prev => [...prev, p]);
     setActiveId(p.id);
   }, []);
@@ -556,6 +1026,9 @@ function App() {
     setShots(prev => prev.filter(s => s.projectId !== id));
     if (activeId === id) setActiveId(null);
   }, [activeId]);
+  const updateVideoOutput = useCallback((videoOutput) => {
+    setProjects(prev => prev.map(p => p.id === activeId ? { ...p, videoOutput } : p));
+  }, [activeId]);
 
   // ── Shot CRUD ──
   const addImages = useCallback((files) => {
@@ -565,16 +1038,17 @@ function App() {
       projectId: activeId,
       title: '',
       description: '',
-      imageBlob: f,
+      variants: [{ id: uid(), imageBlob: f, label: '主方案', isPrimary: true, tags: {} }],
       startTime: '',
       endTime: '',
       duration: '',
       tags: [],
+      metadata: {},
       orderIndex: shots.filter(s => s.projectId === activeId).length + i,
       createdAt: Date.now()
     }));
     setShots(prev => [...prev, ...newShots]);
-    toast(`已添加 ${files.length} 张图片`);
+    toast(`已添加 ${files.length} 个分镜`);
   }, [activeId, shots, toast]);
 
   const updateShot = useCallback((updated) => {
@@ -617,7 +1091,13 @@ function App() {
         endTime: s.endTime,
         duration: s.duration,
         tags: s.tags,
-        image: s.imageBlob ? await blobToDataUrl(s.imageBlob) : null
+        metadata: s.metadata,
+        variants: await Promise.all((s.variants || []).map(async v => ({
+          label: v.label,
+          isPrimary: v.isPrimary,
+          tags: v.tags,
+          image: v.imageBlob ? await blobToDataUrl(v.imageBlob) : null
+        })))
       })))
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -633,10 +1113,16 @@ function App() {
       md += `## 场景 ${i + 1}: ${s.title || '(无标题)'}\n\n`;
       if (s.startTime) md += `- **时间**: ${s.startTime} → ${s.endTime} (${s.duration})\n`;
       if (s.tags?.length) md += `- **标签**: ${s.tags.map(t => `\`${t}\``).join(' ')}\n`;
+      if (s.metadata?.prompt) md += `- **Prompt**: \`${s.metadata.prompt}\`\n`;
       if (s.description) md += `\n${s.description}\n`;
-      if (s.imageBlob) {
-        const dataUrl = await blobToDataUrl(s.imageBlob);
-        md += `\n![场景${i + 1}](${dataUrl})\n`;
+      const primary = s.variants?.find(v => v.isPrimary) || s.variants?.[0];
+      if (primary?.imageBlob) {
+        const dataUrl = await blobToDataUrl(primary.imageBlob);
+        md += `\n![场景${i + 1} - ${primary.label || '主方案'}](${dataUrl})\n`;
+      }
+      const alts = (s.variants || []).filter(v => !v.isPrimary);
+      if (alts.length) {
+        md += `\n**备选方案**: ${alts.map(v => v.label).join(', ')}\n`;
       }
       md += '\n---\n\n';
     }
@@ -651,14 +1137,24 @@ function App() {
     const folder = activeProject.name;
     for (let i = 0; i < projectShots.length; i++) {
       const s = projectShots[i];
-      const ext = s.imageBlob?.type === 'image/png' ? 'png' : s.imageBlob?.type === 'image/webp' ? 'webp' : 'jpg';
-      if (s.imageBlob) zip.file(`${folder}/scene_${String(i+1).padStart(3,'0')}.${ext}`, s.imageBlob);
-      if (s.description?.trim()) zip.file(`${folder}/scene_${String(i+1).padStart(3,'0')}.txt`, s.description);
+      const prefix = `scene_${String(i+1).padStart(3,'0')}`;
+      // All variants
+      (s.variants || []).forEach((v, vi) => {
+        const ext = v.imageBlob?.type === 'image/png' ? 'png' : v.imageBlob?.type === 'image/webp' ? 'webp' : 'jpg';
+        const vlabel = v.isPrimary ? 'main' : `alt_${String.fromCharCode(97 + vi)}`;
+        if (v.imageBlob) zip.file(`${folder}/${prefix}_${vlabel}.${ext}`, v.imageBlob);
+      });
+      if (s.description?.trim()) zip.file(`${folder}/${prefix}.txt`, s.description);
     }
     const manifest = projectShots.map((s, i) => ({
-      scene: i + 1, title: s.title, startTime: s.startTime, endTime: s.endTime, duration: s.duration, tags: s.tags
+      scene: i + 1, title: s.title, startTime: s.startTime, endTime: s.endTime,
+      duration: s.duration, tags: s.tags, metadata: s.metadata,
+      variants: (s.variants || []).map(v => ({ label: v.label, isPrimary: v.isPrimary, tags: v.tags }))
     }));
     zip.file(`${folder}/manifest.json`, JSON.stringify(manifest, null, 2));
+    if (activeProject.videoOutput?.videoBlob) {
+      zip.file(`${folder}/final_video.${activeProject.videoOutput.format?.includes('mp4') ? 'mp4' : 'webm'}`, activeProject.videoOutput.videoBlob);
+    }
     const blob = await zip.generateAsync({ type: 'blob' });
     saveAs(blob, `${folder}.zip`);
     toast(`已导出 ${projectShots.length} 个分镜`);
@@ -670,7 +1166,7 @@ function App() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar
+      <ProjectSidebar
         projects={projects}
         activeId={activeId}
         onSelect={setActiveId}
@@ -679,6 +1175,12 @@ function App() {
         onDelete={deleteProject}
       />
       <div className="flex-1 flex flex-col min-w-0">
+        {activeProject && (
+          <VideoOutputPanel
+            videoOutput={activeProject.videoOutput}
+            onUpdate={updateVideoOutput}
+          />
+        )}
         <Toolbar
           project={activeProject}
           searchQuery={searchQuery}
@@ -696,8 +1198,15 @@ function App() {
           onDeleteShot={deleteShot}
           onReorderShots={reorderShots}
           onAddImages={addImages}
+          navigatorRef={navigatorRef}
         />
       </div>
+      {activeProject && (
+        <ShotNavigator
+          shots={projectShots}
+          scrollContainerRef={navigatorRef}
+        />
+      )}
     </div>
   );
 }
