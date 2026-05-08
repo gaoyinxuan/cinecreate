@@ -746,8 +746,8 @@ function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onAddImages, na
 // ═══════════════════════════════════════════════
 function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorderShots }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const [dragIdx, setDragIdx] = useState(-1);
+  const [activeShotId, setActiveShotId] = useState(null);
+  const [dragShotId, setDragShotId] = useState(null);
   const [collapsedSeqs, setCollapsedSeqs] = useState({});
 
   // IntersectionObserver
@@ -757,14 +757,13 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          const idx = parseInt(entry.target.dataset.shotIndex);
-          if (!isNaN(idx)) setActiveIdx(idx);
+          setActiveShotId(entry.target.dataset.shotId || null);
         }
       }
     }, { root: container, threshold: 0.3 });
-    shots.forEach((s, i) => {
+    shots.forEach((s) => {
       const el = document.getElementById(`shot-${s.id}`);
-      if (el) { el.dataset.shotIndex = i; observer.observe(el); }
+      if (el) { el.dataset.shotId = s.id; observer.observe(el); }
     });
     return () => observer.disconnect();
   }, [shots, scrollContainerRef]);
@@ -788,11 +787,10 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
   }
 
   // Group shots by sequence
-  const groups = [];
   const seqMap = {};
   sequences.forEach(s => { seqMap[s.id] = s; });
+  const groups = [];
   if (!activeSeqId) {
-    // "All" mode: group by sequence
     const bySeq = {};
     shots.forEach(s => {
       const sid = s.sequenceId || '__none__';
@@ -803,7 +801,6 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
       const seq = seqMap[sid];
       groups.push({ seq, seqId: sid, shots: shts });
     }
-    // Sort groups by sequence orderIndex
     groups.sort((a, b) => {
       const ao = a.seq ? a.seq.orderIndex : 999;
       const bo = b.seq ? b.seq.orderIndex : 999;
@@ -813,16 +810,18 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
     groups.push({ seq: seqMap[activeSeqId], seqId: activeSeqId, shots });
   }
 
-  // Find active shot's global index for drag
-  const globalIdx = (sid, localIdx) => {
-    if (!activeSeqId) {
-      let offset = 0;
-      for (const g of groups) {
-        if (g.seqId === sid) return offset + localIdx;
-        offset += g.shots.length;
+  // Drag: pass shot IDs, not indices
+  const handleDragStart = (shotId) => setDragShotId(shotId);
+  const handleDrop = (targetShotId) => {
+    if (dragShotId && dragShotId !== targetShotId) {
+      // Only allow drag within same sequence
+      const src = shots.find(s => s.id === dragShotId);
+      const tgt = shots.find(s => s.id === targetShotId);
+      if (src && tgt && src.sequenceId === tgt.sequenceId) {
+        onReorderShots(dragShotId, targetShotId);
       }
     }
-    return localIdx;
+    setDragShotId(null);
   };
 
   return (
@@ -843,41 +842,35 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
                 <div className="flex items-center gap-1 px-2 py-1.5 cursor-pointer hover:bg-white/[0.03] rounded text-xs"
                   onClick={() => toggleSeq(group.seqId)}>
                   <span className="text-[10px]">{isCollapsed ? '▶' : '▼'}</span>
-                  <span className="text-[#888] font-medium truncate flex-1">{seq.name}</span>
+                  <span className="text-[#aaa] font-medium truncate flex-1">{seq.name}</span>
                   <span className="text-[10px] text-[#555]">{group.shots.length}</span>
                 </div>
               )}
               {!activeSeqId && seq && isCollapsed ? null : (
                 group.shots.map((s, localIdx) => {
                   const primary = s.variants?.find(v => v.isPrimary) || s.variants?.[0];
-                  const gIdx = globalIdx(group.seqId, localIdx);
-                  const isActive = gIdx === activeIdx;
-                  const isDragging = gIdx === dragIdx;
+                  const isActive = s.id === activeShotId;
+                  const isDragging = s.id === dragShotId;
+                  const seqName = seq ? seq.name : '';
                   return (
                     <div key={s.id}
                       className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-xs
                         ${isActive ? 'bg-indigo-500/15 border border-indigo-500/20' : 'hover:bg-white/[0.04] border border-transparent'}
                         ${isDragging ? 'opacity-30' : ''}`}
                       draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', s.id);
-                        setDragIdx(gIdx);
-                      }}
+                      onDragStart={(e) => { e.dataTransfer.setData('text/plain', s.id); handleDragStart(s.id); }}
                       onDragOver={(e) => { e.preventDefault(); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (dragIdx >= 0 && dragIdx !== gIdx) onReorderShots(dragIdx, gIdx);
-                        setDragIdx(-1);
-                      }}
-                      onDragEnd={() => setDragIdx(-1)}
+                      onDrop={(e) => { e.preventDefault(); handleDrop(s.id); }}
+                      onDragEnd={() => setDragShotId(null)}
                       onClick={() => jumpTo(s.id)}>
                       <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
                         ${isActive ? 'bg-indigo-500 text-white' : 'bg-[#1e1e3a] text-[#666]'}`}>
-                        {gIdx + 1}
+                        {localIdx + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[#aaa] truncate">{s.title || `场景 ${gIdx + 1}`}</div>
+                        <div className="text-[#aaa] truncate">{s.title || `Shot ${localIdx + 1}`}</div>
                         <div className="text-[10px] text-[#555]">
+                          {seqName && <span className="text-[#444]">{seqName} · </span>}
                           {s.startTime || '--:--'}{s.duration ? ` · ${s.duration}` : ''}
                         </div>
                       </div>
@@ -1288,19 +1281,26 @@ function App() {
     });
   }, []);
 
-  const reorderShots = useCallback((fromIdx, toIdx) => {
+  const reorderShots = useCallback((fromShotId, toShotId) => {
     setShots(prev => {
-      // Get visible shots in current view (filtered by sequence)
-      const visible = activeSeqId
-        ? prev.filter(s => s.projectId === activeId && s.sequenceId === activeSeqId)
-        : prev.filter(s => s.projectId === activeId);
-      const others = prev.filter(s => !visible.some(v => v.id === s.id));
-      const [moved] = visible.splice(fromIdx, 1);
-      visible.splice(toIdx, 0, moved);
-      visible.forEach((s, i) => s.orderIndex = i);
-      return [...others, ...visible];
+      const fromIdx = prev.findIndex(s => s.id === fromShotId);
+      const toIdx = prev.findIndex(s => s.id === toShotId);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
+      const src = prev[fromIdx];
+      const tgt = prev[toIdx];
+      // Only reorder within same sequence
+      if (src.sequenceId !== tgt.sequenceId) return prev;
+      // Filter shots belonging to the same sequence
+      const seqShots = prev.filter(s => s.sequenceId === src.sequenceId && s.projectId === src.projectId);
+      const otherShots = prev.filter(s => !(s.sequenceId === src.sequenceId && s.projectId === src.projectId));
+      const seqFrom = seqShots.findIndex(s => s.id === fromShotId);
+      const seqTo = seqShots.findIndex(s => s.id === toShotId);
+      const [moved] = seqShots.splice(seqFrom, 1);
+      seqShots.splice(seqTo, 0, moved);
+      seqShots.forEach((s, i) => s.orderIndex = i);
+      return [...otherShots, ...seqShots];
     });
-  }, [activeId, activeSeqId]);
+  }, []);
 
   // ── Export ──
   const exportJSON = useCallback(async () => {
