@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git config *)",
+      "PowerShell(gh *)",
+      "PowerShell(winget install *)",
+      "PowerShell(git *)",
+      "PowerShell(ssh-keygen *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(ssh-agent *)",
+      "PowerShell(Set-Service *)",
+      "PowerShell(Start-Process \"https://github.com/settings/ssh/new\")",
+      "PowerShell(gh auth *)",
+      "PowerShell(git status *)"
+    ]
+  }
+}
