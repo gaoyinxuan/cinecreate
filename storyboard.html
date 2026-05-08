@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI视频分镜脚本</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/dexie@4.0.4/dist/dexie.js"></script>
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script>
+tailwind.config = {
+  theme: { extend: {} },
+  darkMode: 'class',
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3a3b5a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #4a4b72; }
+  .card-dragging { opacity: 0.4; }
+  .card-drag-over { box-shadow: 0 0 0 2px #7c6ff7; border-color: #7c6ff7; }
+  @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  .toast-enter { animation: toast-in 0.25s ease; }
+</style>
+</head>
+<body class="bg-[#0f0f1a] text-[#e8e8f0] h-screen overflow-hidden">
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } = React;
+
+// ═══════════════════════════════════════════════
+// Database
+// ═══════════════════════════════════════════════
+const db = new Dexie('StoryboardV2');
+db.version(1).stores({
+  projects: 'id',
+  shots: 'id, projectId, orderIndex',
+  meta: 'key'
+});
+
+// ═══════════════════════════════════════════════
+// Utils
+// ═══════════════════════════════════════════════
+function uid() { return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function fmtTime(totalSeconds) {
+  if (!totalSeconds && totalSeconds !== 0) return '--:--';
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function parseTime(str) {
+  const m = str.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return parseInt(m[1]) * 60 + parseInt(m[2]);
+}
+function calcDuration(start, end) {
+  const a = parseTime(start), b = parseTime(end);
+  if (a === null || b === null || b < a) return null;
+  return b - a;
+}
+function blobToDataUrl(blob) {
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.readAsDataURL(blob);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// Toast Context
+// ═══════════════════════════════════════════════
+const ToastCtx = createContext();
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  const show = useCallback((msg) => {
+    const id = uid();
+    setToasts(t => [...t, { id, msg }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 2500);
+  }, []);
+  return (
+    <ToastCtx.Provider value={show}>
+      {children}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[999] flex flex-col gap-2 items-center pointer-events-none">
+        {toasts.map(t => (
+          <div key={t.id} className="toast-enter bg-indigo-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg pointer-events-auto">{t.msg}</div>
+        ))}
+      </div>
+    </ToastCtx.Provider>
+  );
+}
+function useToast() { return useContext(ToastCtx); }
+
+// ═══════════════════════════════════════════════
+// TagInput Component
+// ═══════════════════════════════════════════════
+function TagInput({ tags, onChange }) {
+  const [input, setInput] = useState('');
+  const add = useCallback((raw) => {
+    const tag = raw.trim();
+    if (tag && !tags.includes(tag)) onChange([...tags, tag]);
+    setInput('');
+  }, [tags, onChange]);
+  const remove = useCallback((tag) => onChange(tags.filter(t => t !== tag)), [tags, onChange]);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {tags.map(t => (
+        <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded text-xs">
+          {t}
+          <button className="hover:text-red-400 ml-0.5" onClick={() => remove(t)}>&times;</button>
+        </span>
+      ))}
+      <input
+        className="bg-transparent border border-[#333455] rounded px-2 py-1 text-xs text-[#e8e8f0] w-24 focus:outline-none focus:border-indigo-500 placeholder-[#555]"
+        placeholder="添加标签..."
+        value={input}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(input); } else if (e.key === 'Backspace' && !input && tags.length) { remove(tags[tags.length-1]); } }}
+        onChange={e => setInput(e.target.value)}
+        onBlur={() => { if (input.trim()) add(input); }}
+      />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// Lightbox Component
+// ═══════════════════════════════════════════════
+function Lightbox({ shot, onClose }) {
+  const url = useMemo(() => shot?.imageBlob ? URL.createObjectURL(shot.imageBlob) : null, [shot]);
+  useEffect(() => { return () => { if (url) URL.revokeObjectURL(url); }; }, [url]);
+  if (!shot) return null;
+  return (
+    <div className="fixed inset-0 z-[998] bg-black/90 flex items-center justify-center cursor-zoom-out" onClick={onClose}>
+      <span className="absolute top-5 right-6 text-3xl text-white opacity-70 hover:opacity-100 cursor-pointer">&times;</span>
+      <img src={url} className="max-w-[92vw] max-h-[92vh] rounded-lg shadow-2xl" alt={shot.title} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ShotCard Component
+// ═══════════════════════════════════════════════
+function ShotCard({ shot, index, total, onChange, onDelete, onImageClick, onDragStart, onDragOver, onDragLeave, onDrop }) {
+  const imgUrl = useMemo(() => shot.imageBlob ? URL.createObjectURL(shot.imageBlob) : null, [shot.imageBlob]);
+  useEffect(() => { return () => { if (imgUrl) URL.revokeObjectURL(imgUrl); }; }, [imgUrl]);
+  const [startFocused, setStartFocused] = useState(false);
+  const [endFocused, setEndFocused] = useState(false);
+
+  const durationDisplay = useMemo(() => {
+    const d = calcDuration(shot.startTime, shot.endTime);
+    return d !== null ? fmtTime(d) : null;
+  }, [shot.startTime, shot.endTime]);
+
+  const displayStart = startFocused ? shot.startTime : (shot.startTime || '00:00');
+  const displayEnd = endFocused ? shot.endTime : (shot.endTime || '00:00');
+
+  const field = (key) => (e) => onChange({ ...shot, [key]: e.target.value });
+  const timeField = (key) => (e) => {
+    let val = e.target.value.replace(/[^0-9:]/g, '').slice(0, 5);
+    onChange({ ...shot, [key]: val });
+  };
+
+  return (
+    <div
+      className="bg-[#1a1b32] border border-[#2a2b48] rounded-xl overflow-hidden hover:border-[#3d3e64] transition-colors group"
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('text/plain', shot.id); onDragStart(index); }}
+      onDragOver={(e) => { e.preventDefault(); onDragOver(index); }}
+      onDragLeave={() => onDragLeave(index)}
+      onDrop={(e) => { e.preventDefault(); onDrop(index); }}
+      onDragEnd={onDragStart.bind(null, -1)}
+    >
+      {/* header */}
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-white/5">
+        <span className="cursor-grab text-[#555] text-lg tracking-wider select-none active:cursor-grabbing">⋮⋮</span>
+        <span className="bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">场景 {index + 1}</span>
+        {durationDisplay && <span className="text-xs text-[#666] ml-1">⏱ {durationDisplay}</span>}
+        <span className="text-xs text-[#555] ml-auto">{(shot.startTime||'00:00')} → {(shot.endTime||'00:00')}</span>
+        <button className="text-[#555] hover:text-red-400 text-sm px-1.5 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100"
+          onClick={onDelete} title="删除">✕</button>
+      </div>
+
+      {/* body */}
+      <div className="flex gap-4 p-4">
+        <div className="shrink-0 w-[220px] aspect-video rounded-lg overflow-hidden bg-[#111122] border border-[#2a2b48] cursor-pointer relative group/img" onClick={onImageClick}>
+          {imgUrl ? (
+            <img src={imgUrl} className="w-full h-full object-cover group-hover/img:opacity-80 transition-opacity" alt="" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[#444] text-sm">无图片</div>
+          )}
+        </div>
+
+        <div className="flex-1 flex flex-col gap-3 min-w-0">
+          <input
+            className="bg-transparent text-base font-semibold text-[#e8e8f0] outline-none placeholder-[#444] border-b border-transparent focus:border-indigo-500 pb-1 transition-colors"
+            placeholder="分镜标题（如：开场镜头）"
+            value={shot.title}
+            onChange={field('title')}
+          />
+          <textarea
+            className="flex-1 bg-[#111122] border border-[#2a2b48] rounded-lg p-3 text-sm text-[#ccc] outline-none resize-none focus:border-indigo-500 transition-colors placeholder-[#444] min-h-[80px]"
+            placeholder="分镜描述、旁白文案、镜头说明..."
+            value={shot.description}
+            onChange={field('description')}
+          />
+
+          {/* time row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-[#888]">
+              <span>开始</span>
+              <input
+                className="bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] w-16 text-center font-mono text-xs focus:outline-none focus:border-indigo-500"
+                placeholder="00:00" value={displayStart}
+                onFocus={() => setStartFocused(true)}
+                onBlur={() => { setStartFocused(false); const d = calcDuration(shot.startTime, shot.endTime); if (d !== null) onChange({...shot, duration: fmtTime(d)}); }}
+                onChange={timeField('startTime')}
+              />
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[#888]">
+              <span>结束</span>
+              <input
+                className="bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] w-16 text-center font-mono text-xs focus:outline-none focus:border-indigo-500"
+                placeholder="00:00" value={displayEnd}
+                onFocus={() => setEndFocused(true)}
+                onBlur={() => { setEndFocused(false); const d = calcDuration(shot.startTime, shot.endTime); if (d !== null) onChange({...shot, duration: fmtTime(d)}); }}
+                onChange={timeField('endTime')}
+              />
+            </div>
+            {durationDisplay && (
+              <span className="text-xs text-indigo-400 font-mono">时长 {durationDisplay}</span>
+            )}
+          </div>
+
+          {/* tags */}
+          <TagInput tags={shot.tags || []} onChange={tags => onChange({ ...shot, tags })} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// DropZone / Empty State
+// ═══════════════════════════════════════════════
+function DropZone({ onFiles, message }) {
+  const [over, setOver] = useState(false);
+  const toast = useToast();
+  const inputRef = useRef(null);
+
+  const handleFiles = useCallback((files) => {
+    const imgs = Array.from(files).filter(f => f.type.match(/^image\/(png|jpe?g|webp)$/));
+    if (!imgs.length) { toast('未检测到支持的图片文件'); return; }
+    onFiles(imgs);
+  }, [onFiles, toast]);
+
+  return (
+    <div
+      className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all
+        ${over ? 'border-indigo-400 bg-indigo-500/5' : 'border-[#2a2b48] hover:border-[#555]'}`}
+      onClick={() => inputRef.current?.click()}
+      onDragOver={e => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={e => { e.preventDefault(); setOver(false); handleFiles(e.dataTransfer.files); }}
+    >
+      <div className="text-4xl mb-3 opacity-50">🎬</div>
+      <div className="text-sm text-[#888]">{message || '拖拽图片到此处 或 点击上传'}</div>
+      <div className="text-xs text-[#555] mt-1.5">支持 PNG / JPG / WebP，也支持 Ctrl+V 粘贴</div>
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
+        onChange={e => { if (e.target.files.length) handleFiles(e.target.files); e.target.value = ''; }} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ShotBoard Component
+// ═══════════════════════════════════════════════
+function ShotBoard({ project, shots, onChangeShot, onDeleteShot, onReorderShots, onAddImages }) {
+  const [lightbox, setLightbox] = useState(null);
+  const [dragIdx, setDragIdx] = useState(-1);
+  const toast = useToast();
+
+  // Ctrl+V paste listener
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files = [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) files.push(item.getAsFile());
+      }
+      if (files.length) { e.preventDefault(); onAddImages(files); }
+    };
+    document.addEventListener('paste', handler);
+    return () => document.removeEventListener('paste', handler);
+  }, [onAddImages]);
+
+  const handleDragStart = useCallback((idx) => setDragIdx(idx), []);
+  const handleDragOver = useCallback(() => {}, []);
+  const handleDragLeave = useCallback(() => {}, []);
+  const handleDrop = useCallback((targetIdx) => {
+    if (dragIdx < 0 || dragIdx === targetIdx) { setDragIdx(-1); return; }
+    onReorderShots(dragIdx, targetIdx);
+    setDragIdx(-1);
+  }, [dragIdx, onReorderShots]);
+
+  if (!project) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-5xl mb-4 opacity-30">📂</div>
+          <div className="text-lg text-[#666] mb-1">未选择项目</div>
+          <div className="text-sm text-[#555]">在左侧创建或选择一个项目开始创作</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6">
+      {shots.length === 0 ? (
+        <DropZone onFiles={onAddImages} message="拖拽或粘贴 AI 生成的分镜图片到这里" />
+      ) : (
+        <div className="max-w-4xl mx-auto space-y-4 pb-16">
+          {shots.map((shot, i) => (
+            <ShotCard
+              key={shot.id}
+              shot={shot}
+              index={i}
+              total={shots.length}
+              onChange={(s) => onChangeShot(s)}
+              onDelete={() => onDeleteShot(shot.id)}
+              onImageClick={() => setLightbox(shot)}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            />
+          ))}
+          <DropZone onFiles={onAddImages} message="继续添加分镜..." />
+        </div>
+      )}
+      {lightbox && <Lightbox shot={lightbox} onClose={() => setLightbox(null)} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// Sidebar Component
+// ═══════════════════════════════════════════════
+function Sidebar({ projects, activeId, onSelect, onCreate, onRename, onDelete }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const toast = useToast();
+
+  const startRename = (p) => { setEditingId(p.id); setEditName(p.name); };
+  const confirmRename = (id) => {
+    const name = editName.trim();
+    if (!name) { toast('项目名称不能为空'); return; }
+    onRename(id, name);
+    setEditingId(null);
+  };
+  const handleDelete = (p) => {
+    if (!confirm(`确定删除项目「${p.name}」及其所有分镜？此操作不可恢复。`)) return;
+    onDelete(p.id);
+  };
+  const handleCreate = () => {
+    const name = prompt('请输入项目名称：');
+    if (name && name.trim()) onCreate(name.trim());
+  };
+
+  return (
+    <div className="w-64 bg-[#12122a] border-r border-[#1e1e3a] flex flex-col h-full shrink-0">
+      {/* logo */}
+      <div className="px-5 py-4 border-b border-[#1e1e3a]">
+        <h1 className="text-base font-bold text-[#e8e8f0] tracking-wide">🎬 分镜脚本</h1>
+        <p className="text-xs text-[#555] mt-0.5">AI Video Storyboard</p>
+      </div>
+
+      {/* project list */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+        <div className="flex items-center justify-between px-2 mb-2">
+          <span className="text-xs text-[#666] font-semibold uppercase tracking-wider">项目</span>
+          <button className="text-indigo-400 text-lg leading-none hover:text-indigo-300 transition-colors" onClick={handleCreate} title="新建项目">+</button>
+        </div>
+        {projects.map(p => (
+          <div key={p.id}
+            className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm
+              ${activeId === p.id ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' : 'hover:bg-white/[0.04] text-[#aaa] border border-transparent'}`}
+            onClick={() => onSelect(p.id)}
+            onDoubleClick={() => startRename(p)}
+          >
+            <span className="text-xs shrink-0">{activeId === p.id ? '📁' : '📂'}</span>
+            {editingId === p.id ? (
+              <input
+                className="flex-1 bg-[#1a1b32] border border-indigo-500 rounded px-1.5 py-0.5 text-xs text-[#e8e8f0] outline-none min-w-0"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                onBlur={() => confirmRename(p.id)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmRename(p.id); if (e.key === 'Escape') setEditingId(null); }}
+                autoFocus
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <span className="flex-1 truncate">{p.name}</span>
+            )}
+            <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+              <button className="text-[#555] hover:text-[#aaa] text-xs px-1"
+                onClick={e => { e.stopPropagation(); startRename(p); }} title="重命名">✎</button>
+              <button className="text-[#555] hover:text-red-400 text-xs px-1"
+                onClick={e => { e.stopPropagation(); handleDelete(p); }} title="删除">✕</button>
+            </div>
+          </div>
+        ))}
+        {projects.length === 0 && (
+          <div className="text-xs text-[#555] text-center py-6">暂无项目，点击 + 创建</div>
+        )}
+      </div>
+
+      {/* footer */}
+      <div className="px-5 py-3 border-t border-[#1e1e3a] text-xs text-[#555]">
+        {projects.length} 个项目
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// Toolbar Component
+// ═══════════════════════════════════════════════
+function Toolbar({ project, searchQuery, onSearchChange, onUpload, onExportJSON, onExportMD, onExportZIP, shotCount }) {
+  const fileRef = useRef(null);
+  const toast = useToast();
+
+  if (!project) return null;
+
+  return (
+    <div className="flex items-center gap-3 px-6 py-3 bg-[#12122a] border-b border-[#1e1e3a] flex-wrap">
+      <span className="text-base font-bold text-[#e8e8f0] min-w-[120px]">{project.name}</span>
+      <span className="text-xs text-[#555]">{shotCount} 个分镜</span>
+
+      <div className="flex-1" />
+
+      <div className="relative">
+        <input
+          className="bg-[#1a1b32] border border-[#2a2b48] rounded-lg pl-8 pr-3 py-1.5 text-sm text-[#ccc] w-48 outline-none focus:border-indigo-500 transition-colors placeholder-[#555]"
+          placeholder="搜索分镜..."
+          value={searchQuery}
+          onChange={e => onSearchChange(e.target.value)}
+        />
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555] text-sm">🔍</span>
+        {searchQuery && (
+          <button className="absolute right-2 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#aaa] text-sm"
+            onClick={() => onSearchChange('')}>&times;</button>
+        )}
+      </div>
+
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
+        onChange={e => { if (e.target.files.length) { onUpload(Array.from(e.target.files)); e.target.value = ''; } }} />
+      <button className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-semibold rounded-lg transition-colors"
+        onClick={() => fileRef.current?.click()}>
+        📷 上传图片
+      </button>
+
+      <div className="flex gap-0.5">
+        <button className="px-2.5 py-1.5 text-xs text-[#888] hover:text-[#ccc] hover:bg-white/[0.05] rounded-lg transition-colors"
+          onClick={onExportJSON} title="导出 JSON">JSON</button>
+        <button className="px-2.5 py-1.5 text-xs text-[#888] hover:text-[#ccc] hover:bg-white/[0.05] rounded-lg transition-colors"
+          onClick={onExportMD} title="导出 Markdown">MD</button>
+        <button className="px-2.5 py-1.5 text-xs text-[#888] hover:text-[#ccc] hover:bg-white/[0.05] rounded-lg transition-colors"
+          onClick={onExportZIP} title="导出 ZIP 含图片">ZIP</button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// App Root Component
+// ═══════════════════════════════════════════════
+function App() {
+  const [projects, setProjects] = useState([]);
+  const [shots, setShots] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const toast = useToast();
+
+  // Load
+  useEffect(() => {
+    (async () => {
+      const [projs, shts, meta] = await Promise.all([
+        db.projects.toArray(),
+        db.shots.orderBy('orderIndex').toArray(),
+        db.meta.get('activeProjectId')
+      ]);
+      setProjects(projs);
+      setShots(shts);
+      if (meta && projs.find(p => p.id === meta.value)) setActiveId(meta.value);
+      else if (projs.length) setActiveId(projs[0].id);
+      setLoaded(true);
+    })();
+  }, []);
+
+  // Persist active project
+  useEffect(() => { if (activeId) db.meta.put({ key: 'activeProjectId', value: activeId }); }, [activeId]);
+
+  // Auto-save shots (debounced, transactional)
+  const saveShots = useCallback(debounce(async (s) => {
+    await db.transaction('rw', db.shots, async () => {
+      await db.shots.clear();
+      if (s.length) await db.shots.bulkPut(s);
+    });
+  }, 300), []);
+  useEffect(() => { if (loaded) saveShots(shots); }, [shots, loaded]);
+
+  // Auto-save projects
+  const saveProjects = useCallback(debounce(async (p) => {
+    await db.transaction('rw', db.projects, async () => {
+      await db.projects.clear();
+      if (p.length) await db.projects.bulkPut(p);
+    });
+  }, 300), []);
+  useEffect(() => { if (loaded) saveProjects(projects); }, [projects, loaded]);
+
+  const activeProject = useMemo(() => projects.find(p => p.id === activeId), [projects, activeId]);
+  const projectShots = useMemo(() => {
+    const list = shots.filter(s => s.projectId === activeId);
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      (s.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }, [shots, activeId, searchQuery]);
+
+  // ── Project CRUD ──
+  const createProject = useCallback((name) => {
+    const p = { id: uid(), name, createdAt: Date.now(), updatedAt: Date.now() };
+    setProjects(prev => [...prev, p]);
+    setActiveId(p.id);
+  }, []);
+  const renameProject = useCallback((id, name) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name, updatedAt: Date.now() } : p));
+  }, []);
+  const deleteProject = useCallback((id) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+    setShots(prev => prev.filter(s => s.projectId !== id));
+    if (activeId === id) setActiveId(null);
+  }, [activeId]);
+
+  // ── Shot CRUD ──
+  const addImages = useCallback((files) => {
+    if (!activeId) { toast('请先选择或创建项目'); return; }
+    const newShots = files.map((f, i) => ({
+      id: uid(),
+      projectId: activeId,
+      title: '',
+      description: '',
+      imageBlob: f,
+      startTime: '',
+      endTime: '',
+      duration: '',
+      tags: [],
+      orderIndex: shots.filter(s => s.projectId === activeId).length + i,
+      createdAt: Date.now()
+    }));
+    setShots(prev => [...prev, ...newShots]);
+    toast(`已添加 ${files.length} 张图片`);
+  }, [activeId, shots, toast]);
+
+  const updateShot = useCallback((updated) => {
+    setShots(prev => prev.map(s => s.id === updated.id ? updated : s));
+  }, []);
+
+  const deleteShot = useCallback((id) => {
+    setShots(prev => {
+      const target = prev.find(s => s.id === id);
+      if (!target) return prev;
+      const filtered = prev.filter(s => s.id !== id);
+      const projShots = filtered.filter(s => s.projectId === target.projectId);
+      const otherShots = filtered.filter(s => s.projectId !== target.projectId);
+      projShots.forEach((s, i) => s.orderIndex = i);
+      return [...otherShots, ...projShots];
+    });
+  }, []);
+
+  const reorderShots = useCallback((fromIdx, toIdx) => {
+    setShots(prev => {
+      const projShots = prev.filter(s => s.projectId === activeId);
+      const otherShots = prev.filter(s => s.projectId !== activeId);
+      const [moved] = projShots.splice(fromIdx, 1);
+      projShots.splice(toIdx, 0, moved);
+      projShots.forEach((s, i) => s.orderIndex = i);
+      return [...otherShots, ...projShots];
+    });
+  }, [activeId]);
+
+  // ── Export ──
+  const exportJSON = useCallback(async () => {
+    if (!activeProject || !projectShots.length) { toast('没有可导出的内容'); return; }
+    const data = {
+      project: { name: activeProject.name, createdAt: activeProject.createdAt },
+      exportedAt: new Date().toISOString(),
+      shots: await Promise.all(projectShots.map(async s => ({
+        title: s.title,
+        description: s.description,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        duration: s.duration,
+        tags: s.tags,
+        image: s.imageBlob ? await blobToDataUrl(s.imageBlob) : null
+      })))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    saveAs(blob, `${activeProject.name}.json`);
+    toast('JSON 已导出');
+  }, [activeProject, projectShots, toast]);
+
+  const exportMD = useCallback(async () => {
+    if (!activeProject || !projectShots.length) { toast('没有可导出的内容'); return; }
+    let md = `# ${activeProject.name}\n\n**导出时间**: ${new Date().toLocaleString('zh-CN')}\n\n---\n\n`;
+    for (let i = 0; i < projectShots.length; i++) {
+      const s = projectShots[i];
+      md += `## 场景 ${i + 1}: ${s.title || '(无标题)'}\n\n`;
+      if (s.startTime) md += `- **时间**: ${s.startTime} → ${s.endTime} (${s.duration})\n`;
+      if (s.tags?.length) md += `- **标签**: ${s.tags.map(t => `\`${t}\``).join(' ')}\n`;
+      if (s.description) md += `\n${s.description}\n`;
+      if (s.imageBlob) {
+        const dataUrl = await blobToDataUrl(s.imageBlob);
+        md += `\n![场景${i + 1}](${dataUrl})\n`;
+      }
+      md += '\n---\n\n';
+    }
+    const blob = new Blob([md], { type: 'text/markdown' });
+    saveAs(blob, `${activeProject.name}.md`);
+    toast('Markdown 已导出');
+  }, [activeProject, projectShots, toast]);
+
+  const exportZIP = useCallback(async () => {
+    if (!activeProject || !projectShots.length) { toast('没有可导出的内容'); return; }
+    const zip = new JSZip();
+    const folder = activeProject.name;
+    for (let i = 0; i < projectShots.length; i++) {
+      const s = projectShots[i];
+      const ext = s.imageBlob?.type === 'image/png' ? 'png' : s.imageBlob?.type === 'image/webp' ? 'webp' : 'jpg';
+      if (s.imageBlob) zip.file(`${folder}/scene_${String(i+1).padStart(3,'0')}.${ext}`, s.imageBlob);
+      if (s.description?.trim()) zip.file(`${folder}/scene_${String(i+1).padStart(3,'0')}.txt`, s.description);
+    }
+    const manifest = projectShots.map((s, i) => ({
+      scene: i + 1, title: s.title, startTime: s.startTime, endTime: s.endTime, duration: s.duration, tags: s.tags
+    }));
+    zip.file(`${folder}/manifest.json`, JSON.stringify(manifest, null, 2));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, `${folder}.zip`);
+    toast(`已导出 ${projectShots.length} 个分镜`);
+  }, [activeProject, projectShots, toast]);
+
+  if (!loaded) {
+    return <div className="h-screen flex items-center justify-center"><span className="text-[#555]">加载中...</span></div>;
+  }
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar
+        projects={projects}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onCreate={createProject}
+        onRename={renameProject}
+        onDelete={deleteProject}
+      />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Toolbar
+          project={activeProject}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onUpload={addImages}
+          onExportJSON={exportJSON}
+          onExportMD={exportMD}
+          onExportZIP={exportZIP}
+          shotCount={projectShots.length}
+        />
+        <ShotBoard
+          project={activeProject}
+          shots={projectShots}
+          onChangeShot={updateShot}
+          onDeleteShot={deleteShot}
+          onReorderShots={reorderShots}
+          onAddImages={addImages}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// Mount
+// ═══════════════════════════════════════════════
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <ToastProvider><App /></ToastProvider>
+);
+</script>
+</body>
+</html>
