@@ -261,12 +261,16 @@ function PresetTags({ tags, onChange }) {
   const activeCount = (tags || []).length;
   return (
     <div className="relative" onMouseLeave={() => setOpen(false)}>
-      <button className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1
+      <button className={`text-xs px-2 py-1 rounded transition-colors flex items-center gap-1 max-w-[200px]
         ${activeCount ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20' : 'text-[#555] hover:text-[#888] border border-transparent hover:border-[#2a2b48]'}`}
         onClick={() => setOpen(!open)}>
         <span>🏷</span>
-        {activeCount > 0 && <span className="text-[10px]">{activeCount}</span>}
-        <span className="text-[10px] ml-1 opacity-50">{open ? '▲' : '▼'}</span>
+        {activeCount > 0 ? (
+          <span className="text-[10px] truncate">{(tags || []).join(', ')}</span>
+        ) : (
+          <span className="text-[10px] opacity-50">标签</span>
+        )}
+        <span className="text-[10px] ml-1 opacity-50 shrink-0">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div className="absolute bottom-full left-0 mb-2 bg-[#181830] border border-[#2a2b48] rounded-xl p-3 shadow-2xl z-50 w-80"
@@ -543,10 +547,7 @@ function VariantGallery({ variants, onUpdate, onLightbox, onCompare }) {
         </label>
       </div>
 
-      {/* Variant tags editor (for primary) */}
-      {primary && (
-        <VariantTags tags={primary.tags || {}} onChange={tags => updateTags(primary.id, tags)} />
-      )}
+      {/* Variant tags editor removed — not needed for current workflow */}
     </div>
   );
 }
