@@ -1197,10 +1197,21 @@ function App() {
     return map;
   }, [shots, activeId]);
 
-  // Visible shots: filtered by active sequence + search
+  // Visible shots: filtered by active sequence + search, sorted to match Timeline
   const projectShots = useMemo(() => {
     let list = shots.filter(s => s.projectId === activeId);
     if (activeSeqId) list = list.filter(s => s.sequenceId === activeSeqId);
+    // Sort: when viewing all sequences, group by sequence to match Timeline order
+    if (!activeSeqId) {
+      const seqOrder = {};
+      projectSequences.forEach((s, i) => { seqOrder[s.id] = i; });
+      list.sort((a, b) => {
+        const sa = seqOrder[a.sequenceId] ?? 999;
+        const sb = seqOrder[b.sequenceId] ?? 999;
+        if (sa !== sb) return sa - sb;
+        return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
+      });
+    }
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
     return list.filter(s =>
@@ -1210,7 +1221,7 @@ function App() {
       (s.metadata?.prompt || '').toLowerCase().includes(q) ||
       (s.variants || []).some(v => v.label?.toLowerCase().includes(q) || Object.values(v.tags || {}).some(t => t.toLowerCase().includes(q)))
     );
-  }, [shots, activeId, activeSeqId, searchQuery]);
+  }, [shots, activeId, activeSeqId, searchQuery, projectSequences]);
 
   // ── Project CRUD ──
   const createProject = useCallback((name) => {
