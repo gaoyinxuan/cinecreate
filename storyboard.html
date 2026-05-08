@@ -902,34 +902,39 @@ function Timeline({ shots, sequences, activeSeqId, scrollContainerRef, onReorder
 // ═══════════════════════════════════════════════
 // VideoOutputPanel Component
 // ═══════════════════════════════════════════════
-function VideoOutputPanel({ videoOutput, onUpdate }) {
+function VideoOutputPanel({ sequence, onUpdate }) {
   const [collapsed, setCollapsed] = useState(false);
   const videoRef = useRef(null);
+  const meta = sequence.videoMeta || {};
+  const hasVideo = !!sequence.videoBlob;
 
   const handleFiles = useCallback((files) => {
     const video = Array.from(files).find(f => f.type.match(/^video\/(mp4|webm)$/));
     if (!video) return;
-    const info = {
+    onUpdate({
+      ...sequence,
       videoBlob: video,
-      videoName: video.name,
-      fileSize: video.size,
-      format: video.type,
-      exportDate: new Date().toISOString(),
-      duration: '',
-      versionNote: '',
-      coverBlob: null
-    };
-    onUpdate(info);
-  }, [onUpdate]);
+      videoMeta: {
+        ...meta,
+        videoName: video.name,
+        format: video.type,
+        exportDate: new Date().toISOString(),
+        duration: ''
+      }
+    });
+  }, [sequence, meta, onUpdate]);
 
-  const updateField = (key) => (e) => onUpdate({ ...videoOutput, [key]: e.target.value });
+  const updateMeta = (key) => (e) => onUpdate({
+    ...sequence,
+    videoMeta: { ...meta, [key]: e.target.value }
+  });
 
-  if (!videoOutput && !collapsed) {
+  if (!hasVideo && !collapsed) {
     return (
       <div className="border-b border-[#1e1e3a] p-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs text-[#666] font-semibold uppercase tracking-wider">Final Output</span>
-          <span className="text-[10px] text-[#555]">最终视频</span>
+          <span className="text-xs text-[#666] font-semibold uppercase tracking-wider">Video Segment</span>
+          <span className="text-[10px] text-[#555]">序列视频片段</span>
           <button className="ml-auto text-[#555] hover:text-[#aaa] text-xs transition-colors"
             onClick={() => setCollapsed(true)}>收起 ▲</button>
         </div>
@@ -937,67 +942,65 @@ function VideoOutputPanel({ videoOutput, onUpdate }) {
           className="border-2 border-dashed border-[#2a2b48] hover:border-indigo-500/50 rounded-xl p-8 text-center cursor-pointer transition-all"
           onDragOver={e => { e.preventDefault(); }}
           onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-          onClick={() => document.getElementById('videoFileInput')?.click()}
+          onClick={() => document.getElementById('seqVideoInput')?.click()}
         >
           <div className="text-3xl mb-2 opacity-40">🎥</div>
-          <div className="text-sm text-[#888]">导入最终视频成果</div>
+          <div className="text-sm text-[#888]">导入此序列的视频片段</div>
           <div className="text-xs text-[#555] mt-1">拖拽 MP4/WebM 到此处 或 点击上传</div>
-          <input id="videoFileInput" type="file" accept="video/mp4,video/webm" className="hidden"
+          <input id="seqVideoInput" type="file" accept="video/mp4,video/webm" className="hidden"
             onChange={e => { if (e.target.files.length) { handleFiles(e.target.files); e.target.value = ''; } }} />
         </div>
       </div>
     );
   }
 
-  if (!videoOutput) return null;
+  if (!hasVideo) return null;
 
-  const url = videoOutput.videoBlob ? URL.createObjectURL(videoOutput.videoBlob) : null;
+  const url = sequence.videoBlob ? URL.createObjectURL(sequence.videoBlob) : null;
 
   return (
     <div className="border-b border-[#1e1e3a] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-xs text-[#666] font-semibold uppercase tracking-wider">Final Output</span>
+        <span className="text-xs text-[#666] font-semibold uppercase tracking-wider">Video Segment</span>
         <span className="text-[10px] text-green-400">✓ 已导入</span>
         <button className="ml-auto text-[#555] hover:text-[#aaa] text-xs transition-colors"
           onClick={() => setCollapsed(!collapsed)}>{collapsed ? '展开 ▼' : '收起 ▲'}</button>
       </div>
       {!collapsed && (
         <div className="flex gap-4">
-          {/* Video preview */}
           <div className="shrink-0 w-[220px]">
             {url && (
               <video ref={videoRef} src={url} controls className="w-full rounded-lg bg-black"
                 onLoadedMetadata={e => {
                   const d = Math.round(e.target.duration);
-                  if (d && !videoOutput.duration) onUpdate({ ...videoOutput, duration: formatDurationHuman(d) });
+                  if (d && !meta.duration) onUpdate({ ...sequence, videoMeta: { ...meta, duration: formatDurationHuman(d) } });
                 }} />
             )}
           </div>
-          {/* Info */}
           <div className="flex-1 flex flex-col gap-2 text-xs">
             <div className="flex items-center gap-2">
               <span className="text-[#666] w-12">名称</span>
               <input className="flex-1 bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] outline-none focus:border-indigo-500"
-                value={videoOutput.videoName || ''} onChange={updateField('videoName')} />
+                value={meta.videoName || ''} onChange={updateMeta('videoName')} />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#666] w-12">格式</span>
-              <span className="text-[#888]">{videoOutput.format || '--'}</span>
+              <span className="text-[#888]">{meta.format || '--'}</span>
               <span className="text-[#666] ml-4 w-12">时长</span>
-              <span className="text-[#888]">{videoOutput.duration || '--'}</span>
+              <span className="text-[#888]">{meta.duration || '--'}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#666] w-12">日期</span>
-              <span className="text-[#888]">{videoOutput.exportDate ? new Date(videoOutput.exportDate).toLocaleString('zh-CN') : '--'}</span>
+              <span className="text-[#888]">{meta.exportDate ? new Date(meta.exportDate).toLocaleString('zh-CN') : '--'}</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="text-[#666] w-12 shrink-0 pt-1">备注</span>
               <textarea className="flex-1 bg-[#111122] border border-[#2a2b48] rounded px-2 py-1 text-[#ccc] outline-none focus:border-indigo-500 resize-none h-12"
                 placeholder="版本备注..."
-                value={videoOutput.versionNote || ''} onChange={updateField('versionNote')} />
+                value={meta.versionNote || ''} onChange={updateMeta('versionNote')} />
             </div>
             <button className="self-start text-[10px] text-red-400 hover:text-red-300 transition-colors mt-1"
-              onClick={() => onUpdate(null)}>移除视频</button>
+              onClick={() => onUpdate({ ...sequence, videoBlob: null, videoMeta: null })}>移除视频</button>
           </div>
         </div>
       )}
@@ -1217,7 +1220,7 @@ function App() {
     const pid = uid();
     const p = { id: pid, name, createdAt: Date.now(), updatedAt: Date.now(), aiConfig: {} };
     const defaultSeq = { id: uid(), projectId: pid, name: '默认序列', description: '', startTime: '', endTime: '',
-      coverBlob: null, videoBlob: null, videoVersion: '', orderIndex: 0, createdAt: Date.now() };
+      coverBlob: null, videoBlob: null, videoMeta: null, orderIndex: 0, createdAt: Date.now() };
     setProjects(prev => [...prev, p]);
     setSequences(prev => [...prev, defaultSeq]);
     setActiveId(pid);
@@ -1248,8 +1251,8 @@ function App() {
     setShots(prev => prev.filter(s => s.sequenceId !== id));
     if (activeSeqId === id) setActiveSeqId(null);
   }, [activeSeqId]);
-  const updateSeqVideo = useCallback((seqId, videoData) => {
-    setSequences(prev => prev.map(s => s.id === seqId ? { ...s, videoBlob: videoData?.videoBlob, videoVersion: videoData?.videoVersion, coverBlob: videoData?.coverBlob } : s));
+  const updateSeqVideo = useCallback((updatedSeq) => {
+    setSequences(prev => prev.map(s => s.id === updatedSeq.id ? updatedSeq : s));
   }, []);
 
   // ── Shot CRUD ──
@@ -1410,6 +1413,12 @@ function App() {
             shotsBySeq={shotsBySeq}
           />
         )}
+        {activeSeqId && (() => {
+          const activeSeq = projectSequences.find(s => s.id === activeSeqId);
+          return activeSeq ? (
+            <VideoOutputPanel sequence={activeSeq} onUpdate={updateSeqVideo} />
+          ) : null;
+        })()}
         <Toolbar
           project={activeProject}
           searchQuery={searchQuery}
