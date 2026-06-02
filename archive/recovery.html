@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>数据恢复工具</title>
+<script src="https://unpkg.com/dexie@4.0.4/dist/dexie.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f0f1a; color: #e8e8f0; padding: 32px; }
+  h1 { color: #7c6ff7; margin-bottom: 24px; }
+  .section { background: #1a1b32; border: 1px solid #2a2b48; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section h2 { font-size: 16px; margin-bottom: 12px; }
+  .item { padding: 8px 12px; background: #111122; border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+  button { padding: 10px 24px; background: #7c6ff7; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; margin-right: 8px; }
+  button:hover { background: #9588ff; }
+  button.danger { background: #ff6b6b; }
+  .green { color: #4ecdc4; }
+  .red { color: #ff6b6b; }
+  .yellow { color: #ffd93d; }
+  pre { font-size: 11px; color: #888; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<h1>数据恢复工具</h1>
+<div id="content">扫描中...</div>
+
+<script>
+(async () => {
+  const dbs = await indexedDB.databases();
+  const out = document.getElementById('content');
+  out.innerHTML = `<p>找到 ${dbs.length} 个 IndexedDB 数据库</p>`;
+
+  for (const dbInfo of dbs) {
+    const name = dbInfo.name;
+    const section = document.createElement('div');
+    section.className = 'section';
+    section.innerHTML = `<h2>📦 ${name} (v${dbInfo.version})</h2><div id="db-${name}">加载中...</div>`;
+    out.appendChild(section);
+
+    try {
+      const db = new Dexie(name);
+      await db.open();
+      const tables = db.tables.map(t => t.name);
+      const detail = document.getElementById(`db-${name}`);
+
+      if (tables.length === 0) {
+        detail.innerHTML = '<span class="red">空数据库，无表</span>';
+      } else {
+        let html = '';
+        for (const table of tables) {
+          const count = await db.table(table).count();
+          html += `<div class="item">📋 ${table}: <strong>${count}</strong> 条记录</div>`;
+          if (count > 0 && count <= 20) {
+            const rows = await db.table(table).limit(5).toArray();
+            html += '<pre>' + JSON.stringify(rows.map(r => {
+              const summary = { ...r };
+              if (summary.imageBlob) summary.imageBlob = `[Blob ${summary.imageBlob.size} bytes]`;
+              if (summary.variants) summary.variants = summary.variants.map(v => ({ ...v, imageBlob: v.imageBlob ? `[Blob ${v.imageBlob.size} bytes]` : null }));
+              if (summary.videoBlob) summary.videoBlob = '[Blob]';
+              if (summary.videoSegments) summary.videoSegments = summary.videoSegments.map(s => ({ ...s, videoBlob: s.videoBlob ? '[Blob]' : null }));
+              return summary;
+            }), null, 2) + '</pre>';
+          }
+        }
+        html += '<br>';
+        if (tables.includes('projects') && await db.table('projects').count() > 0) {
+          html += `<button onclick="recoverDB('${name}')">恢复此数据库</button>`;
+        }
+        if (tables.includes('cards') && await db.table('cards').count() > 0) {
+          html += `<button onclick="recoverCards('${name}')">从 cards 恢复 (旧版v1)</button>`;
+        }
+        detail.innerHTML = html;
+      }
+      db.close();
+    } catch(e) {
+      document.getElementById(`db-${name}`).innerHTML = `<span class="red">无法打开: ${e.message}</span>`;
+    }
+  }
+})();
+
+async function recoverDB(sourceName) {
+  if (!confirm(`将 ${sourceName} 的数据恢复到 StoryboardDB？这会覆盖当前数据。`)) return;
+  try {
+    const src = new Dexie(sourceName);
+    const dst = new Dexie('StoryboardDB');
+    await src.open();
+    await dst.open();
+    for (const table of ['projects', 'sequences', 'shots', 'meta']) {
+      if (src.tables.some(t => t.name === table)) {
+        await dst.table(table).clear();
+        const rows = await src.table(table).toArray();
+        if (rows.length) await dst.table(table).bulkPut(rows);
+      }
+    }
+    src.close();
+    dst.close();
+    alert('恢复完成！请重新打开 storyboard.html');
+  } catch(e) { alert('恢复失败: ' + e.message); }
+}
+
+async function recoverCards(sourceName) {
+  if (!confirm(`从 ${sourceName} 的 cards 表恢复？`)) return;
+  try {
+    const src = new Dexie(sourceName);
+    await src.open();
+    const cards = await src.table('cards').orderBy('orderIndex').toArray();
+    src.close();
+    if (cards.length === 0) { alert('无数据'); return; }
+
+    // Delete and recreate StoryboardDB
+    indexedDB.deleteDatabase('StoryboardDB');
+    await new Promise(r => setTimeout(r, 300));
+
+    const dst = new Dexie('StoryboardDB');
+    dst.version(1).stores({ projects:'id', sequences:'id,projectId,orderIndex', shots:'id,projectId,sequenceId,orderIndex', meta:'key' });
+    await dst.open();
+    const pid = crypto.randomUUID();
+    const seqId = crypto.randomUUID();
+    await dst.projects.put({ id:pid, name:'默认项目', createdAt:Date.now(), updatedAt:Date.now(), aiConfig:{} });
+    await dst.sequences.put({ id:seqId, projectId:pid, name:'默认序列', description:'', startTime:'', endTime:'', coverBlob:null, videoSegments:[], orderIndex:0, createdAt:Date.now() });
+    for (let i=0; i<cards.length; i++) {
+      const c = cards[i];
+      await dst.shots.put({ id: c.id||crypto.randomUUID(), projectId:pid, sequenceId:seqId, title:'', description:c.textContent||'', variants:c.imageBlob?[{id:crypto.randomUUID(),imageBlob:c.imageBlob,label:'主方案',letter:'方案 A',isPrimary:true,tags:{}}]:[], startTime:'', endTime:'', duration:'', tags:[], metadata:{}, orderIndex:i, createdAt:c.createdAt||Date.now() });
+    }
+    await dst.meta.put({ key:'activeProjectId', value:pid });
+    dst.close();
+    alert(`已恢复 ${cards.length} 条记录！请重新打开 storyboard.html`);
+  } catch(e) { alert('恢复失败: ' + e.message); }
+}
+</script>
+</body>
+</html>
