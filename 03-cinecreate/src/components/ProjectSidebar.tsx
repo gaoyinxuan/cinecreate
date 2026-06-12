@@ -78,7 +78,7 @@ export default function ProjectSidebar(props: Props) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg width="24" height="24" viewBox="0 0 256 256" fill="none" className="shrink-0 text-[var(--accent-solid)]"><circle cx="128" cy="128" r="72" stroke="currentColor" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="currentColor"/></svg>
-            <div className="text-[13px] font-semibold text-[var(--text)] leading-tight">CineCreate</div>
+            <div className="text-[15px] font-bold text-[var(--text)] leading-tight">CineCreate</div>
           </div>
           <button className="text-[11px] text-[var(--muted)] hover:text-[var(--text2)]" onClick={() => { toggleTheme(); window.dispatchEvent(new Event('themechange')); }} title="切换主题">
             {theme==='dark'?'☀️':'🌙'}
