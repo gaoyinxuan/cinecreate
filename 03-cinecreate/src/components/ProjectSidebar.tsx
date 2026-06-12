@@ -11,14 +11,13 @@ interface Props {
   onSelectDraft: (draftId: string) => void; selectedDraftId: string | null;
   onSelectStoryboard: () => void;
   onSelectImageTools: () => void; onSelectVideoTools: () => void;
-  activeMode: string | null; // 'drafts' | 'tools-image' | 'tools-video' | 'storyboard' | null
+  activeMode: string | null;
   onShowWelcome?: () => void;
 }
 
 export default function ProjectSidebar(props: Props) {
   const { projects, activeId, onSelect, onCreate, onRename, onDelete, onSelectDraft, selectedDraftId, onSelectStoryboard, onSelectImageTools, onSelectVideoTools, activeMode, onShowWelcome } = props;
 
-  // ── State ──
   const [editId, setEditId] = useState<string|null>(null);
   const [editName, setEditName] = useState('');
   const [editDraftId, setEditDraftId] = useState<string|null>(null);
@@ -45,7 +44,6 @@ export default function ProjectSidebar(props: Props) {
   }, [activeId]);
   useEffect(() => { loadDrafts(); }, [loadDrafts]);
 
-  // Close menus on outside click
   useEffect(() => { const h = () => { setMenuOpen(null); }; document.addEventListener('click',h); return ()=>document.removeEventListener('click',h); }, []);
 
   const submitCreate = () => { const n=newName.trim(); if(n){onCreate(n);setCreating(false);setNewName('');} };
@@ -55,180 +53,181 @@ export default function ProjectSidebar(props: Props) {
     setDrafts(p=>[...p,d]); setShowDocs({[prjId]:true}); onSelectDraft(d.id);
   };
 
-  // ── Render helpers ──
-  const aw = 'w-4 text-xs text-center shrink-0 select-none inline-block leading-none';
-
-  // Shared: all sub-items under project share the same left alignment
-  const indent = 'ml-4'; // indent for children of Section
-
-  // L1: Section header (文稿/工具) — clickable, expandable
-  const Section = ({show,toggle,label,extra,children,active}:{show:boolean;toggle:()=>void;label:string;extra?:any;children?:any;active?:boolean}) => (
-    <div>
-      <div className={`flex items-center h-7 cursor-pointer transition-colors ${active?'text-[var(--text)] font-semibold':'text-[var(--text2)] hover:text-[var(--text)]'}`} onClick={toggle}>
-        <span className={aw}>{show?'▼':'▶'}</span><span className="text-xs font-semibold">{label}</span>{extra}
-      </div>
-      {show && <div className={indent}>{children}</div>}
-    </div>
+  // ── Shared styles ──
+  const rowBase = 'flex items-center h-7 rounded cursor-pointer transition-colors group';
+  const rowActive = 'bg-black/5 text-[var(--text)]';
+  const rowIdle = 'text-[var(--text3)] hover:bg-black/3 hover:text-[var(--text2)]';
+  const chevron = (open:boolean) => (
+    <svg width="10" height="10" viewBox="0 0 10 10" className={`shrink-0 mr-1 transition-transform ${open?'rotate-90':''}`}>
+      <path d="M3.5 1.5L6.5 5L3.5 8.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
   );
 
-  // L2: Leaf item — uses same arrow placeholder width as Section for text alignment
-  const Leaf = ({active,onClick,icon,label,onEdit,onDelete,hoverBtns}:{active?:boolean;onClick:()=>void;icon:string;label:string;onEdit?:()=>void;onDelete?:()=>void;hoverBtns?:boolean}) => (
-    <div className={`group flex items-center h-7 rounded cursor-pointer ${active?'bg-[var(--accent-solid)]/15 text-[var(--text)] font-semibold':'text-[var(--text2)] hover:bg-white/[0.04]'}`} onClick={onClick}>
-      <span className={aw}>&nbsp;</span>
-      <span className="text-xs font-semibold truncate flex-1">{icon} {label}</span>
-      {hoverBtns && (
-        <div className="hidden group-hover:flex items-center gap-0.5 shrink-0 pr-1">
-          {onEdit&&<button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs" onClick={e=>{e.stopPropagation();onEdit();}}>✎</button>}
-          {onDelete&&<button className="text-[var(--muted)] hover:text-red-400 text-xs" onClick={e=>{e.stopPropagation();onDelete();}}>✕</button>}
-        </div>
-      )}
-    </div>
-  );
-
-  // Inline delete confirm bar
   const DelBar = ({msg,onConfirm,onCancel}:{msg:string;onConfirm:()=>void;onCancel:()=>void}) => (
-    <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-400/80">
+    <div className="flex items-center gap-2 bg-red-500/8 border border-red-500/15 rounded px-2 py-1.5 text-[11px] text-red-500/80">
       <span className="flex-1">{msg}</span>
-      <button className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 rounded text-xs" onClick={onConfirm}>确认</button>
-      <button className="px-2 py-0.5 text-[var(--text3)] hover:text-[var(--text)] text-xs" onClick={onCancel}>取消</button>
+      <button className="px-1.5 py-0.5 bg-red-500/15 hover:bg-red-500/25 rounded text-[11px]" onClick={onConfirm}>确认</button>
+      <button className="px-1.5 py-0.5 text-[var(--text3)] hover:text-[var(--text)] text-[11px]" onClick={onCancel}>取消</button>
     </div>
   );
 
   return (
     <div className="w-56 bg-[var(--bg2)] border-r border-[var(--border)] flex flex-col h-full shrink-0">
       {/* Logo */}
-      <div className="px-5 py-3 border-b border-[var(--border)]">
+      <div className="px-4 py-3 border-b border-[var(--border)]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <svg width="28" height="28" viewBox="0 0 256 256" fill="none" className="shrink-0 text-[var(--accent-solid)]"><circle cx="128" cy="128" r="72" stroke="currentColor" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="currentColor"/></svg>
-            <div>
-              <h1 className="text-sm font-bold text-[var(--accent-text)] tracking-wide">影创</h1>
-              <p className="text-xs text-[var(--muted)] mt-0.5">CineCreate</p>
+          <div className="flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 256 256" fill="none" className="shrink-0 text-[var(--accent-solid)]"><circle cx="128" cy="128" r="72" stroke="currentColor" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="currentColor"/></svg>
+            <div className="leading-tight">
+              <div className="text-[13px] font-semibold text-[var(--text)]">影创</div>
+              <div className="text-[10px] text-[var(--muted)]">CineCreate</div>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button className="text-xs text-[var(--muted)] hover:text-[var(--text2)] flex items-center gap-1" onClick={() => { toggleTheme(); window.dispatchEvent(new Event('themechange')); }} title="切换主题">{theme==='dark'?'🌙':'☀️'}<span className="text-[var(--muted)]">{theme==='dark'?'深色':'浅色'}</span></button>
-          </div>
+          <button className="text-[11px] text-[var(--muted)] hover:text-[var(--text2)]" onClick={() => { toggleTheme(); window.dispatchEvent(new Event('themechange')); }} title="切换主题">
+            {theme==='dark'?'☀️':'🌙'}
+          </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-2 py-2">
-          {/* Onboarding guide */}
-          {onShowWelcome && (
-            <div className="mb-2">
-              <div className="flex items-center gap-2 h-7 px-3 rounded cursor-pointer text-[var(--text2)] hover:text-[var(--text)] transition-colors"
-                onClick={onShowWelcome}>
-                <span className="text-sm">📖</span>
-                <span className="text-xs">新手引导</span>
-              </div>
-            </div>
-          )}
-
-          {/* Section header */}
-          <div className="flex items-center justify-between px-2 mb-1.5">
-            <span className="text-sm text-[var(--text2)] font-semibold uppercase tracking-wider">项目</span>
-            <button className="text-[var(--dim)] hover:text-[var(--text2)] text-sm leading-none px-1 outline-none focus:outline-none" onClick={()=>{setCreating(true);setNewName('');}}>+</button>
+      <div className="flex-1 overflow-y-auto px-3 py-2">
+        {/* Guide */}
+        {onShowWelcome && (
+          <div className="flex items-center gap-2 h-7 px-2 rounded cursor-pointer text-[var(--text3)] hover:text-[var(--text)] hover:bg-black/3 text-[11px] mb-1"
+            onClick={onShowWelcome}>
+            <span className="text-xs opacity-60">?</span>
+            <span>新手引导</span>
           </div>
+        )}
 
-          {/* Inline create project */}
-          {creating && (
-            <div className="mb-2 px-1">
-              <div className="flex items-center gap-1 bg-[var(--card)] border border-gold-400/50 rounded-lg px-2 py-1">
-                <span className="text-xs">📁</span>
-                <input className="flex-1 bg-transparent text-xs text-[var(--text)] outline-none min-w-0" placeholder="项目名称..."
-                  value={newName} onChange={e=>setNewName(e.target.value)}
-                  onKeyDown={e=>{if(e.key==='Enter')submitCreate();if(e.key==='Escape'){setCreating(false);setNewName('');}}} autoFocus />
-                <button className="text-xs px-2 py-0.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white rounded" onClick={submitCreate}>确定</button>
-                <button className="text-xs text-[var(--text3)] hover:text-[var(--text)]" onClick={()=>{setCreating(false);setNewName('');}}>取消</button>
+        {/* Section header */}
+        <div className="flex items-center justify-between px-2 h-7 mb-0.5">
+          <span className="text-[10px] text-[var(--muted)] font-medium uppercase tracking-widest">项目</span>
+          <button className="text-[var(--dim)] hover:text-[var(--text2)] text-sm leading-none" onClick={()=>{setCreating(true);setNewName('');}}>+</button>
+        </div>
+
+        {/* Inline create project */}
+        {creating && (
+          <div className="mb-1 px-1">
+            <div className="flex items-center gap-1 bg-[var(--card)] border border-[var(--accent-text)]/20 rounded px-2 py-1">
+              <input className="flex-1 bg-transparent text-[11px] text-[var(--text)] outline-none min-w-0" placeholder="项目名称..."
+                value={newName} onChange={e=>setNewName(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter')submitCreate();if(e.key==='Escape'){setCreating(false);setNewName('');}}} autoFocus />
+              <button className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white rounded" onClick={submitCreate}>确定</button>
+              <button className="text-[10px] text-[var(--text3)] hover:text-[var(--text)]" onClick={()=>{setCreating(false);setNewName('');}}>取消</button>
+            </div>
+          </div>
+        )}
+
+        {delProjId && (
+          <div className="mb-1"><DelBar msg="永久删除此项目？" onConfirm={()=>{onDelete(delProjId);setDelProjId(null);}} onCancel={()=>setDelProjId(null)}/></div>
+        )}
+
+        {/* Project list */}
+        {projects.map(prj => {
+          const isActive = activeId===prj.id, isExp = !!expanded[prj.id];
+          return (<div key={prj.id} className="mb-0.5">
+            <div className={`${rowBase} ${isActive?rowActive+' border-l-[3px] border-[var(--accent-solid)] pl-[5px]':'rowIdle border-l-[3px] border-transparent pl-[5px]'} pl-2`}
+              onClick={()=>{if(isActive)setExpanded({[prj.id]:!isExp});else{onSelect(prj.id);setExpanded({[prj.id]:true});}}}>
+              <span className="w-4 flex items-center justify-center shrink-0">
+                {isActive ? chevron(isExp) : <span className="w-[10px]" />}
+              </span>
+              {editId===prj.id ? (
+                <input className="flex-1 bg-[var(--card)] border border-[var(--accent-text)]/20 rounded px-1 py-0 text-[11px] text-[var(--text)] outline-none min-w-0"
+                  value={editName} onChange={e=>setEditName(e.target.value)}
+                  onBlur={()=>{if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}}
+                  onKeyDown={e=>{if(e.key==='Enter'){if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}if(e.key==='Escape')setEditId(null);}}
+                  autoFocus onClick={e=>e.stopPropagation()} />
+              ) : (
+                <span className="flex-1 text-[12px] font-medium truncate">{prj.name}</span>
+              )}
+              <div className="hidden group-hover:flex items-center relative shrink-0" onClick={e=>e.stopPropagation()}>
+                <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs px-0.5" onClick={()=>setMenuOpen(menuOpen===prj.id?null:prj.id)}>⋯</button>
+                {menuOpen===prj.id && (
+                  <div className="absolute right-0 top-full mt-1 bg-[var(--card)] border border-[var(--border)] rounded-md shadow-lg z-50 py-0.5 min-w-[90px]">
+                    <button className="block w-full text-left text-[11px] px-3 py-1 text-[var(--text2)] hover:bg-black/4"
+                      onClick={()=>{setEditId(prj.id);setEditName(prj.name);setMenuOpen(null);}}>重命名</button>
+                    <button className="block w-full text-left text-[11px] px-3 py-1 text-[var(--text2)] hover:bg-red-500/8 hover:text-red-500"
+                      onClick={()=>{setDelProjId(prj.id);setMenuOpen(null);}}>删除</button>
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Delete confirm */}
-          {delProjId && (
-            <div className="mb-2"><DelBar msg="永久删除此项目？" onConfirm={()=>{onDelete(delProjId);setDelProjId(null);}} onCancel={()=>setDelProjId(null)}/></div>
-          )}
-
-          {/* Project list */}
-          {projects.map(prj => {
-            const isActive = activeId===prj.id, isExp = !!expanded[prj.id];
-            return (<div key={prj.id} className="mb-0.5">
-              {/* Project row */}
-              <div className={`group flex items-center gap-1 h-8 rounded-lg cursor-pointer transition-colors ${isActive?'bg-[var(--accent-solid)]/15 text-[var(--text)] border border-gold-400/20':'hover:bg-white/[0.03] text-[var(--text2)] border border-transparent'}`}
-                onClick={()=>{if(isActive)setExpanded({[prj.id]:!isExp});else{onSelect(prj.id);setExpanded({[prj.id]:true});}}}>
-                <span className="w-4 text-center text-xs shrink-0">{isActive?(isExp?'▼':'▶'):''}</span>
-                {editId===prj.id ? (
-                  <input className="flex-1 bg-[var(--card)] border border-gold-400 rounded px-1 py-0 text-xs text-[var(--text)] outline-none min-w-0"
-                    value={editName} onChange={e=>setEditName(e.target.value)}
-                    onBlur={()=>{if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}}
-                    onKeyDown={e=>{if(e.key==='Enter'){if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}if(e.key==='Escape')setEditId(null);}}
-                    autoFocus onClick={e=>e.stopPropagation()} />
-                ) : (
-                  <span className="flex-1 text-sm font-medium truncate">📁 {prj.name}</span>
-                )}
-                <div className="hidden group-hover:flex items-center relative" onClick={e=>e.stopPropagation()}>
-                  <button className="text-[var(--muted)] hover:text-[var(--text2)] text-sm px-1 leading-none" onClick={()=>setMenuOpen(menuOpen===prj.id?null:prj.id)}>⋯</button>
-                  {menuOpen===prj.id && (
-                    <div className="absolute right-0 top-full mt-1 bg-[var(--card)] border border-[var(--border2)] rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
-                      <button className="block w-full text-left text-xs px-3 py-1.5 text-[var(--text2)] hover:bg-white/[0.06] hover:text-[var(--text)]"
-                        onClick={()=>{setEditId(prj.id);setEditName(prj.name);setMenuOpen(null);}}>✎ 重命名</button>
-                      <button className="block w-full text-left text-xs px-3 py-1.5 text-[var(--text2)] hover:bg-red-500/10 hover:text-red-400"
-                        onClick={()=>{setDelProjId(prj.id);setMenuOpen(null);}}>✕ 删除</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Expanded tree — all items at same indent level */}
-              {isActive && isExp && (
-                <div className="ml-4 border-l border-[var(--border)] pl-2 space-y-0.5">
-                  {/* ── 文稿 ── */}
-                  <Section show={!!showDocs[prj.id]} toggle={()=>setShowDocs({[prj.id]:!showDocs[prj.id]})} label="📝 文稿" active={activeMode==='drafts'}
-                    extra={<button className="text-sm text-[var(--muted)] hover:text-[var(--text2)] ml-auto shrink-0 leading-none" onClick={e=>{e.stopPropagation();setShowDocs({[prj.id]:true});addDraft(prj.id);}}>+</button>}>
+            {/* Expanded tree */}
+            {isActive && isExp && (
+              <div className="ml-5 border-l border-[var(--border)] pl-2 space-y-0">
+                {/* 文稿 */}
+                <div>
+                  <div className={`${rowBase} px-1 ${activeMode==='drafts'?'text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
+                    onClick={()=>setShowDocs({[prj.id]:!showDocs[prj.id]})}>
+                    <span className="w-3.5 flex items-center justify-center shrink-0">
+                      {showDocs[prj.id] ? chevron(true) : <span className="w-[10px]" />}
+                    </span>
+                    <span className="text-[11px] flex-1">文稿</span>
+                    <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs shrink-0 leading-none"
+                      onClick={e=>{e.stopPropagation();setShowDocs({[prj.id]:true});addDraft(prj.id);}}>+</button>
+                  </div>
+                  {showDocs[prj.id] && <div className="ml-3">
                     {delDraftId && <DelBar msg="永久删除此草稿？" onConfirm={()=>{db.dts.delete(delDraftId).catch(()=>{});setDrafts(p=>p.filter(x=>x.id!==delDraftId));setDelDraftId(null);}} onCancel={()=>setDelDraftId(null)}/>}
                     {drafts.map((d:any)=>(
-                      <Leaf key={d.id} active={selectedDraftId===d.id} hoverBtns
-                        onClick={()=>onSelectDraft(d.id)} icon="📄" label={d.name}
-                        onEdit={()=>{setEditDraftId(d.id);setEditDraftName(d.name);}}
-                        onDelete={()=>setDelDraftId(d.id)} />
+                      <div key={d.id} className={`${rowBase} text-[11px] px-1 ${selectedDraftId===d.id?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
+                        onClick={()=>onSelectDraft(d.id)}>
+                        <span className="w-3.5 shrink-0" />
+                        <span className="flex-1 truncate">{d.name}</span>
+                        <span className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                          <button className="text-[var(--muted)] hover:text-[var(--text2)] text-[10px]" onClick={e=>{e.stopPropagation();setEditDraftId(d.id);setEditDraftName(d.name);}}>✎</button>
+                          <button className="text-[var(--muted)] hover:text-red-400 text-[10px]" onClick={e=>{e.stopPropagation();setDelDraftId(d.id);}}>✕</button>
+                        </span>
+                      </div>
                     ))}
-                  </Section>
-
-                  {/* ── 工具 ── */}
-                  <Section show={!!showTool[prj.id]} toggle={()=>setShowTool({[prj.id]:!showTool[prj.id]})} label="🔧 工具" active={activeMode==='tools-image'||activeMode==='tools-video'}>
-                    <Leaf onClick={()=>{onSelectImageTools();}} icon="🖼️" label="生图" active={activeMode==='tools-image'} />
-                    <Leaf onClick={()=>{onSelectVideoTools();}} icon="🎥" label="视频" active={activeMode==='tools-video'} />
-                  </Section>
-
-                  {/* ── 分镜 ── */}
-                  <div className={`flex items-center h-7 cursor-pointer transition-colors ${activeMode==='storyboard'?'text-[var(--text)] font-semibold':'text-[var(--text2)] hover:text-[var(--text)]'}`}
-                    onClick={()=>onSelectStoryboard()}>
-                    <span className={aw}>&nbsp;</span><span className="text-xs font-semibold">🎬 分镜</span>
-                  </div>
+                  </div>}
                 </div>
-              )}
-            </div>);
-          })}
-          {projects.length===0 && <div className="text-xs text-[var(--muted)] text-center py-6">暂无项目，点击 + 创建</div>}
-        </div>
+
+                {/* 工具 */}
+                <div>
+                  <div className={`${rowBase} px-1 ${activeMode==='tools-image'||activeMode==='tools-video'?'text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
+                    onClick={()=>setShowTool({[prj.id]:!showTool[prj.id]})}>
+                    <span className="w-3.5 flex items-center justify-center shrink-0">
+                      {showTool[prj.id] ? chevron(true) : <span className="w-[10px]" />}
+                    </span>
+                    <span className="text-[11px] flex-1">工具</span>
+                  </div>
+                  {showTool[prj.id] && <div className="ml-3">
+                    <div className={`${rowBase} text-[11px] px-1 ${activeMode==='tools-image'?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
+                      onClick={()=>onSelectImageTools()}><span className="w-3.5 shrink-0" /><span className="flex-1">生图</span></div>
+                    <div className={`${rowBase} text-[11px] px-1 ${activeMode==='tools-video'?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
+                      onClick={()=>onSelectVideoTools()}><span className="w-3.5 shrink-0" /><span className="flex-1">视频</span></div>
+                  </div>}
+                </div>
+
+                {/* 分镜 */}
+                <div className={`${rowBase} px-1 ${activeMode==='storyboard'?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
+                  onClick={()=>onSelectStoryboard()}>
+                  <span className="w-3.5 shrink-0" />
+                  <span className="text-[11px]">分镜</span>
+                </div>
+              </div>
+            )}
+          </div>);
+        })}
+        {projects.length===0 && <div className="text-[11px] text-[var(--muted)] text-center py-8">暂无项目</div>}
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-2 border-t border-[var(--border)] text-xs text-[var(--muted)]">{projects.length} 个项目</div>
+      <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--muted)]">{projects.length} 个项目</div>
 
-      {/* Inline rename inputs for drafts */}
+      {/* Rename draft dialog */}
       {editDraftId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={()=>setEditDraftId(null)}>
-          <div className="bg-[var(--card)] border border-[var(--border2)] rounded-xl p-4 w-72 shadow-2xl" onClick={e=>e.stopPropagation()}>
-            <div className="text-xs text-[var(--text3)] mb-2">重命名草稿</div>
-            <input className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-gold-400 mb-3"
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={()=>setEditDraftId(null)}>
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 w-72 shadow-xl" onClick={e=>e.stopPropagation()}>
+            <div className="text-[11px] text-[var(--text3)] mb-2">重命名草稿</div>
+            <input className="w-full bg-[var(--card2)] border border-[var(--border)] rounded-lg px-3 py-2 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-text)]/30 mb-3"
               value={editDraftName} onChange={e=>setEditDraftName(e.target.value)}
               onKeyDown={e=>{if(e.key==='Enter'){if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}if(e.key==='Escape')setEditDraftId(null);}} autoFocus />
             <div className="flex gap-2">
-              <button className="flex-1 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg" onClick={()=>{if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}}>确定</button>
-              <button className="flex-1 py-1.5 bg-[#2a2b48] text-[var(--text2)] text-xs rounded-lg" onClick={()=>setEditDraftId(null)}>取消</button>
+              <button className="flex-1 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-[11px] font-medium rounded-lg" onClick={()=>{if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}}>确定</button>
+              <button className="flex-1 py-1.5 bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] text-[11px] rounded-lg" onClick={()=>setEditDraftId(null)}>取消</button>
             </div>
           </div>
         </div>
