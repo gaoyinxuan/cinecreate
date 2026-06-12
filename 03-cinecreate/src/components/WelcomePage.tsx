@@ -7,9 +7,9 @@ interface Props { onCreateProject: () => void; onClose?: () => void; }
 
 export default function WelcomePage({ onCreateProject, onClose }: Props) {
   const cards = [
-    { icon:'📋', title:'文稿', items:['故事大纲','角色设定','场景规划','镜头制作'] },
-    { icon:'⚒️', title:'工具', items:['AI 生图','AI 视频','Prompt 验证','素材生成'] },
-    { icon:'📐', title:'分镜', items:['图片管理','视频管理','镜头整理','项目归档'] },
+    { icon:'📝', title:'文稿', items:['故事大纲','角色设定','场景规划','镜头制作'] },
+    { icon:'🔧', title:'工具', items:['AI 生图','AI 视频','Prompt 验证','素材生成'] },
+    { icon:'🎬', title:'分镜', items:['图片管理','视频管理','镜头整理','项目归档'] },
   ];
 
   return (
@@ -58,13 +58,13 @@ export default function WelcomePage({ onCreateProject, onClose }: Props) {
 
         {/* Workflow */}
         <div className="flex items-center justify-center gap-3 text-sm text-[var(--muted)] mb-8">
-          <span>📋 文稿</span><span>→</span><span>⚒️ 工具</span><span>→</span><span>📐 分镜</span>
+          <span>📝 文稿</span><span>→</span><span>🔧 工具</span><span>→</span><span>🎬 分镜</span>
         </div>
         <p className="text-xs text-[var(--muted)] mb-6">先完成故事创作 → 再生成素材 → 最后统一管理</p>
 
         <button className="px-8 py-3 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-xl shadow-lg transition-all"
           onClick={onCreateProject}>
-          创建第一个项目
+          ✨ 创建第一个项目
         </button>
       </div>
     </div>
