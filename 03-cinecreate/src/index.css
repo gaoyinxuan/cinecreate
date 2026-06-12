@@ -6,20 +6,20 @@
 
 /* Theme variables */
 :root,[data-theme="dark"]{
-  --bg:#0d0d0d;--bg2:#121212;--card:#181818;--card2:#101010;--input:#101010;
-  --text:#c8c8d0;--text2:#9898a0;--text3:#787880;--muted:#606068;--dim:#686870;
-  --border:#1e1e1e;--border2:#282828;--hover:rgba(255,255,255,0.03);
-  --accent-bg:rgba(192,160,96,0.1);--accent-text:#C0A060;
-  --scrollbar-thumb:#282828;--scrollbar-hover:#383838;
-  --surface:#080808;
+  --bg:#0f0f0f;--bg2:#141414;--card:#1a1a1a;--card2:#111111;--input:#111111;
+  --text:#e8e8f0;--text2:#aaa;--text3:#888;--muted:#555;--dim:#666;
+  --border:#1e1e1e;--border2:#2a2a2a;--hover:rgba(255,255,255,0.03);
+  --accent-bg:rgba(214,179,106,0.12);--accent-text:#D6B36A;
+  --scrollbar-thumb:#2a2a2a;--scrollbar-hover:#3a3a3a;
+  --surface:#0a0a0a;
 }
 [data-theme="light"]{
-  --bg:#f5f5f5;--bg2:#efeff0;--card:#fafafa;--card2:#f0f0f2;--input:#fafafa;
-  --text:#1a1a1a;--text2:#606060;--text3:#909090;--muted:#a0a0a0;--dim:#b0b0b0;
-  --border:#e0e0e2;--border2:#d4d4d8;--hover:rgba(0,0,0,0.03);
-  --accent-bg:rgba(192,160,96,0.12);--accent-text:#8B6828;
-  --scrollbar-thumb:#d4d4d8;--scrollbar-hover:#b8b8bc;
-  --surface:#eaeaec;
+  --bg:#ffffff;--bg2:#f9f9fb;--card:#ffffff;--card2:#f5f5f7;--input:#ffffff;
+  --text:#0a0a0a;--text2:#1a1a1a;--text3:#2a2a2a;--muted:#666666;--dim:#888888;
+  --border:#e8e8ea;--border2:#dddde0;--hover:rgba(0,0,0,0.04);
+  --accent-bg:rgba(214,179,106,0.1);--accent-text:#B38A2E;
+  --scrollbar-thumb:#d0d0d4;--scrollbar-hover:#b0b0b4;
+  --surface:#f4f4f6;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 button:focus:not(:focus-visible){outline:none}button:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
@@ -29,10 +29,10 @@ button:focus:not(:focus-visible){outline:none}button:focus-visible{outline:2px s
 ::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover)}
 
 /* Timeline drag feedback */
-.tl-dragging{opacity:.25!important;transform:scale(.93);box-shadow:0 4px 16px rgba(192,160,96,.3);transition:transform .15s ease,opacity .15s ease,box-shadow .15s ease}
-.tl-ghost{border:1.5px dashed #C0A060!important;background:rgba(192,160,96,.08)!important;transition:border .15s ease,background .15s ease}
-@keyframes tl-land{0%{box-shadow:0 0 0 0 rgba(192,160,96,.6)}50%{box-shadow:0 0 12px 3px rgba(192,160,96,.25)}100%{box-shadow:0 0 0 0 rgba(192,160,96,0)}}
-.tl-landed{animation:tl-land .5s ease;border-color:#C0A060!important;transition:border-color .4s ease}
+.tl-dragging{opacity:.25!important;transform:scale(.93);box-shadow:0 4px 16px rgba(214,179,106,.3);transition:transform .15s ease,opacity .15s ease,box-shadow .15s ease}
+.tl-ghost{border:1.5px dashed #D6B36A!important;background:rgba(214,179,106,.08)!important;transition:border .15s ease,background .15s ease}
+@keyframes tl-land{0%{box-shadow:0 0 0 0 rgba(214,179,106,.6)}50%{box-shadow:0 0 12px 3px rgba(214,179,106,.25)}100%{box-shadow:0 0 0 0 rgba(214,179,106,0)}}
+.tl-landed{animation:tl-land .5s ease;border-color:#D6B36A!important;transition:border-color .4s ease}
 @keyframes compare-overlay-in{from{opacity:0}to{opacity:1}}
 @keyframes compare-img-float{from{opacity:0;transform:scale(.94) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .compare-overlay{animation:compare-overlay-in .35s ease;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
