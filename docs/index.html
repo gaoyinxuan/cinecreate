@@ -3,203 +3,458 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CineCreate — AI Video Director Workbench</title>
+<title>CineCreate — AI 视频创作工作台</title>
+<meta name="description" content="影创 CineCreate — 免费开源的 AI 视频创作工作台。一站式完成故事设定、角色设计、场景规划、镜头 Prompt 生成。DeepSeek 驱动，支持 GPT Image、豆包、Kling 等主流 AI 工具。">
+<meta name="keywords" content="AI视频创作,分镜管理,AI导演,DeepSeek,视频制作,故事板,AI生图,AI视频">
+<meta property="og:title" content="CineCreate — AI 视频创作工作台">
+<meta property="og:description" content="从创意到成片，AI 导演全程陪伴。免费开源的 AI 视频分镜脚本管理桌面应用。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://gaoyinxuan.github.io/project_001/">
+<meta property="og:image" content="https://gaoyinxuan.github.io/project_001/screenshots/workspace.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CineCreate — AI 视频创作工作台">
+<meta name="twitter:description" content="从创意到成片，AI 导演全程陪伴。免费开源的 AI 视频分镜脚本管理桌面应用。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
+/* ═══════════════════════════════════════════════
+   Design System — OpenAI-inspired Dark Theme
+   ═══════════════════════════════════════════════ */
 :root {
-  --bg:#fff; --text:#111; --text2:#555; --muted:#999;
-  --accent:#5b4ae0; --accent2:#7c6ff7;
-  --card:#f8f8fa; --border:#e8e8ec;
+  --bg:#0a0a0a;
+  --bg2:#0f0f0f;
+  --surface:#141414;
+  --surface2:#1a1a1a;
+  --border:rgba(255,255,255,.06);
+  --border2:rgba(255,255,255,.10);
+  --text:#f5f5f7;
+  --text2:#a1a1aa;
+  --text3:#71717a;
+  --muted:#52525b;
+  --accent:#7c6ff7;
+  --accent-glow:rgba(124,111,247,.3);
+  --accent-dim:rgba(124,111,247,.08);
+  --green:#22c55e;
+  --green-dim:rgba(34,197,94,.1);
 }
-*{margin:0;padding:0;box-sizing:border-box}
-body{font:400 16px/1.6 'Inter','Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font:400 16px/1.6 'Inter','Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+/* ── Background orbs ── */
+body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(120px);opacity:.15;pointer-events:none;z-index:0}
+body::before{width:600px;height:600px;background:radial-gradient(circle,rgba(124,111,247,.4),transparent 70%);top:-200px;left:-100px;animation:orb1 20s ease-in-out infinite}
+body::after{width:500px;height:500px;background:radial-gradient(circle,rgba(99,102,241,.3),transparent 70%);bottom:-150px;right:-100px;animation:orb2 25s ease-in-out infinite}
+@keyframes orb1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(80px,60px) scale(1.15)}66%{transform:translate(-40px,30px) scale(.9)}}
+@keyframes orb2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-60px,-40px) scale(1.2)}66%{transform:translate(40px,-20px) scale(.85)}}
+
 a{color:inherit;text-decoration:none}
 h1,h2,h3{font-weight:700;letter-spacing:-.02em}
-.container{max-width:1200px;margin:0 auto;padding:0 32px}
-.section{padding:100px 0}
 
-/* Nav */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .3s}
-nav.scrolled{border-bottom-color:var(--border)}
-nav .container{display:flex;align-items:center;justify-content:space-between;height:64px}
-nav .logo{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
-nav .logo span{color:var(--accent)}
-nav .links{display:flex;gap:28px;font-size:.85rem;color:var(--text2);font-weight:500}
+/* ── Utility ── */
+.container{max-width:1200px;margin:0 auto;padding:0 40px;position:relative;z-index:1}
+.section{padding:120px 0;position:relative;z-index:1}
+.section-label{display:inline-block;font-size:.75rem;font-weight:600;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;margin-bottom:16px}
+.section-title{font-size:3rem;font-weight:800;line-height:1.15;margin-bottom:20px}
+.section-desc{font-size:1.1rem;color:var(--text2);max-width:560px;line-height:1.7}
+
+/* ── Nav ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;transition:all .35s cubic-bezier(.16,1,.3,1)}
+nav.scrolled{background:rgba(10,10,10,.8);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border)}
+nav .container{display:flex;align-items:center;justify-content:space-between;height:72px}
+nav .logo{font-size:1.25rem;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+nav .logo .icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem}
+nav .logo span{background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+nav .links{display:flex;gap:32px;font-size:.85rem;color:var(--text2);font-weight:500;align-items:center}
+nav .links a{transition:color .2s;position:relative}
 nav .links a:hover{color:var(--text)}
-nav .lang{font-size:.82rem;color:var(--accent);cursor:pointer;font-weight:600;background:none;border:1px solid var(--border);border-radius:20px;padding:6px 14px}
-nav .lang:hover{background:var(--card)}
+nav .links a::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:1.5px;background:var(--accent);border-radius:1px;transform:scaleX(0);transition:transform .2s ease}
+nav .links a:hover::after{transform:scaleX(1)}
+nav .lang{font-size:.82rem;color:var(--text2);cursor:pointer;font-weight:600;background:var(--surface2);border:1px solid var(--border);border-radius:24px;padding:8px 16px;transition:all .2s;font-family:inherit}
+nav .lang:hover{color:var(--text);border-color:var(--border2)}
+nav .hamburger{display:none;background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;padding:8px}
 
-/* Hero */
-.hero{padding:160px 0 100px;text-align:center}
-.hero .tag{display:inline-block;font-size:.78rem;font-weight:600;color:var(--accent);background:rgba(91,74,224,.08);padding:6px 16px;border-radius:20px;margin-bottom:28px;letter-spacing:.04em;text-transform:uppercase}
-.hero h1{font-size:4rem;font-weight:800;line-height:1.1;margin-bottom:20px;max-width:800px;margin-left:auto;margin-right:auto}
-.hero h1 em{font-style:normal;background:linear-gradient(135deg,#5b4ae0,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{font-size:1.18rem;color:var(--text2);max-width:520px;margin:0 auto 40px}
+/* ── Hero ── */
+.hero{padding:200px 0 140px;text-align:center;position:relative;z-index:1}
+.hero .tag{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(124,111,247,.15);padding:8px 20px;border-radius:24px;margin-bottom:32px;letter-spacing:.04em}
+.hero .tag .dot{width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 var(--accent-glow)}50%{opacity:.5;box-shadow:0 0 0 8px transparent}}
+.hero h1{font-size:clamp(2.5rem,6vw,5rem);font-weight:900;line-height:1.08;margin-bottom:24px;max-width:900px;margin-left:auto;margin-right:auto;letter-spacing:-.03em}
+.hero h1 .gradient{background:linear-gradient(135deg,#a78bfa 0%,#7c6ff7 30%,#6366f1 60%,#a78bfa 100%);background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:hero-shimmer 6s ease-in-out infinite}
+@keyframes hero-shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.hero p{font-size:1.2rem;color:var(--text2);max-width:580px;margin:0 auto 44px;line-height:1.7}
 .hero .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:14px 30px;border-radius:12px;font-size:.9rem;font-weight:600;transition:all .25s;cursor:pointer;border:none}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:15px 32px;border-radius:12px;font-size:.92rem;font-weight:600;transition:all .3s cubic-bezier(.16,1,.3,1);cursor:pointer;border:none;position:relative;overflow:hidden}
 .btn-p{background:var(--accent);color:#fff}
-.btn-p:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(91,74,224,.25)}
-.btn-s{border:1.5px solid var(--border);color:var(--text);background:#fff}
-.btn-s:hover{border-color:var(--accent);color:var(--accent)}
+.btn-p:hover{background:#8b7cf7;transform:translateY(-2px);box-shadow:0 12px 40px rgba(124,111,247,.35)}
+.btn-p::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.15),transparent);opacity:0;transition:opacity .3s}
+.btn-p:hover::after{opacity:1}
+.btn-s{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}
+.btn-s:hover{border-color:var(--accent);color:var(--text);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.btn-ghost{background:transparent;border:1px solid transparent;color:var(--text2);padding:15px 24px}
+.btn-ghost:hover{color:var(--text)}
 
-/* Features */
-.features{background:var(--card)}
-.features .head{text-align:center;margin-bottom:60px}
-.features .head h2{font-size:2.2rem;margin-bottom:12px}
-.features .head p{color:var(--text2);font-size:1.05rem}
-.features .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:900px;margin:0 auto}
-.feature{background:#fff;border-radius:16px;padding:32px;border:1px solid var(--border);transition:all .3s;display:flex;gap:20px;align-items:flex-start}
-.feature:hover{border-color:var(--accent);box-shadow:0 4px 20px rgba(0,0,0,.04);transform:translateY(-2px)}
-.feature .icon{font-size:1.6rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:var(--card);border-radius:12px;flex-shrink:0}
-.feature h4{font-size:.95rem;font-weight:600;margin-bottom:4px}
-.feature p{font-size:.82rem;color:var(--text2);line-height:1.5}
+/* ── Features ── */
+.features{overflow:hidden}
+.features .head{text-align:center;margin-bottom:80px}
+.features .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:1000px;margin:0 auto}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;transition:all .4s cubic-bezier(.16,1,.3,1);position:relative;overflow:hidden}
+.feature-card::before{content:'';position:absolute;inset:0;background:radial-gradient(600px circle at var(--mx,50%) var(--my,50%),rgba(124,111,247,.06),transparent 40%);opacity:0;transition:opacity .4s}
+.feature-card:hover::before{opacity:1}
+.feature-card:hover{border-color:rgba(124,111,247,.25);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,.4)}
+.feature-card .icon{font-size:1.8rem;width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border);border-radius:14px;flex-shrink:0;margin-bottom:20px}
+.feature-card h4{font-size:1.05rem;font-weight:700;margin-bottom:8px}
+.feature-card p{font-size:.88rem;color:var(--text2);line-height:1.65}
 
-/* Workflow */
-.workflow .head{text-align:center;margin-bottom:48px}
-.workflow .head h2{font-size:2.2rem;margin-bottom:12px}
-.flow{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;max-width:900px;margin:0 auto}
-.step{text-align:center;padding:20px 28px;background:#fff;border:1px solid var(--border);border-radius:14px;min-width:100px;transition:all .25s}
-.step:hover{border-color:var(--accent)}
-.step .num{font-size:.72rem;color:var(--accent);font-weight:700;margin-bottom:4px}
-.step .name{font-size:.85rem;font-weight:600}
-.arrow{font-size:1.3rem;color:var(--muted);padding:0 8px;flex-shrink:0}
+/* ── Workflow ── */
+.workflow{background:var(--bg2);position:relative}
+.workflow::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:1px;height:60px;background:linear-gradient(to bottom,transparent,var(--border))}
+.workflow .head{text-align:center;margin-bottom:64px}
+.flow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;max-width:1000px;margin:0 auto}
+.flow-step{text-align:center;padding:24px 32px;background:var(--surface);border:1px solid var(--border);border-radius:16px;min-width:110px;transition:all .35s cubic-bezier(.16,1,.3,1);position:relative}
+.flow-step:hover{border-color:var(--accent);transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.flow-step .num{font-size:.7rem;color:var(--accent);font-weight:700;margin-bottom:6px;letter-spacing:.06em}
+.flow-step .name{font-size:.85rem;font-weight:600}
+.flow-arrow{font-size:1.2rem;color:var(--muted);padding:0 12px;flex-shrink:0;transition:color .3s}
+.flow-step:hover+.flow-arrow,.flow-arrow:hover{color:var(--accent)}
 
-/* Screenshots */
-.screenshots .head{text-align:center;margin-bottom:48px}
-.screenshots .head h2{font-size:2.2rem;margin-bottom:12px}
-.shots{display:grid;grid-template-columns:repeat(2,1fr);gap:32px;max-width:1000px;margin:0 auto}
-.shot{border-radius:16px;overflow:hidden;background:#fff;border:1px solid var(--border);transition:all .3s}
-.shot:hover{box-shadow:0 8px 32px rgba(0,0,0,.06)}
-.shot img{width:100%;display:block}
-.shot .cap{padding:14px 18px;font-size:.82rem;color:var(--text2);font-weight:500}
+/* ── Screenshots ── */
+.screenshots .head{text-align:center;margin-bottom:64px}
+.shots-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:32px;max-width:1000px;margin:0 auto}
+.shot-card{border-radius:20px;overflow:hidden;background:var(--surface);border:1px solid var(--border);transition:all .4s cubic-bezier(.16,1,.3,1);cursor:pointer;position:relative;group:''}
+.shot-card:hover{transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,.5);border-color:var(--border2)}
+.shot-card img{width:100%;display:block;transition:transform .6s cubic-bezier(.16,1,.3,1)}
+.shot-card:hover img{transform:scale(1.03)}
+.shot-card .cap{padding:18px 22px;font-size:.85rem;color:var(--text2);font-weight:500;border-top:1px solid var(--border)}
+.shot-card .zoom-icon{position:absolute;top:14px;right:14px;width:36px;height:36px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;opacity:0;transform:scale(.8);transition:all .3s cubic-bezier(.16,1,.3,1)}
+.shot-card:hover .zoom-icon{opacity:1;transform:scale(1)}
 
-/* Download */
-.download{background:linear-gradient(135deg,#5b4ae0,#7c6ff7);color:#fff;text-align:center}
-.download h2{font-size:2rem;margin-bottom:10px;color:#fff}
-.download .sub{color:rgba(255,255,255,.75);margin-bottom:40px;font-size:1rem}
-.download .cards{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
-.dl{background:rgba(255,255,255,.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:32px 28px;width:280px;text-align:center;transition:all .3s}
-.dl:hover{background:rgba(255,255,255,.16)}
-.dl .icon{font-size:2rem;margin-bottom:10px}
-.dl .title{font-weight:700;font-size:1rem;margin-bottom:4px}
-.dl .size{font-size:.8rem;opacity:.7;margin-bottom:18px}
-.download .btn-p{background:#fff;color:var(--accent)}
-.download .btn-p:hover{box-shadow:0 8px 24px rgba(0,0,0,.2);background:#fff}
-.download .btn-s{border-color:rgba(255,255,255,.3);color:#fff;background:transparent}
-.download .btn-s:hover{border-color:#fff;color:#fff}
+/* ── Download ── */
+.download{background:var(--bg2);position:relative;overflow:hidden}
+.download::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(124,111,247,.08),transparent 60%);pointer-events:none}
+.download .head{text-align:center;margin-bottom:60px}
+.download .cards{display:flex;gap:24px;justify-content:center;flex-wrap:wrap}
+.dl-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 32px;width:320px;text-align:center;transition:all .4s cubic-bezier(.16,1,.3,1);position:relative}
+.dl-card:hover{border-color:rgba(124,111,247,.3);transform:translateY(-6px);box-shadow:0 24px 56px rgba(0,0,0,.4)}
+.dl-card.featured{border-color:rgba(124,111,247,.3);background:linear-gradient(180deg,var(--accent-dim),var(--surface) 40%)}
+.dl-card .icon{font-size:2.4rem;margin-bottom:16px}
+.dl-card .title{font-weight:800;font-size:1.1rem;margin-bottom:8px}
+.dl-card .size{font-size:.85rem;color:var(--text2);margin-bottom:24px}
+.dl-card .btn{width:100%;justify-content:center}
+.dl-card .badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-size:.72rem;font-weight:700;padding:4px 14px;border-radius:12px;letter-spacing:.02em}
 
-/* Footer */
-footer{padding:32px 0;text-align:center;font-size:.8rem;color:var(--muted)}
-footer a{color:var(--accent)}
-footer a:hover{text-decoration:underline}
+/* ── Stats ── */
+.stats{border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.stats .grid{display:grid;grid-template-columns:repeat(4,1fr)}
+.stats .stat{padding:48px 24px;text-align:center}
+.stats .stat:not(:last-child){border-right:1px solid var(--border)}
+.stats .val{font-size:2.2rem;font-weight:900;color:var(--text);letter-spacing:-.03em}
+.stats .lbl{font-size:.82rem;color:var(--text3);margin-top:6px}
+
+/* ── Footer ── */
+footer{padding:48px 0;text-align:center;font-size:.82rem;color:var(--muted)}
+footer a{color:var(--text2);transition:color .2s}
+footer a:hover{color:var(--accent)}
+footer .links{display:flex;gap:28px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
+
+/* ── Back to top ── */
+.back-top{position:fixed;bottom:32px;right:32px;z-index:999;width:44px;height:44px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);cursor:pointer;font-size:1.2rem;opacity:0;transform:translateY(12px);pointer-events:none;transition:all .3s cubic-bezier(.16,1,.3,1)}
+.back-top.visible{opacity:1;transform:translateY(0);pointer-events:auto}
+.back-top:hover{background:var(--surface);border-color:var(--accent);color:var(--accent)}
+
+/* ── Lightbox ── */
+.lightbox-overlay{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.92);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s ease}
+.lightbox-overlay.open{opacity:1;pointer-events:auto}
+.lightbox-overlay img{max-width:90vw;max-height:85vh;border-radius:16px;transform:scale(.9);transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.lightbox-overlay.open img{transform:scale(1)}
+.lightbox-overlay .close{position:absolute;top:24px;right:32px;font-size:2rem;color:#fff;opacity:.6;cursor:pointer;background:none;border:none;transition:opacity .2s}
+.lightbox-overlay .close:hover{opacity:1}
+
+/* ── Animations ── */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
 
 .en{display:none}
 
+/* ── Mobile nav overlay ── */
+.mobile-nav{position:fixed;inset:0;z-index:999;background:rgba(10,10,10,.96);backdrop-filter:blur(20px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;opacity:0;pointer-events:none;transition:opacity .35s ease}
+.mobile-nav.open{opacity:1;pointer-events:auto}
+.mobile-nav a{font-size:1.4rem;font-weight:600;color:var(--text2);transition:color .2s}
+.mobile-nav a:hover{color:var(--text)}
+.mobile-nav .close-btn{position:absolute;top:24px;right:32px;font-size:1.8rem;color:var(--text2);background:none;border:none;cursor:pointer}
+
+/* ── Responsive ── */
+@media(max-width:1024px){
+  .features .grid{grid-template-columns:1fr;max-width:560px}
+  .stats .grid{grid-template-columns:repeat(2,1fr)}
+  .stats .stat:nth-child(2n){border-right:none}
+  .section-title{font-size:2.4rem}
+}
 @media(max-width:768px){
-  .hero h1{font-size:2.5rem}
-  .features .grid{grid-template-columns:1fr}
-  .shots{grid-template-columns:1fr}
-  .feature{flex-direction:column;gap:12px}
-  .step{min-width:70px;padding:14px 16px}
-  .section{padding:60px 0}
-  .hero{padding:120px 0 60px}
+  nav .links{display:none}
+  nav .hamburger{display:block}
+  .container{padding:0 24px}
+  .hero{padding:160px 0 100px}
+  .hero h1{font-size:2.2rem}
+  .hero p{font-size:1rem}
+  .section{padding:80px 0}
+  .section-title{font-size:1.9rem}
+  .shots-grid{grid-template-columns:1fr}
+  .flow{flex-direction:column;gap:0}
+  .flow-arrow{transform:rotate(90deg);padding:4px 0}
+  .stats .grid{grid-template-columns:repeat(2,1fr)}
+  .dl-card{width:100%;max-width:320px}
+  .feature-card{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:480px){
+  .stats .grid{grid-template-columns:1fr}
+  .stats .stat{border-right:none!important;border-bottom:1px solid var(--border)}
+  .cta{flex-direction:column;align-items:center}
+  .btn{width:100%;max-width:280px;justify-content:center}
 }
 </style>
 </head>
 <body>
 
-<nav id="nav"><div class="container">
-  <a href="#" class="logo"><span>Cine</span>Create</a>
-  <div class="links">
-    <a href="#features" class="zh">功能</a><a href="#features" class="en">Features</a>
-    <a href="#workflow" class="zh">流程</a><a href="#workflow" class="en">Workflow</a>
-    <a href="#screenshots" class="zh">预览</a><a href="#screenshots" class="en">Preview</a>
-    <a href="#download-section" class="zh">下载</a><a href="#download-section" class="en">Download</a>
+<!-- ── Nav ── -->
+<nav id="nav">
+  <div class="container">
+    <a href="#" class="logo">
+      <div class="icon">🎬</div>
+      <span>CineCreate</span>
+    </a>
+    <div class="links">
+      <a href="#features" class="zh">功能</a><a href="#features" class="en">Features</a>
+      <a href="#workflow" class="zh">流程</a><a href="#workflow" class="en">Workflow</a>
+      <a href="#screenshots" class="zh">预览</a><a href="#screenshots" class="en">Preview</a>
+      <a href="#download-section" class="zh">下载</a><a href="#download-section" class="en">Download</a>
+      <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener" class="zh">GitHub ↗</a>
+      <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener" class="en">GitHub ↗</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="lang" onclick="tl()" aria-label="Switch language">EN</button>
+      <button class="hamburger" onclick="toggleMenu()" aria-label="Menu">☰</button>
+    </div>
   </div>
-  <button class="lang" onclick="tl()">EN</button>
-</div></nav>
+</nav>
 
+<!-- ── Mobile nav ── -->
+<div class="mobile-nav" id="mobileNav">
+  <button class="close-btn" onclick="toggleMenu()" aria-label="Close">✕</button>
+  <a href="#features" class="zh" onclick="toggleMenu()">功能</a><a href="#features" class="en" onclick="toggleMenu()">Features</a>
+  <a href="#workflow" class="zh" onclick="toggleMenu()">流程</a><a href="#workflow" class="en" onclick="toggleMenu()">Workflow</a>
+  <a href="#screenshots" class="zh" onclick="toggleMenu()">预览</a><a href="#screenshots" class="en" onclick="toggleMenu()">Preview</a>
+  <a href="#download-section" class="zh" onclick="toggleMenu()">下载</a><a href="#download-section" class="en" onclick="toggleMenu()">Download</a>
+  <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener">GitHub ↗</a>
+</div>
+
+<!-- ── Hero ── -->
 <section class="hero">
   <div class="container">
-    <div class="tag"><span class="zh">AI 视频创作工作台 · 免费开源</span><span class="en">AI Video Creation Workbench · Free & Open Source</span></div>
-    <h1><span class="zh">从<span>创意</span>到<span>成片</span>，<br>AI 导演全程陪伴</span><span class="en">From <em>Ideas</em> to <em>Films</em>,<br>Your AI Director</span></h1>
-    <p class="zh">一站式完成故事设定、角色设计、场景规划、镜头Prompt生成。内置 AI 工具面板，DeepSeek 驱动。不是聊天机器人，是真正的创作伙伴。</p>
-    <p class="en">Story design, characters, scenes, shot prompts — all in one place. Built-in AI tools panel, powered by DeepSeek. Not a chatbot. A creative partner.</p>
-    <div class="cta">
+    <div class="tag reveal">
+      <span class="dot"></span>
+      <span class="zh">AI 视频创作工作台 · 免费开源</span>
+      <span class="en">AI Video Creation Workbench · Free &amp; Open Source</span>
+    </div>
+    <h1 class="reveal reveal-delay-1">
+      <span class="zh">从<span class="gradient">创意</span>到<span class="gradient">成片</span>，<br>AI 导演全程陪伴</span>
+      <span class="en">From <span class="gradient">Ideas</span> to <span class="gradient">Films</span>,<br>Your AI Director</span>
+    </h1>
+    <p class="reveal reveal-delay-2">
+      <span class="zh">一站式完成故事设定、角色设计、场景规划、镜头 Prompt 生成。<br>内置 AI 工具面板，DeepSeek 驱动。不是聊天机器人，是真正的创作伙伴。</span>
+      <span class="en">Story design, characters, scenes, shot prompts — all in one place.<br>Built-in AI tools panel, powered by DeepSeek. Not a chatbot. A creative partner.</span>
+    </p>
+    <div class="cta reveal reveal-delay-3">
       <a href="#download-section" class="btn btn-p zh">⬇ 下载 Windows 版</a>
       <a href="#download-section" class="btn btn-p en">⬇ Download for Windows</a>
-      <a href="https://github.com/gaoyinxuan/project_001" class="btn btn-s zh">⭐ GitHub 开源</a>
-      <a href="https://github.com/gaoyinxuan/project_001" class="btn btn-s en">⭐ GitHub Repo</a>
+      <a href="https://github.com/gaoyinxuan/project_001" class="btn btn-s zh" target="_blank" rel="noopener">⭐ Star on GitHub</a>
+      <a href="https://github.com/gaoyinxuan/project_001" class="btn btn-s en" target="_blank" rel="noopener">⭐ Star on GitHub</a>
     </div>
   </div>
 </section>
 
+<!-- ── Stats ── -->
+<section class="stats">
+  <div class="grid reveal">
+    <div class="stat"><div class="val">4</div><div class="lbl zh">AI 创作阶段</div><div class="lbl en">AI Stages</div></div>
+    <div class="stat"><div class="val">7+</div><div class="lbl zh">内置 AI 工具</div><div class="lbl en">Built-in Tools</div></div>
+    <div class="stat"><div class="val">Win</div><div class="lbl zh">桌面平台</div><div class="lbl en">Platform</div></div>
+    <div class="stat"><div class="val">OSS</div><div class="lbl zh">免费开源</div><div class="lbl en">Open Source</div></div>
+  </div>
+</section>
+
+<!-- ── Features ── -->
 <section id="features" class="features section">
   <div class="container">
-    <div class="head">
-      <h2 class="zh">四个阶段，一条完整的创作链路</h2><h2 class="en">Four stages. One creative pipeline.</h2>
-      <p class="zh">每个阶段产出结构化资产，环环相扣，驱动后续生图与生视频</p>
-      <p class="en">Each stage produces structured assets that feed into the next — all the way to image and video generation</p>
+    <div class="head reveal">
+      <div class="section-label"><span class="zh">核心能力</span><span class="en">Capabilities</span></div>
+      <h2 class="section-title"><span class="zh">四个阶段，一条完整的创作链路</span><span class="en">Four stages. One creative pipeline.</span></h2>
+      <p class="section-desc" style="margin:0 auto"><span class="zh">每个阶段产出结构化资产，环环相扣，驱动后续生图与生视频</span><span class="en">Each stage produces structured assets that cascade into the next — all the way to image and video generation</span></p>
     </div>
     <div class="grid">
-      <div class="feature"><div class="icon">📝</div><div><h4 class="zh">文稿创作</h4><h4 class="en">Story Design</h4><p class="zh">AI 辅助四阶段创作流程：故事设定 → 角色设计 → 场景规划 → 镜头制作。每阶段产出结构化资产，环环相扣。</p><p class="en">Four-stage AI-assisted workflow: Story → Characters → Scenes → Shots. Each stage outputs structured assets that cascade into the next.</p></div></div>
-      <div class="feature"><div class="icon">🔧</div><div><h4 class="zh">工具面板</h4><h4 class="en">Tool Panel</h4><p class="zh">内嵌 WebView 集成 GPT Image、豆包 Seedream、Gemini、可灵 Kling 等主流 AI 工具。一键切换，生图生视频随心用。</p><p class="en">Embedded WebView integrates GPT Image, Seedream, Gemini, Kling AI & more. One-click switching between image and video tools.</p></div></div>
-      <div class="feature"><div class="icon">🎬</div><div><h4 class="zh">分镜管理</h4><h4 class="en">Storyboard</h4><p class="zh">图片/视频素材统一管理，支持拖拽导入、Ctrl+V 粘贴、多方案变体对比、Lightbox 预览。时间码自动计算时长。</p><p class="en">Unified asset management with drag-drop, Ctrl+V paste, multi-variant comparison, lightbox preview, and auto timecode/duration calculation.</p></div></div>
-      <div class="feature"><div class="icon">🤖</div><div><h4 class="zh">DeepSeek AI 驱动</h4><h4 class="en">Powered by DeepSeek</h4><p class="zh">集成 DeepSeek API，支持故事生成、角色设计、场景规划、镜头 Prompt 生成。对话式交互，资产一键确认保存。</p><p class="en">DeepSeek API integration for story generation, character design, scene planning, and shot prompt creation. Conversational UI with one-click asset confirmation.</p></div></div>
+      <div class="feature-card reveal reveal-delay-1" onmousemove="handleCardGlow(event,this)"><div class="icon">📝</div><h4 class="zh">文稿创作</h4><h4 class="en">Story Design</h4><p class="zh">AI 辅助四阶段创作：故事设定 → 角色设计 → 场景规划 → 镜头制作。对话式交互，资产一键确认保存。</p><p class="en">Four-stage AI workflow: Story → Characters → Scenes → Shots. Conversational UI with one-click asset confirmation.</p></div>
+      <div class="feature-card reveal reveal-delay-2" onmousemove="handleCardGlow(event,this)"><div class="icon">🔧</div><h4 class="zh">工具面板</h4><h4 class="en">Tool Panel</h4><p class="zh">内嵌 WebView 集成 GPT Image、豆包 Seedream、Gemini、可灵 Kling 等主流 AI 工具。一键切换，生图生视频随心用。</p><p class="en">Embedded WebView with GPT Image, Seedream, Gemini, Kling AI &amp; more. One-click switching between image and video tools.</p></div>
+      <div class="feature-card reveal reveal-delay-3" onmousemove="handleCardGlow(event,this)"><div class="icon">🎬</div><h4 class="zh">分镜管理</h4><h4 class="en">Storyboard</h4><p class="zh">图片/视频素材统一管理，支持拖拽导入、Ctrl+V 粘贴、多方案变体对比、Lightbox 预览。时间码自动计算时长。</p><p class="en">Unified asset management with drag-drop, Ctrl+V paste, multi-variant comparison, lightbox preview, and auto timecode calculation.</p></div>
+      <div class="feature-card reveal reveal-delay-4" onmousemove="handleCardGlow(event,this)"><div class="icon">🤖</div><h4 class="zh">DeepSeek AI 驱动</h4><h4 class="en">DeepSeek Powered</h4><p class="zh">集成 DeepSeek API，支持故事生成、角色设计、场景规划、镜头 Prompt 生成。可扩展多模型支持。</p><p class="en">DeepSeek API integration for content generation. Extensible architecture for multi-model support.</p></div>
     </div>
   </div>
 </section>
 
+<!-- ── Workflow ── -->
 <section id="workflow" class="workflow section">
   <div class="container">
-    <div class="head"><h2 class="zh">从灵感到交付</h2><h2 class="en">From Inspiration to Delivery</h2></div>
-    <div class="flow">
-      <div class="step"><div class="num">01</div><div class="name zh">故事设定</div><div class="name en">Story</div></div><span class="arrow">→</span>
-      <div class="step"><div class="num">02</div><div class="name zh">角色设计</div><div class="name en">Characters</div></div><span class="arrow">→</span>
-      <div class="step"><div class="num">03</div><div class="name zh">场景规划</div><div class="name en">Scenes</div></div><span class="arrow">→</span>
-      <div class="step"><div class="num">04</div><div class="name zh">镜头制作</div><div class="name en">Shots</div></div><span class="arrow">→</span>
-      <div class="step"><div class="num">05</div><div class="name zh">AI 生图</div><div class="name en">Image Gen</div></div><span class="arrow">→</span>
-      <div class="step"><div class="num">06</div><div class="name zh">AI 视频</div><div class="name en">Video Gen</div></div>
+    <div class="head reveal">
+      <div class="section-label"><span class="zh">创作流程</span><span class="en">Workflow</span></div>
+      <h2 class="section-title"><span class="zh">从灵感到交付</span><span class="en">From Inspiration to Delivery</span></h2>
+    </div>
+    <div class="flow reveal reveal-delay-1">
+      <div class="flow-step"><div class="num">01</div><div class="name zh">故事设定</div><div class="name en">Story</div></div><span class="flow-arrow">→</span>
+      <div class="flow-step"><div class="num">02</div><div class="name zh">角色设计</div><div class="name en">Characters</div></div><span class="flow-arrow">→</span>
+      <div class="flow-step"><div class="num">03</div><div class="name zh">场景规划</div><div class="name en">Scenes</div></div><span class="flow-arrow">→</span>
+      <div class="flow-step"><div class="num">04</div><div class="name zh">镜头制作</div><div class="name en">Shots</div></div><span class="flow-arrow">→</span>
+      <div class="flow-step"><div class="num">05</div><div class="name zh">AI 生图</div><div class="name en">Image Gen</div></div><span class="flow-arrow">→</span>
+      <div class="flow-step"><div class="num">06</div><div class="name zh">AI 视频</div><div class="name en">Video Gen</div></div>
     </div>
   </div>
 </section>
 
+<!-- ── Screenshots ── -->
 <section id="screenshots" class="screenshots section">
   <div class="container">
-    <div class="head"><h2 class="zh">界面预览</h2><h2 class="en">Preview</h2></div>
-    <div class="shots">
-      <div class="shot"><img src="screenshots/welcome.png" alt="Welcome"><div class="cap"><span class="zh">欢迎页 — 素材展示与工作流引导</span><span class="en">Welcome — media showcase & workflow guide</span></div></div>
-      <div class="shot"><img src="screenshots/workspace.png" alt="Workspace"><div class="cap"><span class="zh">文稿工作台 — AI 对话创作 + 资产库</span><span class="en">Draft Workspace — AI chat + asset library</span></div></div>
+    <div class="head reveal">
+      <div class="section-label"><span class="zh">界面预览</span><span class="en">Preview</span></div>
+      <h2 class="section-title"><span class="zh">简洁而强大的工作台</span><span class="en">Clean yet powerful workspace</span></h2>
+    </div>
+    <div class="shots-grid">
+      <div class="shot-card reveal reveal-delay-1" onclick="openLightbox('screenshots/welcome.png')">
+        <div class="zoom-icon">🔍</div>
+        <img src="screenshots/welcome.png" alt="Welcome page" loading="lazy">
+        <div class="cap"><span class="zh">欢迎页 — 素材展示与工作流引导</span><span class="en">Welcome — media showcase &amp; workflow guide</span></div>
+      </div>
+      <div class="shot-card reveal reveal-delay-2" onclick="openLightbox('screenshots/workspace.png')">
+        <div class="zoom-icon">🔍</div>
+        <img src="screenshots/workspace.png" alt="Draft workspace" loading="lazy">
+        <div class="cap"><span class="zh">文稿工作台 — AI 对话创作 + 资产库</span><span class="en">Draft Workspace — AI chat + asset library</span></div>
+      </div>
     </div>
   </div>
 </section>
 
+<!-- ── Download ── -->
 <section id="download-section" class="download section">
   <div class="container">
-    <h2><span class="zh">下载 CineCreate</span><span class="en">Download CineCreate</span></h2>
-    <p class="sub"><span class="zh">Windows 10+ · 64 位 · 免安装即用</span><span class="en">Windows 10+ · 64-bit · Portable ready</span></p>
+    <div class="head reveal">
+      <div class="section-label"><span class="zh">开始使用</span><span class="en">Get Started</span></div>
+      <h2 class="section-title"><span class="zh">下载 CineCreate</span><span class="en">Download CineCreate</span></h2>
+      <p class="section-desc" style="margin:0 auto"><span class="zh">Windows 10+ · 64 位 · 免安装即用 · 完全免费</span><span class="en">Windows 10+ · 64-bit · Portable ready · Completely free</span></p>
+    </div>
     <div class="cards">
-      <div class="dl">
-        <div class="icon">📦</div><div class="title">Portable 1.0.0</div>
-        <div class="size">85 MB · <span class="zh">免安装</span><span class="en">No install</span></div>
-        <a href="https://github.com/gaoyinxuan/project_001/releases/latest/download/CineCreate-1.0.0.exe" class="btn btn-p" style="width:100%;justify-content:center"><span class="zh">⬇ 下载便携版</span><span class="en">⬇ Download Portable</span></a>
+      <div class="dl-card featured reveal reveal-delay-1">
+        <div class="badge zh">推荐</div><div class="badge en">Recommended</div>
+        <div class="icon">📦</div>
+        <div class="title">Portable 1.0.0</div>
+        <div class="size">85 MB · <span class="zh">免安装，解压即用</span><span class="en">No install required</span></div>
+        <a href="https://github.com/gaoyinxuan/project_001/releases/latest/download/CineCreate-1.0.0.exe" class="btn btn-p"><span class="zh">⬇ 下载便携版</span><span class="en">⬇ Download Portable</span></a>
       </div>
-      <div class="dl">
-        <div class="icon">💿</div><div class="title">Setup 1.0.0</div>
+      <div class="dl-card reveal reveal-delay-2">
+        <div class="icon">💿</div>
+        <div class="title">Setup 1.0.0</div>
         <div class="size">85 MB · <span class="zh">安装向导</span><span class="en">Installer</span></div>
-        <a href="https://github.com/gaoyinxuan/project_001/releases/latest/download/CineCreate-Setup-1.0.0.exe" class="btn btn-s" style="width:100%;justify-content:center"><span class="zh">⬇ 下载安装版</span><span class="en">⬇ Download Setup</span></a>
+        <a href="https://github.com/gaoyinxuan/project_001/releases/latest/download/CineCreate-Setup-1.0.0.exe" class="btn btn-s"><span class="zh">⬇ 下载安装版</span><span class="en">⬇ Download Setup</span></a>
       </div>
     </div>
   </div>
 </section>
 
-<footer><div class="container"><p>CineCreate v1.0.0 · Built with 💜 · <a href="https://github.com/gaoyinxuan/project_001">GitHub</a> · <a href="https://github.com/gaoyinxuan/project_001/releases/latest"><span class="zh">更新日志</span><span class="en">Changelog</span></a></p></div></footer>
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="links">
+      <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/gaoyinxuan/project_001/releases/latest" target="_blank" rel="noopener"><span class="zh">更新日志</span><span class="en">Changelog</span></a>
+      <a href="https://github.com/gaoyinxuan/project_001/issues" target="_blank" rel="noopener"><span class="zh">问题反馈</span><span class="en">Issues</span></a>
+    </div>
+    <p>CineCreate v1.0.0 · Built with 💜 · Open Source</p>
+  </div>
+</footer>
+
+<!-- ── Back to top ── -->
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑</button>
+
+<!-- ── Lightbox ── -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="close" onclick="closeLightbox()" aria-label="Close">✕</button>
+  <img src="" alt="" id="lightboxImg" onclick="event.stopPropagation()">
+</div>
 
 <script>
-function tl(){var z=document.querySelectorAll('.zh'),e=document.querySelectorAll('.en'),v=z[0].style.display!=='none';z.forEach(function(x){x.style.display=v?'none':''});e.forEach(function(x){x.style.display=v?'':'none'});document.querySelector('.lang').textContent=v?'中':'EN'}
-window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>10)})
+/* ═══════════════════════════════════════════════
+   JavaScript — Animations & Interactions
+   ═══════════════════════════════════════════════ */
+
+// ── Language toggle ──
+let langZH = true;
+function tl() {
+  langZH = !langZH;
+  document.querySelectorAll('.zh').forEach(el => el.style.display = langZH ? '' : 'none');
+  document.querySelectorAll('.en').forEach(el => el.style.display = langZH ? 'none' : '');
+  document.querySelector('.lang').textContent = langZH ? 'EN' : '中';
+}
+
+// ── Nav scroll effect ──
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 10);
+  document.getElementById('backTop').classList.toggle('visible', window.scrollY > 600);
+});
+
+// ── Mobile menu ──
+function toggleMenu() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+
+// ── Scroll reveal (Intersection Observer) ──
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+// ── Card glow effect (mouse-following radial gradient) ──
+function handleCardGlow(e, card) {
+  const rect = card.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  card.style.setProperty('--mx', x + '%');
+  card.style.setProperty('--my', y + '%');
+}
+
+// ── Lightbox ──
+function openLightbox(src) {
+  const overlay = document.getElementById('lightbox');
+  const img = document.getElementById('lightboxImg');
+  img.src = src;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  const overlay = document.getElementById('lightbox');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
 </script>
 </body>
 </html>
