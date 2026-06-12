@@ -193,7 +193,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
         {!keySet && <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[var(--border2)]" onClick={()=>setShowKey(true)}>🔑 API Key</button>}<div className="flex-1" />
       </div>
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {msgs.length === 0 ? (
               <div className="max-w-2xl mx-auto py-8">
