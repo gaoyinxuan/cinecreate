@@ -117,13 +117,12 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
       else { next[cat] = tag; }
       const parts: string[] = [];
       if (next['题材']) parts.push(`${next['题材']}题材`);
-      else parts.push('一个短片');
       if (next['风格']) parts.push(`${next['风格']}风格`);
       if (next['情绪']) parts.push(`${next['情绪']}的情绪氛围`);
       if (next['关系']) parts.push(`聚焦${next['关系']}关系`);
-      if (next['类型']) parts.push(`以${next['类型']}的形式呈现`);
-      parts.push('。');
-      setInput(`创作${parts.join('，')}`);
+      if (next['类型']) parts.push(`${next['类型']}`);
+      const body = parts.length ? parts.join('，') : '一个短片';
+      setInput(`创作${body}。`);
       return next;
     });
   };
