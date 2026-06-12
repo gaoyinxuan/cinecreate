@@ -7,9 +7,9 @@ interface Props { onCreateProject: () => void; onClose?: () => void; }
 
 export default function WelcomePage({ onCreateProject, onClose }: Props) {
   const cards = [
-    { icon:'📝', title:'文稿', items:['故事大纲','角色设定','场景规划','镜头制作'] },
-    { icon:'🔧', title:'工具', items:['AI 生图','AI 视频','Prompt 验证','素材生成'] },
-    { icon:'🎬', title:'分镜', items:['图片管理','视频管理','镜头整理','项目归档'] },
+    { icon:'📋', title:'文稿', items:['故事大纲','角色设定','场景规划','镜头制作'] },
+    { icon:'⚒️', title:'工具', items:['AI 生图','AI 视频','Prompt 验证','素材生成'] },
+    { icon:'📐', title:'分镜', items:['图片管理','视频管理','镜头整理','项目归档'] },
   ];
 
   return (
@@ -19,7 +19,12 @@ export default function WelcomePage({ onCreateProject, onClose }: Props) {
           <button className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[var(--card)] border border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] text-sm"
             onClick={onClose}>✕</button>
         )}
-        <div className="text-5xl mb-4">🎬</div>
+
+        {/* Logo: Plan F SVG */}
+        <svg width="56" height="56" viewBox="0 0 256 256" fill="none" className="mx-auto mb-5 text-[var(--accent-solid)]">
+          <circle cx="128" cy="128" r="72" stroke="currentColor" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/>
+          <path d="M148 112L148 144L174 128Z" fill="currentColor"/>
+        </svg>
         <h1 className="text-2xl font-bold text-[var(--text)] mb-1">影创 CineCreate</h1>
         <p className="text-sm text-[var(--dim)] mb-10">AI 视频创作工作台</p>
 
@@ -40,27 +45,27 @@ export default function WelcomePage({ onCreateProject, onClose }: Props) {
         <div className="mb-10">
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-xl overflow-hidden border border-[var(--border)]">
-              <img src="/assets/images/K08.png" alt="" className="w-full aspect-video object-cover" />
+              <img src="assets/images/K08.png" alt="" className="w-full aspect-video object-cover" />
             </div>
             <div className="rounded-xl overflow-hidden border border-[var(--border)]">
-              <video src="/assets/videos/3-1.mp4" autoPlay muted loop playsInline className="w-full aspect-video object-cover" />
+              <video src="assets/videos/3-1.mp4" autoPlay muted loop playsInline className="w-full aspect-video object-cover" />
             </div>
             <div className="rounded-xl overflow-hidden border border-[var(--border)]">
-              <img src="/assets/images/K11.png" alt="" className="w-full aspect-video object-cover" />
+              <img src="assets/images/K11.png" alt="" className="w-full aspect-video object-cover" />
             </div>
           </div>
         </div>
 
         {/* Workflow */}
         <div className="flex items-center justify-center gap-3 text-sm text-[var(--muted)] mb-8">
-          <span>📝 文稿</span><span>→</span><span>🔧 工具</span><span>→</span><span>🎬 分镜</span>
+          <span>📋 文稿</span><span>→</span><span>⚒️ 工具</span><span>→</span><span>📐 分镜</span>
         </div>
         <p className="text-xs text-[var(--muted)] mb-6">先完成故事创作 → 再生成素材 → 最后统一管理</p>
 
-        {/* CTA */}
-        <button className="px-8 py-3 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-xl shadow-lg shadow-gold-400/20 transition-all"
+        {/* CTA — gold border outline, softer than solid black */}
+        <button className="px-8 py-2.5 border-2 border-[var(--accent-solid)] text-[var(--accent-solid)] hover:bg-[var(--accent-solid)] hover:text-white text-sm font-semibold rounded-xl transition-all"
           onClick={onCreateProject}>
-          ✨ 创建第一个项目
+          创建第一个项目
         </button>
       </div>
     </div>

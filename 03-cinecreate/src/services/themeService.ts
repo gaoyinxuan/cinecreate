@@ -3,7 +3,7 @@
  */
 type Theme = 'dark' | 'light';
 
-let _current: Theme = (localStorage.getItem('cinecreate-theme') as Theme) || 'dark';
+let _current: Theme = (localStorage.getItem('cinecreate-theme') as Theme) || 'light';
 const listeners = new Set<() => void>();
 
 export function getTheme(): Theme { return _current; }
