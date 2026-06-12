@@ -1,22 +1,63 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { db } from '../services/dbService';
 
-interface Props { projectName: string; }
+interface Props { projectId: string; projectName: string; }
 
-export default function PreviewPanel({ projectName }: Props) {
-  const [video, setVideo] = useState<{name:string; url:string} | null>(null);
+let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+export default function PreviewPanel({ projectId, projectName }: Props) {
+  const [video, setVideo] = useState<{name:string; url:string; blobId:string} | null>(null);
+  const [loading, setLoading] = useState(true);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith('video/')) return;
-    if (video) URL.revokeObjectURL(video.url);
-    setVideo({ name: f.name, url: URL.createObjectURL(f) });
-  }, [video]);
+  // Load saved video for this project on mount / project switch
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const meta = await db.meta.get(`preview_${projectId}`);
+        if (meta && !cancelled) {
+          const blob = await db.blobs.load(meta.blobId);
+          if (blob && !cancelled) {
+            if (video) URL.revokeObjectURL(video.url);
+            setVideo({ name: meta.name, url: URL.createObjectURL(blob), blobId: meta.blobId });
+          }
+        } else {
+          if (video) { URL.revokeObjectURL(video.url); }
+          setVideo(null);
+        }
+      } catch {} finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId]);
 
-  const removeVideo = () => {
-    if (video) URL.revokeObjectURL(video.url);
+  const handleFile = useCallback(async (f: File) => {
+    if (!f.type.startsWith('video/')) return;
+    // Cleanup old
+    if (video) {
+      URL.revokeObjectURL(video.url);
+      db.blobs.delete(video.blobId).catch(()=>{});
+    }
+    const blobId = uid();
+    try {
+      await db.blobs.save(blobId, f);
+      const meta = { blobId, name: f.name };
+      await db.meta.set(`preview_${projectId}`, meta);
+      setVideo({ name: f.name, url: URL.createObjectURL(f), blobId });
+    } catch { /* fallback: keep in-memory only */ }
+  }, [video, projectId]);
+
+  const removeVideo = useCallback(async () => {
+    if (!video) return;
+    try {
+      await db.blobs.delete(video.blobId);
+      await db.meta.set(`preview_${projectId}`, null);
+    } catch {}
+    URL.revokeObjectURL(video.url);
     setVideo(null);
-  };
+  }, [video, projectId]);
 
   const dropZone = (
     <div
@@ -33,6 +74,8 @@ export default function PreviewPanel({ projectName }: Props) {
       <div className="text-xs text-[var(--muted)]">或点击上传 · MP4 / WebM</div>
     </div>
   );
+
+  if (loading) return <div className="flex-1 flex items-center justify-center text-[var(--muted)] text-sm">加载中...</div>;
 
   return (
     <div className="flex-1 flex items-center justify-center bg-[var(--bg)] p-8">

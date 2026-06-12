@@ -350,7 +350,7 @@ export default function App() {
             )}
           </>
         ) : activeId ? (
-          <PreviewPanel projectName={activeProject?.name || ''} />
+          <PreviewPanel projectId={activeId} projectName={activeProject?.name || ''} />
         ) : null}
       </div>
       {showStoryOnboard && (
