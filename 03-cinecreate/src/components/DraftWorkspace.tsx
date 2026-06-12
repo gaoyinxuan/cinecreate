@@ -199,31 +199,32 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
             <div className="max-w-2xl mx-auto">
               <div className="text-center mb-6">
                 <div className="text-2xl mb-2">🎬</div>
-                <h2 className="text-base font-bold text-[var(--text)] mb-1">开始你的 AI 视频创作</h2>
-                <p className="text-[11px] text-[var(--text3)] leading-relaxed">从一个灵感开始，逐步完成故事、角色、场景与镜头设计。</p>
+                <h2 className="text-lg font-bold text-[var(--text)] mb-2">开始你的 AI 视频创作</h2>
+                <p className="text-sm text-[var(--text2)] leading-relaxed">从一个灵感开始，逐步完成故事、角色、场景与镜头设计，并沉淀为可复用的创作资产。</p>
               </div>
-              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 mb-4">
-                <div className="text-[11px] text-[var(--text2)] font-semibold mb-2">在文稿模块中，你将完成：</div>
-                <div className="text-[11px] text-[var(--text3)] space-y-1">
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 mb-6">
+                <div className="text-sm text-[var(--text2)] font-semibold mb-3">在文稿模块中，你将完成：</div>
+                <div className="text-sm text-[var(--text2)] space-y-1.5">
                   <div>· 故事设定（世界观、视觉基调、故事简介）</div>
                   <div>· 角色设计（角色卡片与定妆 Prompt）</div>
                   <div>· 场景规划（场景拆解与分镜序列规划）</div>
                   <div>· 镜头制作（图片 Prompt 与视频 Prompt）</div>
                 </div>
+                <div className="text-xs text-[var(--muted)] mt-3">所有内容都将自动沉淀至资产库，支持编辑、优化与复用。</div>
               </div>
               {/* Inspiration — only when no messages */}
               {msgs.length === 0 && (
                 <div className="mb-2">
-                  <div className="text-[11px] text-[var(--text2)] font-semibold mb-1">✨ 创作灵感</div>
-                  <div className="text-[11px] text-[var(--muted)] mb-2">没有明确想法？从一个方向开始。</div>
+                  <div className="text-sm text-[var(--text2)] font-semibold mb-1">✨ 创作灵感</div>
+                  <div className="text-xs text-[var(--muted)] mb-3">没有明确想法？从一个方向开始。</div>
                   {INSPIRATION_ROWS.map(row => (
-                    <div key={row.label} className="flex items-center gap-2 mb-1.5">
-                      <span className="text-[10px] text-[var(--muted)] w-9 shrink-0 text-right">[{row.label}]</span>
-                      <div className="flex gap-1 flex-wrap">
+                    <div key={row.label} className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-[var(--muted)] w-9 shrink-0 text-right">[{row.label}]</span>
+                      <div className="flex gap-1.5 flex-wrap">
                         {row.tags.map(t => {
                           const sel = selectedTags[row.label] === t;
                           return (
-                            <button key={t} className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${sel ? 'bg-[#D6B36A] text-white' : 'bg-[var(--card)] border border-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] hover:border-[var(--accent-text)]/30'}`}
+                            <button key={t} className={`text-xs px-2.5 py-1 rounded-full transition-colors ${sel ? 'bg-[#D6B36A] text-white' : 'bg-[var(--card)] border border-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] hover:border-[var(--accent-text)]/30'}`}
                               onClick={() => toggleTag(row.label, t)}>{sel ? '✓ ' : ''}{t}</button>
                           );
                         })}
