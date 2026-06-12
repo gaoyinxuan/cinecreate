@@ -13,7 +13,7 @@ export default function PresetTags({ tags, onChange }: Props) {
   const count = tags.length;
   return (
     <div className="relative" onMouseLeave={() => setOpen(false)}>
-      <button className={`text-xs px-2 py-1 rounded flex items-center gap-1 max-w-[200px] ${count ? 'bg-gold-400/15 text-[var(--text)] border border-gold-400/20' : 'text-[var(--muted)] hover:text-[var(--text3)] border border-transparent hover:border-[var(--border2)]'}`}
+      <button className={`text-xs px-2 py-1 rounded flex items-center gap-1 max-w-[200px] ${count ? 'bg-[var(--accent-solid)]/15 text-[var(--text)] border border-gold-400/20' : 'text-[var(--muted)] hover:text-[var(--text3)] border border-transparent hover:border-[var(--border2)]'}`}
         onClick={() => setOpen(!open)}>
         <span>🏷</span>
         {count > 0 ? <span className="text-xs truncate">{tags.join(', ')}</span> : <span className="text-xs opacity-50">标签</span>}
@@ -27,7 +27,7 @@ export default function PresetTags({ tags, onChange }: Props) {
               <div className="flex flex-wrap gap-1">
                 {g.opts.map(opt => {
                   const active = tags.includes(opt);
-                  return <button key={opt} className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-gold-400 text-white' : 'bg-[var(--card2)] text-[var(--dim)] hover:text-[var(--text2)] hover:bg-[var(--border)]'}`}
+                  return <button key={opt} className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-[var(--accent-solid)] text-white' : 'bg-[var(--card2)] text-[var(--dim)] hover:text-[var(--text2)] hover:bg-[var(--border)]'}`}
                     onClick={() => toggle(opt)}>{opt}</button>;
                 })}
               </div>

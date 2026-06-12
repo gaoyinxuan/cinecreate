@@ -117,7 +117,7 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
           {steps.map((s, i) => (
             <React.Fragment key={s}>
               {i > 0 && <span className="text-[var(--dim)] text-xs">→</span>}
-              <span className={`text-xs px-2 py-1 rounded-full ${step > i+1 ? 'bg-green-500/20 text-green-400' : step === i+1 ? 'bg-gold-400/20 text-[var(--text)]' : 'bg-[var(--card)] text-[var(--muted)]'}`}>
+              <span className={`text-xs px-2 py-1 rounded-full ${step > i+1 ? 'bg-gold-600/20 text-[#7A8B5A]' : step === i+1 ? 'bg-[var(--accent-solid)]/20 text-[var(--text)]' : 'bg-[var(--card)] text-[var(--muted)]'}`}>
                 {step > i+1 ? '✓' : ''} {s}
               </span>
             </React.Fragment>
@@ -144,12 +144,12 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
               <option value="scifi">科幻</option>
             </select>
           </div>
-          <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-gold-400 hover:bg-gold-500 text-white'}`}
+          <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white'}`}
             disabled={loading} onClick={handleGenerateStory}>
             {loading ? '生成中...' : '① 生成故事'}
           </button>
           {story && (
-            <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-gold-400/50 hover:bg-gold-500/50 text-[var(--text)] border border-gold-400/30'}`}
+            <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-[var(--accent-solid)]/50 hover:bg-[var(--accent-hover)]/50 text-[var(--text)] border border-gold-400/30'}`}
               disabled={loading} onClick={handleGenerateChars}>
               {loading ? '生成中...' : '② 生成角色'}
             </button>
@@ -210,7 +210,7 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
                 )}
                 {/* Import button */}
                 {story && (
-                  <button className="w-full py-2.5 rounded-lg text-sm font-semibold bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/30 transition-colors"
+                  <button className="w-full py-2.5 rounded-lg text-sm font-semibold bg-gold-600/20 hover:bg-gold-600/30 text-[#7A8B5A] border border-gold-600/30 transition-colors"
                     onClick={handleImport}>
                     ✓ 导入到项目
                   </button>

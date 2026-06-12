@@ -75,7 +75,7 @@ export default function DocumentsPanel({ projectId, onImportToStoryboard }: { pr
 
     return (
       <div>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs group ${isSelected ? 'bg-gold-400/20 text-[var(--text)]' : 'text-[var(--text2)] hover:bg-white/[0.04]'}`}
+        <div className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs group ${isSelected ? 'bg-[var(--accent-bg)] text-[var(--text)]' : 'text-[var(--text2)] hover:bg-white/[0.04]'}`}
           style={{ paddingLeft: `${8 + depth * 16}px` }}
           onClick={() => { if (isFolder) setExpanded(!expanded); else setSelectedId(doc.id); }}>
           {isFolder && <span className="text-xs w-3">{expanded ? '▼' : '▶'}</span>}
@@ -128,7 +128,7 @@ export default function DocumentsPanel({ projectId, onImportToStoryboard }: { pr
                 value={editTitle} onChange={e => { setEditTitle(e.target.value); setDirty(true); }} />
               <span className={`text-xs ${dirty ? 'text-yellow-400' : 'text-[var(--muted)]'}`}>{dirty ? '● 未保存' : '✓ 已保存'}</span>
               {onImportToStoryboard && (
-                <button className="text-xs px-2 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded border border-green-500/20"
+                <button className="text-xs px-2 py-1 bg-gold-600/20 hover:bg-gold-600/30 text-[#7A8B5A] rounded border border-gold-600/20"
                   onClick={() => onImportToStoryboard(selected)}>→ 导入分镜</button>
               )}
             </div>

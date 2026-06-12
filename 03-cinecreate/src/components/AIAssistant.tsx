@@ -50,11 +50,11 @@ export default function AIAssistant({ projectId, contextDoc, onDocCreated }: Pro
         placeholder="输入创意描述，或基于选中文稿生成..."
         id="aiPrompt" />
       <div className="flex flex-wrap gap-1.5">
-        <button className="text-xs px-2.5 py-1.5 bg-gold-400/20 hover:bg-gold-400/30 text-[var(--text)] rounded-lg border border-gold-400/20 disabled:opacity-40"
+        <button className="text-xs px-2.5 py-1.5 bg-[var(--accent-bg)] hover:bg-gold-400/30 text-[var(--text)] rounded-lg border border-gold-400/20 disabled:opacity-40"
           disabled={loading} onClick={() => { const inp = (document.getElementById('aiPrompt') as HTMLTextAreaElement)?.value; if(inp.trim()) runAgent('story', inp.trim()); else setError('请输入创意描述'); }}>
           {loading ? '⏳' : '📖'} 生成故事
         </button>
-        <button className="text-xs px-2.5 py-1.5 bg-gold-400/20 hover:bg-gold-400/30 text-[var(--text)] rounded-lg border border-gold-400/20 disabled:opacity-40"
+        <button className="text-xs px-2.5 py-1.5 bg-[var(--accent-bg)] hover:bg-gold-400/30 text-[var(--text)] rounded-lg border border-gold-400/20 disabled:opacity-40"
           disabled={loading || !contextDoc} onClick={() => runAgent('characters', '')}>
           {loading ? '⏳' : '👤'} 生成角色
         </button>

@@ -57,7 +57,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
         <div className="relative rounded-lg overflow-hidden bg-[var(--card2)] border border-[var(--border2)] cursor-pointer group/img" style={{ aspectRatio: '16/9' }}
           onClick={() => onLightbox(primary.imageBlob!, primary.label)}>
           {primary.imageBlob && <img src={imgUrl(primary.imageBlob)!} className="w-full h-full object-cover group-hover/img:opacity-80" alt="" />}
-          <span className="absolute top-2 left-2 bg-gold-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">{primary.label}</span>
+          <span className="absolute top-2 left-2 bg-[var(--accent-solid)] text-white text-xs font-bold px-2 py-0.5 rounded-full">{primary.label}</span>
           {otherVariants.length >= 1 && (
             <button className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/img:opacity-100"
               onClick={handleCompare}>对比 →</button>
@@ -66,7 +66,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
             <div className="absolute inset-0 z-20 bg-black/80 flex flex-col items-center justify-center gap-2 rounded-lg" onClick={e => e.stopPropagation()}>
               <span className="text-xs text-[var(--text3)] mb-1">选择对比对象</span>
               {(otherVariants||[]).map(v => (
-                <button key={v.id} className="text-xs px-3 py-1.5 bg-[var(--card)] hover:bg-gold-400/30 text-[var(--text)] hover:text-white rounded-lg"
+                <button key={v.id} className="text-xs px-3 py-1.5 bg-[var(--card)] hover:bg-[var(--accent-solid)]/30 text-[var(--text)] hover:text-white rounded-lg"
                   onClick={e => { e.stopPropagation(); setComparePick(false); onCompare(v.id); }}>{v.label}</button>
               ))}
               <button className="text-xs text-[var(--muted)] hover:text-[var(--text2)] mt-1" onClick={e => { e.stopPropagation(); setComparePick(false); }}>取消</button>

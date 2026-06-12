@@ -15,7 +15,7 @@ export default function InlinePrompt({ title, defaultValue, onConfirm, onCancel 
           onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onCancel(); }} />
         <div className="flex justify-end gap-2">
           <button className="px-4 py-1.5 text-xs text-[var(--text3)] hover:text-[var(--text)] rounded-lg hover:bg-white/[0.04]" onClick={onCancel}>取消</button>
-          <button className="px-4 py-1.5 text-xs bg-gold-400 hover:bg-gold-500 text-white rounded-lg font-semibold" onClick={submit}>确定</button>
+          <button className="px-4 py-1.5 text-xs bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white rounded-lg font-semibold" onClick={submit}>确定</button>
         </div>
       </div>
     </div>

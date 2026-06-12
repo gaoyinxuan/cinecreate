@@ -36,7 +36,7 @@ export default function ShotCard({ shot, globalNum, onChange, onDelete }: Props)
   return (
     <div id={`shot-${shot.id}`} className="bg-[var(--card)] border border-[var(--border2)] rounded-xl overflow-hidden hover:border-[var(--border2)] transition-colors group">
       <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-white/5">
-        <span className="bg-gold-400 text-white text-xs font-bold px-2.5 py-1 rounded-full">Shot {globalNum || '?'}</span>
+        <span className="bg-[var(--accent-solid)] text-white text-xs font-bold px-2.5 py-1 rounded-full">Shot {globalNum || '?'}</span>
         {durationSec !== null && <span className="text-xs text-gold-500 font-mono ml-1">⏱ {Math.floor(durationSec/60)}m {durationSec%60}s</span>}
         <span className="text-xs text-[var(--muted)] ml-auto">{shot.startTime || '--:--'} → {shot.endTime || '--:--'}</span>
         <span className="text-xs text-[var(--text2)]">{variants.length > 1 ? `${variants.length} 方案` : ''}</span>

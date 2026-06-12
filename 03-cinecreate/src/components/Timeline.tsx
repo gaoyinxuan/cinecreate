@@ -95,7 +95,7 @@ export default function Timeline({ shots, sequences, activeSeqId, scrollContaine
               const isOver = s.id === dragOverId;
               return (
                 <div key={s.id}
-                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all duration-200 ${isActive?'bg-gold-400/15 border border-gold-400/20':'hover:bg-white/[0.04] border border-transparent'} ${isDragging?'tl-dragging':''} ${landedId===s.id?'tl-landed':''}`}
+                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all duration-200 ${isActive?'bg-[var(--accent-solid)]/15 border border-gold-400/20':'hover:bg-white/[0.04] border border-transparent'} ${isDragging?'tl-dragging':''} ${landedId===s.id?'tl-landed':''}`}
                   style={{cursor:isDragging?'grabbing':'pointer'}}
                   draggable onDragStart={e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',s.id);setDragShotId(s.id);setDragOverId(null);}}
                   onDragOver={e=>{e.preventDefault();if(s.id!==dragShotId){setInsertPos(e.clientY<(e.currentTarget as HTMLElement).getBoundingClientRect().top+(e.currentTarget as HTMLElement).getBoundingClientRect().height/2?'before':'after');setDragOverId(s.id);}}}
@@ -105,7 +105,7 @@ export default function Timeline({ shots, sequences, activeSeqId, scrollContaine
                   onClick={()=>jumpTo(s.id)}>
                   {isOver && insertPos==='before' && <div className="absolute left-2 right-2 top-0 h-[3px] bg-[#a78bfa] rounded-sm z-10" style={{transform:'translateY(-3px)',boxShadow:'0 0 6px rgba(124,111,247,0.4)'}} />}
                   {isOver && insertPos==='after' && <div className="absolute left-2 right-2 bottom-0 h-[3px] bg-[#a78bfa] rounded-sm z-10" style={{transform:'translateY(6px)',boxShadow:'0 0 6px rgba(124,111,247,0.4)'}} />}
-                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${isActive?'bg-gold-400 text-white':'bg-[var(--border)] text-[var(--dim)]'}`}>{shotGlobalNum[s.id] || li+1}</span>
+                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${isActive?'bg-[var(--accent-solid)] text-white':'bg-[var(--border)] text-[var(--dim)]'}`}>{shotGlobalNum[s.id] || li+1}</span>
                   <div className="min-w-0 flex-1">
                     <div className="text-[var(--text2)] truncate">{s.title || `Shot ${shotGlobalNum[s.id] || li+1}`}</div>
                     <div className="text-xs text-[var(--muted)]">{s.startTime||'--:--'}{s.duration?` · ${s.duration}`:''}</div>

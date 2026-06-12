@@ -30,7 +30,7 @@ export default function SequenceTabs({ sequences, activeSeqId, onSelect, onCreat
 
   return (
     <div className="flex items-center gap-1 px-6 py-2.5 bg-[var(--bg)] border-b border-[var(--border)] overflow-x-auto">
-      <button className={`shrink-0 text-xs px-3 py-1.5 rounded-lg transition-colors ${!activeSeqId ? 'bg-gold-400/20 text-[var(--text)] border border-gold-400/30' : 'text-[var(--dim)] hover:text-[var(--text2)] border border-transparent hover:border-[var(--border2)]'}`}
+      <button className={`shrink-0 text-xs px-3 py-1.5 rounded-lg transition-colors ${!activeSeqId ? 'bg-[var(--accent-bg)] text-[var(--text)] border border-gold-400/30' : 'text-[var(--dim)] hover:text-[var(--text2)] border border-transparent hover:border-[var(--border2)]'}`}
         onClick={() => onSelect(null)}>全部</button>
       <span className="text-[var(--border)] mx-1">|</span>
       {(sequences||[]).map(s => {
@@ -38,7 +38,7 @@ export default function SequenceTabs({ sequences, activeSeqId, onSelect, onCreat
         const active = s.id === activeSeqId;
         return (
           <div key={s.id}
-            className={`shrink-0 group flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${active ? 'bg-gold-400/15 text-[var(--text)] border border-gold-400/30' : 'text-[var(--text3)] hover:text-[var(--text2)] border border-transparent hover:border-[var(--border2)]'}`}
+            className={`shrink-0 group flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${active ? 'bg-[var(--accent-bg)] text-[var(--text)] border border-gold-400/30' : 'text-[var(--text3)] hover:text-[var(--text2)] border border-transparent hover:border-[var(--border2)]'}`}
             onClick={() => onSelect(s.id)} onDoubleClick={() => startRename(s)}>
             {editId === s.id ? (
               <input className="bg-[var(--card2)] border border-gold-400 rounded px-1 py-0 text-xs text-[var(--text)] outline-none w-20"

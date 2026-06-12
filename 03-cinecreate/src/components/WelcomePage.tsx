@@ -58,7 +58,7 @@ export default function WelcomePage({ onCreateProject, onClose }: Props) {
         <p className="text-xs text-[var(--muted)] mb-6">先完成故事创作 → 再生成素材 → 最后统一管理</p>
 
         {/* CTA */}
-        <button className="px-8 py-3 bg-gold-400 hover:bg-gold-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-gold-400/20 transition-all"
+        <button className="px-8 py-3 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-xl shadow-lg shadow-gold-400/20 transition-all"
           onClick={onCreateProject}>
           ✨ 创建第一个项目
         </button>
