@@ -218,13 +218,6 @@ export default function ProjectSidebar(props: Props) {
                   <span className="text-[11px]">分镜</span>
                 </div>
 
-                {/* 预览 */}
-                <div className={`${rowBase} px-1 text-[var(--text3)] hover:text-[var(--text2)]`}>
-                  <span className="w-3.5 flex items-center justify-center shrink-0">
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50"><circle cx="5" cy="5" r="2.8" stroke="currentColor" stroke-width="1"/><circle cx="5" cy="5" r="1" fill="currentColor"/></svg>
-                  </span>
-                  <span className="text-[11px]">预览</span>
-                </div>
               </div>
             )}
           </div>);

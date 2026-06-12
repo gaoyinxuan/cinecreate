@@ -11,6 +11,7 @@ import DraftWorkspace from './components/DraftWorkspace';
 import ToolsPanel from './components/ToolsPanel';
 import OnboardingGuide, { useOnboarding } from './components/OnboardingGuide';
 import WelcomePage from './components/WelcomePage';
+import PreviewPanel from './components/PreviewPanel';
 import { getTheme, toggleTheme } from './services/themeService';
 import VideoOutputPanel from './components/VideoOutputPanel';
 import ToastProvider from './components/ToastProvider';
@@ -26,6 +27,7 @@ export default function App() {
   const [activeSeqId, setActiveSeqId] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [toolMode, setToolMode] = useState<'image'|'video'|null>(null);
+  const [viewMode, setViewMode] = useState<'preview'|'storyboard'>('preview');
   const [loaded, setLoaded] = useState(false);
   const [showStoryOnboard, dismissStoryOnboard, showStoryGuide] = useOnboarding('onboard-storyboard', loaded);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -307,14 +309,14 @@ export default function App() {
       <div className="flex h-screen">
         <ProjectSidebar
           projects={projects} activeId={activeId} activeSeqId={activeSeqId}
-          onSelect={(id) => { setActiveId(id); setSelectedDraftId(null); }}
+          onSelect={(id) => { setActiveId(id); setSelectedDraftId(null); setViewMode('preview'); }}
           onCreate={createProject} onRename={renameProject} onDelete={deleteProject}
           onSelectDraft={(draftId) => { setSelectedDraftId(draftId); setToolMode(null); }}
           selectedDraftId={selectedDraftId}
-          onSelectStoryboard={() => { setSelectedDraftId(null); setToolMode(null); }}
+          onSelectStoryboard={() => { setSelectedDraftId(null); setToolMode(null); setViewMode('storyboard'); }}
           onSelectImageTools={() => { setSelectedDraftId(null); setToolMode('image'); }}
           onSelectVideoTools={() => { setSelectedDraftId(null); setToolMode('video'); }}
-          activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : 'storyboard'}
+          activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : viewMode}
           onShowWelcome={() => { setActiveId(null); setSelectedDraftId(null); setToolMode(null); }} />
         {!activeId && !toolMode && !selectedDraftId ? (
           <WelcomePage onCreateProject={() => { const n = prompt('项目名称：'); if (n?.trim()) createProject(n.trim()); }} />
@@ -322,7 +324,7 @@ export default function App() {
           <ToolsPanel mode={toolMode} />
         ) : selectedDraftId && activeId ? (
           <DraftWorkspace projectId={activeId} draftId={selectedDraftId} onDraftCreated={(id)=>setSelectedDraftId(id)} />
-        ) : (
+        ) : activeId && viewMode === 'storyboard' ? (
           <>
             <div className="flex-1 flex flex-col min-w-0">
               {activeProject && (
@@ -347,7 +349,9 @@ export default function App() {
                 scrollContainerRef={navigatorRef} onReorderShots={reorderShots} shotGlobalNum={shotGlobalNum} />
             )}
           </>
-        )}
+        ) : activeId ? (
+          <PreviewPanel projectName={activeProject?.name || ''} />
+        ) : null}
       </div>
       {showStoryOnboard && (
         <OnboardingGuide title="分镜管理" storageKey="onboard-storyboard" onClose={dismissStoryOnboard}
