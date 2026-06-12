@@ -27,7 +27,7 @@ export default function PresetTags({ tags, onChange }: Props) {
               <div className="flex flex-wrap gap-1">
                 {g.opts.map(opt => {
                   const active = tags.includes(opt);
-                  return <button key={opt} className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-gold-400 text-white' : 'bg-[var(--card2)] text-[var(--dim)] hover:text-[var(--text2)] hover:bg-[#1a1a32]'}`}
+                  return <button key={opt} className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-gold-400 text-white' : 'bg-[var(--card2)] text-[var(--dim)] hover:text-[var(--text2)] hover:bg-[var(--border)]'}`}
                     onClick={() => toggle(opt)}>{opt}</button>;
                 })}
               </div>

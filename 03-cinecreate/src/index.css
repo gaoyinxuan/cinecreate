@@ -6,20 +6,20 @@
 
 /* Theme variables */
 :root,[data-theme="dark"]{
-  --bg:#0f0f0f;--bg2:#141414;--card:#1a1a1a;--card2:#111111;--input:#111111;
-  --text:#e8e8f0;--text2:#aaa;--text3:#888;--muted:#555;--dim:#666;
-  --border:#1e1e1e;--border2:#2a2a2a;--hover:rgba(255,255,255,0.03);
-  --accent-bg:rgba(214,179,106,0.12);--accent-text:#D6B36A;
-  --scrollbar-thumb:#2a2a2a;--scrollbar-hover:#3a3a3a;
-  --surface:#0a0a0a;
+  --bg:#0d0d0d;--bg2:#121212;--card:#181818;--card2:#101010;--input:#101010;
+  --text:#c8c8d0;--text2:#9898a0;--text3:#787880;--muted:#606068;--dim:#686870;
+  --border:#1e1e1e;--border2:#282828;--hover:rgba(255,255,255,0.03);
+  --accent-bg:rgba(214,179,106,0.1);--accent-text:#D6B36A;
+  --scrollbar-thumb:#282828;--scrollbar-hover:#383838;
+  --surface:#080808;
 }
 [data-theme="light"]{
-  --bg:#ffffff;--bg2:#f9f9fb;--card:#ffffff;--card2:#f5f5f7;--input:#ffffff;
-  --text:#0a0a0a;--text2:#1a1a1a;--text3:#2a2a2a;--muted:#666666;--dim:#888888;
-  --border:#e8e8ea;--border2:#dddde0;--hover:rgba(0,0,0,0.04);
-  --accent-bg:rgba(214,179,106,0.1);--accent-text:#B38A2E;
-  --scrollbar-thumb:#d0d0d4;--scrollbar-hover:#b0b0b4;
-  --surface:#f4f4f6;
+  --bg:#f5f5f5;--bg2:#efeff0;--card:#fafafa;--card2:#f0f0f2;--input:#fafafa;
+  --text:#1a1a1a;--text2:#606060;--text3:#909090;--muted:#a0a0a0;--dim:#b0b0b0;
+  --border:#e0e0e2;--border2:#d4d4d8;--hover:rgba(0,0,0,0.03);
+  --accent-bg:rgba(214,179,106,0.1);--accent-text:#9a7b2e;
+  --scrollbar-thumb:#d4d4d8;--scrollbar-hover:#b8b8bc;
+  --surface:#eaeaec;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 button:focus:not(:focus-visible){outline:none}button:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
