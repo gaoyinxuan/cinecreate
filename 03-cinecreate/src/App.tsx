@@ -14,6 +14,7 @@ import WelcomePage from './components/WelcomePage';
 import PreviewPanel from './components/PreviewPanel';
 import { getTheme, toggleTheme } from './services/themeService';
 import VideoOutputPanel from './components/VideoOutputPanel';
+import AssetDrawer from './components/AssetDrawer';
 import ToastProvider from './components/ToastProvider';
 
 let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -306,6 +307,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <AssetDrawer />
       <div className="flex h-screen">
         <ProjectSidebar
           projects={projects} activeId={activeId} activeSeqId={activeSeqId}
