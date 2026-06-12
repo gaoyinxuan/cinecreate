@@ -1,27 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
-  <!-- App icon background: dark rounded rect -->
   <rect width="256" height="256" rx="56" fill="#111111"/>
-
-  <!--
-    CineCreate Icon Mark
-    ====================
-    Fusion of: viewfinder corner brackets + play button + letter C
-    Material: #D6B36A gold on #111111 dark
-  -->
-
-  <!-- Left C-arc — bold semicircle curving outward, forming the C -->
-  <path d="M 72 92 A 56 56 0 0 0 72 164" stroke="#D6B36A" stroke-width="12" stroke-linecap="round"/>
-
-  <!-- Viewfinder: 4 corner L-brackets -->
-  <!-- Top-Left -->
-  <path d="M 72 72 h 44 M 72 72 v 44" stroke="#D6B36A" stroke-width="8" stroke-linecap="round"/>
-  <!-- Top-Right -->
-  <path d="M 184 72 h -44 M 184 72 v 44" stroke="#D6B36A" stroke-width="8" stroke-linecap="round"/>
-  <!-- Bottom-Left -->
-  <path d="M 72 184 h 44 M 72 184 v -44" stroke="#D6B36A" stroke-width="8" stroke-linecap="round"/>
-  <!-- Bottom-Right -->
-  <path d="M 184 184 h -44 M 184 184 v -44" stroke="#D6B36A" stroke-width="8" stroke-linecap="round"/>
-
-  <!-- Center play triangle (▶) — slightly right of center to balance C on left -->
-  <path d="M 122 112 L 122 144 L 160 128 Z" fill="#D6B36A"/>
+  <circle cx="128" cy="128" r="72" stroke="#D6B36A" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/>
+  <path d="M148 112L148 144L174 128Z" fill="#D6B36A"/>
 </svg>

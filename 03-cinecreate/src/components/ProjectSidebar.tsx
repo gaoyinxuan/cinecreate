@@ -100,7 +100,7 @@ export default function ProjectSidebar(props: Props) {
       <div className="px-5 py-3 border-b border-[var(--border)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <svg width="28" height="28" viewBox="0 0 256 256" fill="none" className="shrink-0"><rect width="256" height="256" rx="56" fill="#111"/><path d="M70 90A58 58 0 0 0 70 166" stroke="#D6B36A" stroke-width="14" stroke-linecap="round"/><path d="M70 70h48M70 70v48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M186 70h-48M186 70v48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M70 186h48M70 186v-48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M186 186h-48M186 186v-48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M120 110L120 146L162 128Z" fill="#D6B36A"/></svg>
+            <svg width="28" height="28" viewBox="0 0 256 256" fill="none" className="shrink-0"><circle cx="128" cy="128" r="72" stroke="#D6B36A" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="#D6B36A"/></svg>
             <div>
               <h1 className="text-sm font-bold text-[var(--accent-text)] tracking-wide">影创</h1>
               <p className="text-xs text-[var(--muted)] mt-0.5">CineCreate</p>
