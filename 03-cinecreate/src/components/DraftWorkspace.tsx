@@ -92,6 +92,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   useEffect(() => {
     (async () => {
       if (!projectId) return;
+      setSelectedTags({}); setInput('');
       if (draftId) { const all = await db.dts.getAll(projectId); const d = all.find((x:any)=>x.id===draftId); if (d) { setDraft(d); setMsgs(p(d.conversation)); return; } }
       const all = await db.dts.getAll(projectId);
       if (all.length) { setDraft(all[0]); setMsgs(p(all[0].conversation)); if (onDraftCreated) onDraftCreated(all[0].id); }
