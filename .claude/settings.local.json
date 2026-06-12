@@ -108,7 +108,8 @@
       "Bash(rm -f docs/app-icon.ico docs/app-icon.png)",
       "Bash(MSYS_NO_PATHCONV=1 gh api *)",
       "Bash(rm -f docs/logo-v2.svg docs/logo-horizontal.svg docs/logo-preview.html docs/app-icon-*)",
-      "Bash(cp docs/favicon.svg docs/logo-icon-clear.svg docs/logo-icon.svg 03-cinecreate/public/)"
+      "Bash(cp docs/favicon.svg docs/logo-icon-clear.svg docs/logo-icon.svg 03-cinecreate/public/)",
+      "Bash(taskkill /F /IM CineCreate.exe)"
     ]
   }
 }

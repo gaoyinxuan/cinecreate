@@ -94,7 +94,7 @@ export default function ProjectSidebar(props: Props) {
         {/* Guide */}
         {onShowWelcome && (
           <div className="flex items-center gap-2 h-7 px-2 rounded cursor-pointer text-[var(--text3)] hover:text-[var(--text)] hover:bg-black/3 mb-1 text-[13px]"
-            onClick={onShowWelcome}
+            onClick={onShowWelcome}>
             <svg width="10" height="10" viewBox="0 0 10 10" className="shrink-0 opacity-40"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1" fill="none"/><path d="M4.5 3.5v3l2.5-1.5z" fill="currentColor" opacity="0.6"/></svg>
             <span>新手引导</span>
           </div>
