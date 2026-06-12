@@ -79,7 +79,7 @@ export default function PreviewPanel({ projectId, projectName }: Props) {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-[var(--bg)] p-8">
-      <div className="text-xs text-[var(--muted)] font-medium uppercase tracking-wider mb-6">成果预览</div>
+      <div className="text-sm text-[var(--text)] font-semibold mb-6">成果预览</div>
       {video ? (
         <div className="w-full max-w-3xl">
           <div className="bg-black rounded-xl overflow-hidden shadow-lg">
