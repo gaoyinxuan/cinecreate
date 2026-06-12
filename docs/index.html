@@ -3,172 +3,203 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>影创 CineCreate — AI Video Creation Workbench</title>
+<title>CineCreate — AI Video Director Workbench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+:root {
+  --bg:#fff; --text:#111; --text2:#555; --muted:#999;
+  --accent:#5b4ae0; --accent2:#7c6ff7;
+  --card:#f8f8fa; --border:#e8e8ec;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#0f0f1a;color:#e8e8f0;line-height:1.6}
-.container{max-width:1100px;margin:0 auto;padding:0 24px}
-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid #1e1e3a}
-nav h1{font-size:1.25rem;font-weight:700}
-nav a{color:#aaa;text-decoration:none;font-size:.875rem;margin-left:16px}
-nav a:hover{color:#e8e8f0}
-.lang-switch{cursor:pointer;color:#7c6ff7;font-size:.875rem}
-.hero{text-align:center;padding:80px 0 60px}
-.hero h2{font-size:2.5rem;font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,#7c6ff7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{font-size:1.1rem;color:#888;margin-bottom:32px}
-.btn{display:inline-block;padding:12px 32px;border-radius:12px;font-size:.95rem;font-weight:600;text-decoration:none;transition:all .2s}
-.btn-primary{background:#7c6ff7;color:#fff;margin:0 8px}
-.btn-primary:hover{background:#6b5de7}
-.btn-outline{border:1px solid #7c6ff7;color:#7c6ff7;margin:0 8px}
-.btn-outline:hover{background:rgba(124,111,247,.1)}
-.features{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:60px 0}
-.feature-card{background:#1a1b32;border:1px solid #1e1e3a;border-radius:16px;padding:28px;text-align:center;transition:border-color .2s}
-.feature-card:hover{border-color:#7c6ff7}
-.feature-card .icon{font-size:2rem;margin-bottom:12px}
-.feature-card h4{font-size:1rem;margin-bottom:8px}
-.feature-card p{font-size:.8rem;color:#888}
-.workflow{text-align:center;padding:40px 0 60px}
-.workflow-steps{display:flex;align-items:center;justify-content:center;gap:12px;font-size:.95rem;color:#aaa;flex-wrap:wrap}
-.workflow-steps span{padding:8px 16px;background:#1a1b32;border-radius:8px;border:1px solid #1e1e3a}
-.workflow-steps .arrow{background:none;border:none;color:#7c6ff7}
-.screenshots{padding:60px 0}
-.screenshots h3{text-align:center;font-size:1.5rem;margin-bottom:32px}
-.screenshot-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
-.screenshot-grid img{width:100%;border-radius:12px;border:1px solid #1e1e3a}
-.download{padding:60px 0;text-align:center;background:#12122a;border-radius:16px;margin:40px 0}
-.download h3{font-size:1.5rem;margin-bottom:8px}
-.download p{color:#888;margin-bottom:24px;font-size:.9rem}
-.download-links{display:flex;justify-content:center;gap:16px;flex-wrap:wrap}
-.download-card{background:#1a1b32;border:1px solid #1e1e3a;border-radius:12px;padding:20px;width:280px;text-align:center}
-.download-card .size{font-size:.8rem;color:#888;margin:8px 0}
-.requirements{text-align:center;padding:20px 0 60px;color:#555;font-size:.8rem}
-footer{text-align:center;padding:32px 0;border-top:1px solid #1e1e3a;color:#555;font-size:.8rem}
+body{font:400 16px/1.6 'Inter','Noto Sans SC',-apple-system,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{font-weight:700;letter-spacing:-.02em}
+.container{max-width:1200px;margin:0 auto;padding:0 32px}
+.section{padding:100px 0}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .3s}
+nav.scrolled{border-bottom-color:var(--border)}
+nav .container{display:flex;align-items:center;justify-content:space-between;height:64px}
+nav .logo{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
+nav .logo span{color:var(--accent)}
+nav .links{display:flex;gap:28px;font-size:.85rem;color:var(--text2);font-weight:500}
+nav .links a:hover{color:var(--text)}
+nav .lang{font-size:.82rem;color:var(--accent);cursor:pointer;font-weight:600;background:none;border:1px solid var(--border);border-radius:20px;padding:6px 14px}
+nav .lang:hover{background:var(--card)}
+
+/* Hero */
+.hero{padding:160px 0 100px;text-align:center}
+.hero .tag{display:inline-block;font-size:.78rem;font-weight:600;color:var(--accent);background:rgba(91,74,224,.08);padding:6px 16px;border-radius:20px;margin-bottom:28px;letter-spacing:.04em;text-transform:uppercase}
+.hero h1{font-size:4rem;font-weight:800;line-height:1.1;margin-bottom:20px;max-width:800px;margin-left:auto;margin-right:auto}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,#5b4ae0,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.18rem;color:var(--text2);max-width:520px;margin:0 auto 40px}
+.hero .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:14px 30px;border-radius:12px;font-size:.9rem;font-weight:600;transition:all .25s;cursor:pointer;border:none}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(91,74,224,.25)}
+.btn-s{border:1.5px solid var(--border);color:var(--text);background:#fff}
+.btn-s:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Features */
+.features{background:var(--card)}
+.features .head{text-align:center;margin-bottom:60px}
+.features .head h2{font-size:2.2rem;margin-bottom:12px}
+.features .head p{color:var(--text2);font-size:1.05rem}
+.features .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:900px;margin:0 auto}
+.feature{background:#fff;border-radius:16px;padding:32px;border:1px solid var(--border);transition:all .3s;display:flex;gap:20px;align-items:flex-start}
+.feature:hover{border-color:var(--accent);box-shadow:0 4px 20px rgba(0,0,0,.04);transform:translateY(-2px)}
+.feature .icon{font-size:1.6rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:var(--card);border-radius:12px;flex-shrink:0}
+.feature h4{font-size:.95rem;font-weight:600;margin-bottom:4px}
+.feature p{font-size:.82rem;color:var(--text2);line-height:1.5}
+
+/* Workflow */
+.workflow .head{text-align:center;margin-bottom:48px}
+.workflow .head h2{font-size:2.2rem;margin-bottom:12px}
+.flow{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;max-width:900px;margin:0 auto}
+.step{text-align:center;padding:20px 28px;background:#fff;border:1px solid var(--border);border-radius:14px;min-width:100px;transition:all .25s}
+.step:hover{border-color:var(--accent)}
+.step .num{font-size:.72rem;color:var(--accent);font-weight:700;margin-bottom:4px}
+.step .name{font-size:.85rem;font-weight:600}
+.arrow{font-size:1.3rem;color:var(--muted);padding:0 8px;flex-shrink:0}
+
+/* Screenshots */
+.screenshots .head{text-align:center;margin-bottom:48px}
+.screenshots .head h2{font-size:2.2rem;margin-bottom:12px}
+.shots{display:grid;grid-template-columns:repeat(2,1fr);gap:32px;max-width:1000px;margin:0 auto}
+.shot{border-radius:16px;overflow:hidden;background:#fff;border:1px solid var(--border);transition:all .3s}
+.shot:hover{box-shadow:0 8px 32px rgba(0,0,0,.06)}
+.shot img{width:100%;display:block}
+.shot .cap{padding:14px 18px;font-size:.82rem;color:var(--text2);font-weight:500}
+
+/* Download */
+.download{background:linear-gradient(135deg,#5b4ae0,#7c6ff7);color:#fff;text-align:center}
+.download h2{font-size:2rem;margin-bottom:10px;color:#fff}
+.download .sub{color:rgba(255,255,255,.75);margin-bottom:40px;font-size:1rem}
+.download .cards{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+.dl{background:rgba(255,255,255,.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:32px 28px;width:280px;text-align:center;transition:all .3s}
+.dl:hover{background:rgba(255,255,255,.16)}
+.dl .icon{font-size:2rem;margin-bottom:10px}
+.dl .title{font-weight:700;font-size:1rem;margin-bottom:4px}
+.dl .size{font-size:.8rem;opacity:.7;margin-bottom:18px}
+.download .btn-p{background:#fff;color:var(--accent)}
+.download .btn-p:hover{box-shadow:0 8px 24px rgba(0,0,0,.2);background:#fff}
+.download .btn-s{border-color:rgba(255,255,255,.3);color:#fff;background:transparent}
+.download .btn-s:hover{border-color:#fff;color:#fff}
+
+/* Footer */
+footer{padding:32px 0;text-align:center;font-size:.8rem;color:var(--muted)}
+footer a{color:var(--accent)}
+footer a:hover{text-decoration:underline}
+
 .en{display:none}
-@media(max-width:768px){.features{grid-template-columns:repeat(2,1fr)}.hero h2{font-size:1.8rem}.screenshot-grid{grid-template-columns:1fr}}
+
+@media(max-width:768px){
+  .hero h1{font-size:2.5rem}
+  .features .grid{grid-template-columns:1fr}
+  .shots{grid-template-columns:1fr}
+  .feature{flex-direction:column;gap:12px}
+  .step{min-width:70px;padding:14px 16px}
+  .section{padding:60px 0}
+  .hero{padding:120px 0 60px}
+}
 </style>
 </head>
 <body>
 
-<nav class="container">
-  <h1>🎬 影创 CineCreate</h1>
-  <div>
-    <a href="#features"><span class="zh">功能</span><span class="en">Features</span></a>
-    <a href="#screenshots"><span class="zh">截图</span><span class="en">Screenshots</span></a>
-    <a href="#download"><span class="zh">下载</span><span class="en">Download</span></a>
-    <span class="lang-switch" onclick="toggleLang()">EN / 中</span>
+<nav id="nav"><div class="container">
+  <a href="#" class="logo"><span>Cine</span>Create</a>
+  <div class="links">
+    <a href="#features" class="zh">功能</a><a href="#features" class="en">Features</a>
+    <a href="#workflow" class="zh">流程</a><a href="#workflow" class="en">Workflow</a>
+    <a href="#screenshots" class="zh">预览</a><a href="#screenshots" class="en">Preview</a>
+    <a href="#download-section" class="zh">下载</a><a href="#download-section" class="en">Download</a>
   </div>
-</nav>
+  <button class="lang" onclick="tl()">EN</button>
+</div></nav>
 
-<section class="hero container">
-  <h2>AI 视频创作工作台</h2>
-  <p class="zh">从故事构思到镜头制作，一站式 AI 导演助手</p>
-  <p class="en">From story ideation to shot production — your all-in-one AI director assistant</p>
-  <div>
-    <a href="#download" class="btn btn-primary zh">下载免安装版</a>
-    <a href="#download" class="btn btn-outline zh">下载安装版</a>
-    <a href="#download" class="btn btn-primary en">Download Portable</a>
-    <a href="#download" class="btn btn-outline en">Download Setup</a>
-  </div>
-</section>
-
-<section class="container" id="features">
-  <div class="features">
-    <div class="feature-card">
-      <div class="icon">📝</div>
-      <h4 class="zh">故事设定</h4><h4 class="en">Story Design</h4>
-      <p class="zh">AI 辅助创作世界观、剧情主线、视觉基调</p>
-      <p class="en">AI-assisted world-building, plot & visual tone</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">👤</div>
-      <h4 class="zh">角色设计</h4><h4 class="en">Character Design</h4>
-      <p class="zh">自动生成角色定妆 Prompt，保证形象一致性</p>
-      <p class="en">Auto-generate portrait prompts for visual consistency</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">🎬</div>
-      <h4 class="zh">场景规划</h4><h4 class="en">Scene Planning</h4>
-      <p class="zh">分镜序列 + 场景描述 + 时长预估</p>
-      <p class="en">Shot sequencing with duration estimation</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">🎥</div>
-      <h4 class="zh">镜头制作</h4><h4 class="en">Shot Production</h4>
-      <p class="zh">逐镜头生成生图/视频 Prompt，支持首尾帧模式</p>
-      <p class="en">Per-shot image & video prompts, keyframe mode</p>
+<section class="hero">
+  <div class="container">
+    <div class="tag"><span class="zh">AI 视频创作工作台</span><span class="en">AI Video Creation Workbench</span></div>
+    <h1><span class="zh">从<span>创意</span>到<span>成片</span>，<br>AI 导演全程陪伴</span><span class="en">From <em>Ideas</em> to <em>Films</em>,<br>Your AI Director</span></h1>
+    <p class="zh">一站式完成故事设定、角色设计、场景规划、镜头Prompt生成。不是聊天机器人，是真正的创作伙伴。</p>
+    <p class="en">Story design, characters, scenes, shot prompts — all in one place. Not a chatbot. A creative partner.</p>
+    <div class="cta">
+      <a href="#download-section" class="btn btn-p zh">⬇ 下载 Windows 版</a>
+      <a href="#download-section" class="btn btn-p en">⬇ Download for Windows</a>
+      <a href="#workflow" class="btn btn-s zh">了解工作流 →</a>
+      <a href="#workflow" class="btn btn-s en">How it works →</a>
     </div>
   </div>
 </section>
 
-<section class="workflow container">
-  <h3 class="zh" style="margin-bottom:24px;font-size:1.3rem">创作流程</h3>
-  <h3 class="en" style="margin-bottom:24px;font-size:1.3rem">Creative Workflow</h3>
-  <div class="workflow-steps">
-    <span>📝 <span class="zh">故事设定</span><span class="en">Story</span></span>
-    <span class="arrow">→</span>
-    <span>👤 <span class="zh">角色设计</span><span class="en">Characters</span></span>
-    <span class="arrow">→</span>
-    <span>🎬 <span class="zh">场景规划</span><span class="en">Scenes</span></span>
-    <span class="arrow">→</span>
-    <span>🎥 <span class="zh">镜头制作</span><span class="en">Shots</span></span>
-    <span class="arrow">→</span>
-    <span>🖼️ <span class="zh">生图</span><span class="en">Image</span></span>
-    <span class="arrow">→</span>
-    <span>🎬 <span class="zh">视频</span><span class="en">Video</span></span>
-  </div>
-</section>
-
-<section class="screenshots container" id="screenshots">
-  <h3><span class="zh">界面预览</span><span class="en">Screenshots</span></h3>
-  <div class="screenshot-grid">
-    <div>
-      <img src="screenshots/welcome.png" alt="Welcome Page" onerror="this.style.display='none'">
-      <p style="text-align:center;color:#888;font-size:.8rem;margin-top:8px"><span class="zh">欢迎页 — 素材展示</span><span class="en">Welcome Page</span></p>
+<section id="features" class="features section">
+  <div class="container">
+    <div class="head">
+      <h2 class="zh">四个阶段，一条完整的创作链路</h2><h2 class="en">Four stages. One creative pipeline.</h2>
+      <p class="zh">每个阶段产出结构化资产，环环相扣，驱动后续生图与生视频</p>
+      <p class="en">Each stage produces structured assets that feed into the next — all the way to image and video generation</p>
     </div>
-    <div>
-      <img src="screenshots/workspace.png" alt="Draft Workspace" onerror="this.style.display='none'">
-      <p style="text-align:center;color:#888;font-size:.8rem;margin-top:8px"><span class="zh">文稿工作台 — AI 对话创作</span><span class="en">Draft Workspace</span></p>
+    <div class="grid">
+      <div class="feature"><div class="icon">📝</div><div><h4 class="zh">故事设定</h4><h4 class="en">Story Design</h4><p class="zh">AI 辅助构思世界观、剧情主线、视觉基调。产出 Story 资产，定义整个项目的创作方向。</p><p class="en">AI-assisted world-building, plot, and visual tone. Outputs a Story asset that defines the entire project's creative direction.</p></div></div>
+      <div class="feature"><div class="icon">👤</div><div><h4 class="zh">角色设计</h4><h4 class="en">Character Design</h4><p class="zh">自动生成角色定妆 Prompt，保证后续所有镜头中角色形象的一致性。主角支持三视图。</p><p class="en">Auto-generates portrait prompts for consistent character appearance across all shots. Lead characters support turnaround sheets.</p></div></div>
+      <div class="feature"><div class="icon">🎬</div><div><h4 class="zh">场景规划</h4><h4 class="en">Scene Planning</h4><p class="zh">将故事拆解为关键场景，每个场景规划镜头序列、时长预估、转场方式。纯规划，不产 Prompt。</p><p class="en">Breaks the story into key scenes with shot sequences, timing, and transitions. Planning only — no prompts yet.</p></div></div>
+      <div class="feature"><div class="icon">🎥</div><div><h4 class="zh">镜头制作</h4><h4 class="en">Shot Production</h4><p class="zh">逐镜头生成完整的生图和视频 Prompt。支持首帧/首尾帧模式。Prompt 自动融合角色+场景+视觉基调。</p><p class="en">Generates complete image & video prompts per shot. Supports single/dual keyframe modes. Auto-merges character + scene + visual tone.</p></div></div>
     </div>
   </div>
 </section>
 
-<section class="download container" id="download">
-  <h3>⬇ <span class="zh">下载</span><span class="en">Download</span></h3>
-  <p class="zh">支持 Windows 10+ 64位系统</p>
-  <p class="en">Windows 10+ 64-bit required</p>
-  <div class="download-links">
-    <div class="download-card">
-      <div style="font-size:2rem">📦</div>
-      <div style="font-weight:700;margin-top:8px">CineCreate 1.0.0</div>
-      <div class="size"><span class="zh">免安装便携版 85MB</span><span class="en">Portable 85MB</span></div>
-      <a href="https://github.com/gaoyinxuan/0507-cc/releases/latest/download/CineCreate-1.0.0.exe" class="btn btn-primary" style="display:block;margin-top:12px"><span class="zh">下载便携版</span><span class="en">Download Portable</span></a>
-    </div>
-    <div class="download-card">
-      <div style="font-size:2rem">💿</div>
-      <div style="font-weight:700;margin-top:8px">CineCreate Setup 1.0.0</div>
-      <div class="size"><span class="zh">安装版 85MB</span><span class="en">Installer 85MB</span></div>
-      <a href="https://github.com/gaoyinxuan/0507-cc/releases/latest/download/CineCreate-Setup-1.0.0.exe" class="btn btn-outline" style="display:block;margin-top:12px"><span class="zh">下载安装版</span><span class="en">Download Setup</span></a>
+<section id="workflow" class="workflow section">
+  <div class="container">
+    <div class="head"><h2 class="zh">从灵感到交付</h2><h2 class="en">From Inspiration to Delivery</h2></div>
+    <div class="flow">
+      <div class="step"><div class="num">01</div><div class="name zh">故事设定</div><div class="name en">Story</div></div><span class="arrow">→</span>
+      <div class="step"><div class="num">02</div><div class="name zh">角色设计</div><div class="name en">Characters</div></div><span class="arrow">→</span>
+      <div class="step"><div class="num">03</div><div class="name zh">场景规划</div><div class="name en">Scenes</div></div><span class="arrow">→</span>
+      <div class="step"><div class="num">04</div><div class="name zh">镜头制作</div><div class="name en">Shots</div></div><span class="arrow">→</span>
+      <div class="step"><div class="num">05</div><div class="name zh">AI 生图</div><div class="name en">Image Gen</div></div><span class="arrow">→</span>
+      <div class="step"><div class="num">06</div><div class="name zh">AI 视频</div><div class="name en">Video Gen</div></div>
     </div>
   </div>
 </section>
 
-<div class="requirements container">
-  <span class="zh">系统要求：Windows 10 或更高版本 · 64位处理器 · 至少 4GB 内存</span>
-  <span class="en">Requirements: Windows 10+ · 64-bit · 4GB RAM minimum</span>
-</div>
+<section id="screenshots" class="screenshots section">
+  <div class="container">
+    <div class="head"><h2 class="zh">界面预览</h2><h2 class="en">Preview</h2></div>
+    <div class="shots">
+      <div class="shot"><img src="screenshots/welcome.png" alt="Welcome"><div class="cap"><span class="zh">欢迎页 — 素材展示与工作流引导</span><span class="en">Welcome — media showcase & workflow guide</span></div></div>
+      <div class="shot"><img src="screenshots/workspace.png" alt="Workspace"><div class="cap"><span class="zh">文稿工作台 — AI 对话创作 + 资产库</span><span class="en">Draft Workspace — AI chat + asset library</span></div></div>
+    </div>
+  </div>
+</section>
 
-<footer>
-  <p>Built with 💜 · <a href="https://github.com/gaoyinxuan/0507-cc" style="color:#7c6ff7">GitHub</a> · GYX © 2026</p>
-</footer>
+<section id="download-section" class="download section">
+  <div class="container">
+    <h2><span class="zh">下载 CineCreate</span><span class="en">Download CineCreate</span></h2>
+    <p class="sub"><span class="zh">Windows 10+ · 64 位 · 免安装即用</span><span class="en">Windows 10+ · 64-bit · Portable ready</span></p>
+    <div class="cards">
+      <div class="dl">
+        <div class="icon">📦</div><div class="title">Portable 1.0.0</div>
+        <div class="size">85 MB · <span class="zh">免安装</span><span class="en">No install</span></div>
+        <a href="https://github.com/gaoyinxuan/0507-cc/releases/latest/download/CineCreate-1.0.0.exe" class="btn btn-p" style="width:100%;justify-content:center"><span class="zh">下载便携版</span><span class="en">Download Portable</span></a>
+      </div>
+      <div class="dl">
+        <div class="icon">💿</div><div class="title">Setup 1.0.0</div>
+        <div class="size">85 MB · <span class="zh">安装向导</span><span class="en">Installer</span></div>
+        <a href="https://github.com/gaoyinxuan/0507-cc/releases/latest/download/CineCreate-Setup-1.0.0.exe" class="btn btn-s" style="width:100%;justify-content:center"><span class="zh">下载安装版</span><span class="en">Download Setup</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="container"><p>CineCreate · Built with 💜 · <a href="https://github.com/gaoyinxuan/0507-cc">GitHub</a></p></div></footer>
 
 <script>
-function toggleLang(){
-  var zh=document.querySelectorAll('.zh'), en=document.querySelectorAll('.en');
-  var isZh=zh[0].style.display!=='none';
-  zh.forEach(function(e){e.style.display=isZh?'none':'inline'});
-  en.forEach(function(e){e.style.display=isZh?'inline':'none'});
-  document.querySelector('.lang-switch').textContent=isZh?'中 / EN':'EN / 中';
-}
+function tl(){var z=document.querySelectorAll('.zh'),e=document.querySelectorAll('.en'),v=z[0].style.display!=='none';z.forEach(function(x){x.style.display=v?'none':''});e.forEach(function(x){x.style.display=v?'':'none'});document.querySelector('.lang').textContent=v?'中':'EN'}
+window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>10)})
 </script>
 </body>
 </html>
