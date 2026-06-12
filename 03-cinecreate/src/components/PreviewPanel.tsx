@@ -82,7 +82,7 @@ export default function PreviewPanel({ projectId, projectName }: Props) {
       {video ? (
         <div className="w-full max-w-3xl">
           <div className="bg-black rounded-xl overflow-hidden shadow-lg">
-            <video src={video.url} controls className="w-full max-h-[70vh]" autoPlay />
+            <video src={video.url} controls className="w-full max-h-[70vh]" />
           </div>
           <div className="flex items-center justify-between mt-4 px-2">
             <span className="text-sm text-[var(--text2)] truncate flex-1">{video.name}</span>
