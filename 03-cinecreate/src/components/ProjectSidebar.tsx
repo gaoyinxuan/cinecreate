@@ -139,7 +139,7 @@ export default function ProjectSidebar(props: Props) {
                   onKeyDown={e=>{if(e.key==='Enter'){if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}if(e.key==='Escape')setEditId(null);}}
                   autoFocus onClick={e=>e.stopPropagation()} />
               ) : (
-                <span className={`flex-1 truncate ${isActive?'font-semibold':'font-medium'}`} style={{fontSize:'12px'}}>{prj.name}</span>
+                <span className={`flex-1 truncate text-[12px] ${isActive?'font-semibold':'font-medium'}`}>{prj.name}</span>
               )}
               <div className="hidden group-hover:flex items-center relative shrink-0" onClick={e=>e.stopPropagation()}>
                 <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs px-0.5" onClick={()=>setMenuOpen(menuOpen===prj.id?null:prj.id)}>⋯</button>
