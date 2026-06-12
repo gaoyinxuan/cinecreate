@@ -81,7 +81,6 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const [showKey, setShowKey] = useState(false);
   const [keySet, setKeySet] = useState(false);
   const [savedIdx, setSavedIdx] = useState<number | null>(null);
-  const [inspoTag, setInspoTag] = useState<string | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<any>(null);
   const msgsRef = useRef<Message[]>([]);
@@ -103,17 +102,14 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
 
   const p = (s:any) => typeof s==='string' ? JSON.parse(s||'[]') : (s||[]);
   function a(text:string): Message { return { role:'assistant', content: text, timestamp: new Date().toISOString() }; }
-  const INSPIRATION_TAGS = ['修仙','奇幻','科幻','悬疑','爱情','治愈','动作','冒险','历史','赛博朋克'];
-  const INSPIRATION_CARDS = [
-    {tags:['修仙','奇幻'], title:'修仙日常', desc:'隐居生活、宗门成长、道侣陪伴'},
-    {tags:['科幻','赛博朋克'], title:'赛博都市', desc:'未来科技、阴谋、身份谜团'},
-    {tags:['科幻','冒险','动作'], title:'末日废土', desc:'生存、探索、公路冒险'},
-    {tags:['奇幻','冒险'], title:'东方奇幻', desc:'神兽、秘境、英雄成长'},
-    {tags:['悬疑'], title:'悬疑推理', desc:'案件调查与真相揭露'},
-    {tags:['治愈','爱情'], title:'温馨治愈', desc:'平凡生活与情感故事'},
-    {tags:['历史','动作'], title:'历史传奇', desc:'乱世英雄与时代变迁'},
-    {tags:['科幻','冒险'], title:'星际探索', desc:'星际文明与未知世界'},
+  const INSPIRATION_ROWS = [
+    {label:'题材', tags:['修仙','赛博朋克','末日废土','东方奇幻']},
+    {label:'风格', tags:['电影感','动漫风','国风美学','写实摄影']},
+    {label:'情绪', tags:['治愈温馨','热血成长','浪漫爱情','黑色幽默']},
+    {label:'关系', tags:['师徒','道侣','搭档','人与AI']},
+    {label:'类型', tags:['剧情短片','动画MV','电影预告片','世界观展示']},
   ];
+  const HOT_TAGS = ['AI短剧','国风修仙','机器人题材','治愈日常'];
 
   const save = useCallback(async (messages: Message[]) => { msgsRef.current = messages; if (!draft?.id) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => db.dts.update(draft.id, { conversation: messages }).catch(()=>{}), 500); }, [draft]);
   useEffect(() => () => { clearTimeout(saveTimer.current); if (draft?.id && msgsRef.current.length > 0) db.dts.update(draft.id, { conversation: msgsRef.current }).catch(() => {}); }, [draft]);
@@ -204,20 +200,26 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
                 <div className="mb-8">
                   <div className="text-xs text-[var(--text2)] font-semibold mb-1">✨ 创作灵感</div>
                   <div className="text-xs text-[var(--muted)] mb-3">没有明确想法？从一个方向开始。</div>
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    <button className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${!inspoTag ? 'bg-[var(--accent-solid)] text-white' : 'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)] border border-[var(--border)]'}`} onClick={()=>setInspoTag(null)}>全部</button>
-                    {INSPIRATION_TAGS.map(t => (
-                      <button key={t} className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${inspoTag===t ? 'bg-[var(--accent-solid)] text-white' : 'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)] border border-[var(--border)]'}`} onClick={()=>setInspoTag(inspoTag===t?null:t)}>{t}</button>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {INSPIRATION_CARDS.filter(c => !inspoTag || c.tags.includes(inspoTag)).map(c => (
-                      <div key={c.title} className="bg-[var(--card)] border border-[var(--border)] hover:border-[var(--accent-text)]/30 rounded-xl p-3 cursor-pointer transition-colors"
-                        onClick={() => setInput(`我想创作一个${c.title}主题的故事，关于${c.desc}。`)}>
-                        <div className="text-xs font-semibold text-[var(--text)] mb-0.5">{c.title}</div>
-                        <div className="text-[11px] text-[var(--text3)]">{c.desc}</div>
+                  {INSPIRATION_ROWS.map(row => (
+                    <div key={row.label} className="flex items-center gap-2 mb-2">
+                      <span className="text-[11px] text-[var(--muted)] w-10 shrink-0 text-right">[{row.label}]</span>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {row.tags.map(t => (
+                          <button key={t} className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--card)] border border-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] hover:border-[var(--accent-text)]/30 transition-colors"
+                            onClick={() => setInput(`创作一个${t}风格的${row.label==='题材'?'故事':row.label==='类型'?'视频':'内容'}。`)}>{t}</button>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border)]">
+                    <span className="text-[11px] font-semibold text-[var(--text2)] w-10 shrink-0 text-right">🔥</span>
+                    <span className="text-[11px] text-[var(--muted)] mr-1">热门</span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {HOT_TAGS.map(t => (
+                        <button key={t} className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--accent-bg)] border border-[var(--accent-text)]/15 text-[var(--accent-text)] hover:bg-[var(--accent-solid)]/15 transition-colors"
+                          onClick={() => setInput(`我想创作一个关于${t}的内容。`)}>{t}</button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
