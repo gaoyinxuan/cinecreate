@@ -93,9 +93,8 @@ export default function ProjectSidebar(props: Props) {
       <div className="flex-1 overflow-y-auto px-3 py-2">
         {/* Guide */}
         {onShowWelcome && (
-          <div className="flex items-center gap-2 h-7 px-2 rounded cursor-pointer text-[var(--text3)] hover:text-[var(--text)] hover:bg-black/3 mb-1"
+          <div className="flex items-center gap-2 h-7 px-2 rounded cursor-pointer text-[var(--text3)] hover:text-[var(--text)] hover:bg-black/3 mb-1 text-[12px]"
             onClick={onShowWelcome}
-            style={{fontSize:'11px'}}>
             <svg width="10" height="10" viewBox="0 0 10 10" className="shrink-0 opacity-40"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1" fill="none"/><path d="M4.5 3.5v3l2.5-1.5z" fill="currentColor" opacity="0.6"/></svg>
             <span>新手引导</span>
           </div>
@@ -103,7 +102,7 @@ export default function ProjectSidebar(props: Props) {
 
         {/* Section header */}
         <div className="flex items-center justify-between px-2 h-7 mb-0.5">
-          <span className="text-[11px] text-[var(--muted)] font-medium">项目</span>
+          <span className="text-[12px] text-[var(--muted)] font-medium">项目</span>
           <button className="text-[var(--dim)] hover:text-[var(--text2)] text-sm leading-none" onClick={()=>{setCreating(true);setNewName('');}}>+</button>
         </div>
 
