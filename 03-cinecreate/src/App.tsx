@@ -319,7 +319,7 @@ export default function App() {
           activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : viewMode}
           onShowWelcome={() => { setActiveId(null); setSelectedDraftId(null); setToolMode(null); }} />
         {!activeId && !toolMode && !selectedDraftId ? (
-          <WelcomePage onCreateProject={() => { const n = prompt('项目名称：'); if (n?.trim()) createProject(n.trim()); }} />
+          <WelcomePage onCreateProject={() => { const n = `项目 ${String(projects.length + 1).padStart(2,'0')}`; createProject(n); }} />
         ) : toolMode && activeId ? (
           <ToolsPanel mode={toolMode} />
         ) : selectedDraftId && activeId ? (
