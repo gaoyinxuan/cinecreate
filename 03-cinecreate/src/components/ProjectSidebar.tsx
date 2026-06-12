@@ -127,7 +127,7 @@ export default function ProjectSidebar(props: Props) {
         {projects.map(prj => {
           const isActive = activeId===prj.id, isExp = !!expanded[prj.id];
           return (<div key={prj.id} className="mb-0.5">
-            <div className={`${rowBase} pl-2 ${isActive?rowActive:rowIdle}`}
+            <div className={`${rowBase} pl-2 ${isActive&&activeMode==='preview'?rowActive:rowIdle}`}
               onClick={()=>{if(isActive)setExpanded({[prj.id]:!isExp});else{onSelect(prj.id);setExpanded({[prj.id]:true});}}}>
               <span className="w-4 flex items-center justify-center shrink-0">
                 {isActive ? chevron(isExp) : <span className="w-[10px]" />}
