@@ -100,7 +100,7 @@ export default function ProjectSidebar(props: Props) {
       <div className="px-5 py-3 border-b border-[var(--border)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <svg width="28" height="28" viewBox="0 0 256 256" fill="none" className="shrink-0"><circle cx="128" cy="128" r="72" stroke="#D6B36A" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="#D6B36A"/></svg>
+            <svg width="28" height="28" viewBox="0 0 256 256" fill="none" className="shrink-0"><circle cx="128" cy="128" r="72" stroke="#C0A060" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="#C0A060"/></svg>
             <div>
               <h1 className="text-sm font-bold text-[var(--accent-text)] tracking-wide">影创</h1>
               <p className="text-xs text-[var(--muted)] mt-0.5">CineCreate</p>

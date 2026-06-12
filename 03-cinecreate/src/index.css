@@ -6,20 +6,20 @@
 
 /* Theme variables */
 :root,[data-theme="dark"]{
-  --bg:#0c0c0c;--bg2:#101010;--card:#141414;--card2:#0e0e0e;--input:#0e0e0e;
-  --text:#ccc;--text2:#8a8a8a;--text3:#6a6a6a;--muted:#555;--dim:#5a5a5a;
-  --border:#1c1c1c;--border2:#242424;--hover:rgba(255,255,255,0.04);
-  --accent-bg:rgba(214,179,106,0.08);--accent-text:#C49A3C;
-  --scrollbar-thumb:#222;--scrollbar-hover:#333;
-  --surface:#0a0a0a;
+  --bg:#0d0d0d;--bg2:#121212;--card:#181818;--card2:#101010;--input:#101010;
+  --text:#c8c8d0;--text2:#9898a0;--text3:#787880;--muted:#606068;--dim:#686870;
+  --border:#1e1e1e;--border2:#282828;--hover:rgba(255,255,255,0.03);
+  --accent-bg:rgba(192,160,96,0.1);--accent-text:#C0A060;
+  --scrollbar-thumb:#282828;--scrollbar-hover:#383838;
+  --surface:#080808;
 }
 [data-theme="light"]{
-  --bg:#f0f0f0;--bg2:#e8e8e8;--card:#f5f5f5;--card2:#ebebeb;--input:#f5f5f5;
-  --text:#2a2a2a;--text2:#707070;--text3:#949494;--muted:#a8a8a8;--dim:#b4b4b4;
-  --border:#dcdcdc;--border2:#d0d0d0;--hover:rgba(0,0,0,0.04);
-  --accent-bg:rgba(196,154,60,0.1);--accent-text:#8a6828;
-  --scrollbar-thumb:#d0d0d0;--scrollbar-hover:#b8b8b8;
-  --surface:#e4e4e4;
+  --bg:#f5f5f5;--bg2:#efeff0;--card:#fafafa;--card2:#f0f0f2;--input:#fafafa;
+  --text:#1a1a1a;--text2:#606060;--text3:#909090;--muted:#a0a0a0;--dim:#b0b0b0;
+  --border:#e0e0e2;--border2:#d4d4d8;--hover:rgba(0,0,0,0.03);
+  --accent-bg:rgba(192,160,96,0.12);--accent-text:#8B6828;
+  --scrollbar-thumb:#d4d4d8;--scrollbar-hover:#b8b8bc;
+  --surface:#eaeaec;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 button:focus:not(:focus-visible){outline:none}button:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
@@ -29,10 +29,10 @@ button:focus:not(:focus-visible){outline:none}button:focus-visible{outline:2px s
 ::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-hover)}
 
 /* Timeline drag feedback */
-.tl-dragging{opacity:.25!important;transform:scale(.93);box-shadow:0 4px 16px rgba(214,179,106,.3);transition:transform .15s ease,opacity .15s ease,box-shadow .15s ease}
-.tl-ghost{border:1.5px dashed #D6B36A!important;background:rgba(214,179,106,.08)!important;transition:border .15s ease,background .15s ease}
-@keyframes tl-land{0%{box-shadow:0 0 0 0 rgba(214,179,106,.6)}50%{box-shadow:0 0 12px 3px rgba(214,179,106,.25)}100%{box-shadow:0 0 0 0 rgba(214,179,106,0)}}
-.tl-landed{animation:tl-land .5s ease;border-color:#D6B36A!important;transition:border-color .4s ease}
+.tl-dragging{opacity:.25!important;transform:scale(.93);box-shadow:0 4px 16px rgba(192,160,96,.3);transition:transform .15s ease,opacity .15s ease,box-shadow .15s ease}
+.tl-ghost{border:1.5px dashed #C0A060!important;background:rgba(192,160,96,.08)!important;transition:border .15s ease,background .15s ease}
+@keyframes tl-land{0%{box-shadow:0 0 0 0 rgba(192,160,96,.6)}50%{box-shadow:0 0 12px 3px rgba(192,160,96,.25)}100%{box-shadow:0 0 0 0 rgba(192,160,96,0)}}
+.tl-landed{animation:tl-land .5s ease;border-color:#C0A060!important;transition:border-color .4s ease}
 @keyframes compare-overlay-in{from{opacity:0}to{opacity:1}}
 @keyframes compare-img-float{from{opacity:0;transform:scale(.94) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .compare-overlay{animation:compare-overlay-in .35s ease;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
