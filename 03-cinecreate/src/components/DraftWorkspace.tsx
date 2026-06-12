@@ -226,7 +226,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
                           const sel = selectedTags[row.label] === t;
                           return (
                             <button key={t} className={`text-xs px-2.5 py-1 rounded-full transition-colors ${sel ? 'bg-[#D6B36A] text-white' : 'bg-[var(--card)] border border-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] hover:border-[var(--accent-text)]/30'}`}
-                              onClick={() => toggleTag(row.label, t)}>{sel ? '✓ ' : ''}{t}</button>
+                              onClick={e => { e.currentTarget.blur(); toggleTag(row.label, t); }}>{sel ? '✓ ' : ''}{t}</button>
                           );
                         })}
                       </div>
