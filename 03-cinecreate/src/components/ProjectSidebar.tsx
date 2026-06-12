@@ -93,16 +93,17 @@ export default function ProjectSidebar(props: Props) {
       <div className="flex-1 overflow-y-auto px-3 py-2">
         {/* Guide */}
         {onShowWelcome && (
-          <div className="flex items-center gap-2 h-7 px-2 rounded cursor-pointer text-[var(--text3)] hover:text-[var(--text)] hover:bg-black/3 text-[11px] mb-1"
-            onClick={onShowWelcome}>
-            <span className="text-xs opacity-60">?</span>
+          <div className="flex items-center gap-2 h-7 px-2 rounded cursor-pointer text-[var(--text3)] hover:text-[var(--text)] hover:bg-black/3 mb-1"
+            onClick={onShowWelcome}
+            style={{fontSize:'11px'}}>
+            <svg width="10" height="10" viewBox="0 0 10 10" className="shrink-0 opacity-40"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1" fill="none"/><path d="M4.5 3.5v3l2.5-1.5z" fill="currentColor" opacity="0.6"/></svg>
             <span>新手引导</span>
           </div>
         )}
 
         {/* Section header */}
         <div className="flex items-center justify-between px-2 h-7 mb-0.5">
-          <span className="text-[10px] text-[var(--muted)] font-medium uppercase tracking-widest">项目</span>
+          <span className="text-[11px] text-[var(--muted)] font-medium">项目</span>
           <button className="text-[var(--dim)] hover:text-[var(--text2)] text-sm leading-none" onClick={()=>{setCreating(true);setNewName('');}}>+</button>
         </div>
 
@@ -139,7 +140,7 @@ export default function ProjectSidebar(props: Props) {
                   onKeyDown={e=>{if(e.key==='Enter'){if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}if(e.key==='Escape')setEditId(null);}}
                   autoFocus onClick={e=>e.stopPropagation()} />
               ) : (
-                <span className="flex-1 text-[12px] font-medium truncate">{prj.name}</span>
+                <span className={`flex-1 truncate ${isActive?'font-semibold':'font-medium'}`} style={{fontSize:'12px'}}>{prj.name}</span>
               )}
               <div className="hidden group-hover:flex items-center relative shrink-0" onClick={e=>e.stopPropagation()}>
                 <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs px-0.5" onClick={()=>setMenuOpen(menuOpen===prj.id?null:prj.id)}>⋯</button>
@@ -162,7 +163,7 @@ export default function ProjectSidebar(props: Props) {
                   <div className={`${rowBase} px-1 ${activeMode==='drafts'?'text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
                     onClick={()=>setShowDocs({[prj.id]:!showDocs[prj.id]})}>
                     <span className="w-3.5 flex items-center justify-center shrink-0">
-                      {showDocs[prj.id] ? chevron(true) : <span className="w-[10px]" />}
+                      {showDocs[prj.id] ? chevron(true) : <svg width="8" height="10" viewBox="0 0 8 10" className="opacity-50"><rect x="0.5" y="0.5" width="7" height="9" rx="1" stroke="currentColor" stroke-width="1" fill="none"/><line x1="2" y1="3" x2="6" y2="3" stroke="currentColor" stroke-width="0.8"/><line x1="2" y1="5" x2="5" y2="5" stroke="currentColor" stroke-width="0.8"/></svg>}
                     </span>
                     <span className="text-[11px] flex-1">文稿</span>
                     <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs shrink-0 leading-none"
@@ -189,7 +190,7 @@ export default function ProjectSidebar(props: Props) {
                   <div className={`${rowBase} px-1 ${activeMode==='tools-image'||activeMode==='tools-video'?'text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
                     onClick={()=>setShowTool({[prj.id]:!showTool[prj.id]})}>
                     <span className="w-3.5 flex items-center justify-center shrink-0">
-                      {showTool[prj.id] ? chevron(true) : <span className="w-[10px]" />}
+                      {showTool[prj.id] ? chevron(true) : <svg width="10" height="10" viewBox="0 0 10 10" className="opacity-50"><circle cx="5" cy="5" r="2.5" stroke="currentColor" stroke-width="1" fill="none"/><circle cx="5" cy="5" r="0.8" fill="currentColor"/><line x1="5" y1="1.5" x2="5" y2="0" stroke="currentColor" stroke-width="1"/></svg>}
                     </span>
                     <span className="text-[11px] flex-1">工具</span>
                   </div>
@@ -204,7 +205,9 @@ export default function ProjectSidebar(props: Props) {
                 {/* 分镜 */}
                 <div className={`${rowBase} px-1 ${activeMode==='storyboard'?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
                   onClick={()=>onSelectStoryboard()}>
-                  <span className="w-3.5 shrink-0" />
+                  <span className="w-3.5 flex items-center justify-center shrink-0">
+                    <svg width="10" height="8" viewBox="0 0 10 8" className="opacity-50"><rect x="0.5" y="0.5" width="9" height="7" rx="0.5" stroke="currentColor" stroke-width="1" fill="none"/><path d="M2 2.5L4 4.5L2 6.5" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round"/></svg>
+                  </span>
                   <span className="text-[11px]">分镜</span>
                 </div>
               </div>
