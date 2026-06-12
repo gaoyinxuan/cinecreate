@@ -9,33 +9,38 @@ type ToolCategory = 'image'|'video';
 interface Tool { name:string; url:string; cat:ToolCategory; }
 
 const DEF_TOOLS: Tool[] = [
-  { name:'GPT Image', url:'https://chatgpt.com', cat:'image' },
-  { name:'豆包', url:'https://www.doubao.com', cat:'image' },
-  { name:'Gemini', url:'https://gemini.google.com', cat:'image' },
-  { name:'即梦', url:'https://jimeng.jianying.com', cat:'video' },
-  { name:'可灵', url:'https://klingai.com', cat:'video' },
+  { name:'GPT Image', url:'https://chatgpt.com/?model=gpt-4o', cat:'image' },
+  { name:'Seedream', url:'https://www.doubao.com/chat/create-image', cat:'image' },
+  { name:'Nano Banana', url:'https://gemini.google.com/app', cat:'image' },
+  { name:'Qwen Image', url:'https://tongyi.aliyun.com/qianwen', cat:'image' },
+  { name:'Seedance', url:'https://jimeng.jianying.com/ai-tool/image', cat:'video' },
+  { name:'Kling', url:'https://app.klingai.com', cat:'video' },
+  { name:'Happy Horse', url:'https://www.happyhorse.cn/creation/generation', cat:'video' },
 ];
 
 interface Props { mode: ToolCategory; }
 
 export default function ToolsPanel({ mode }: Props) {
-  const [tools, setTools] = useState<Tool[]>(DEF_TOOLS);
+  const [customTools, setCustomTools] = useState<Tool[]>([]);
+  const tools = [...DEF_TOOLS, ...customTools];
   const [activeIdx, setActiveIdx] = useState(0);
   const [errors, setErrors] = useState<Record<string,boolean>>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [nm, setNm] = useState(''); const [ur, setUr] = useState('');
-  const [showOnboard, dismissOnboard] = useOnboarding('onboard-first-project');
+  const [showOnboard, dismissOnboard, showGuide] = useOnboarding('onboard-tools');
 
   const filtered = tools.filter(t=>t.cat===mode);
   useEffect(() => { if(activeIdx >= filtered.length) setActiveIdx(0); }, [filtered.length]);
 
   const addTool = () => {
     if(!nm.trim()||!ur.trim()) return;
-    setTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]);
+    setCustomTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]);
     setShowAdd(false);
   };
   const deleteTool = (t:Tool) => {
-    setTools(p=>p.filter(x=>x!==t));
+    setCustomTools(p=>p.filter(x=>x!==t));
     if(activeIdx>=filtered.length-1) setActiveIdx(Math.max(0,activeIdx-1));
   };
 
@@ -43,17 +48,19 @@ export default function ToolsPanel({ mode }: Props) {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-0 px-6 py-2.5">
+        <button className="text-xs w-5 h-5 rounded-full border border-[var(--border2)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--dim)] flex items-center justify-center shrink-0 mr-2" onClick={showGuide} title="查看引导">?</button>
         {filtered.map((t,i)=>(
           <div key={t.name} className="group flex items-center">
             <button className={`text-xs px-3 py-1 rounded transition-colors ${i===activeIdx?'bg-indigo-500/20 text-[var(--text)] font-semibold':'text-[var(--dim)] hover:text-[var(--text2)]'}`}
               onClick={()=>setActiveIdx(i)}>{t.name}</button>
-            {filtered.length>3&&<button className="text-[8px] text-[var(--muted)] hover:text-red-400 hidden group-hover:block -ml-1" onClick={()=>deleteTool(t)}>✕</button>}
+            {!DEF_TOOLS.some(dt=>dt.name===t.name)&&<button className="text-[8px] text-[var(--muted)] hover:text-red-400 hidden group-hover:block -ml-1" onClick={()=>deleteTool(t)}>✕</button>}
           </div>
         ))}
         <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-indigo-400" onClick={()=>{setNm('');setUr('');setShowAdd(true);}}>＋ 添加</button>
         <div className="flex-1" />
         <button className="text-xs px-2 py-0.5 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[#333]"
-          onClick={()=>setErrors({})}>刷新全部</button>
+          onClick={()=>{ const t = filtered[activeIdx]; if(t) { setRefreshing(true); setRefreshKey(k=>k+1); setErrors(p=>({...p,[t.name]:false})); setTimeout(()=>setRefreshing(false), 2000); } }}
+          disabled={refreshing}>{refreshing ? '刷新中...' : '刷新当前'}</button>
       </div>
 
       {/* Webview container — all stay mounted, only active visible */}
@@ -72,7 +79,7 @@ export default function ToolsPanel({ mode }: Props) {
                 </div>
               </div>
             ) : (
-              <webview src={t.url} className="w-full h-full" style={{height:'100%'}}
+              <webview key={`${t.name}-${refreshKey}`} src={t.url} className="w-full h-full" style={{height:'100%'}}
                 partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                 onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
                 // @ts-ignore

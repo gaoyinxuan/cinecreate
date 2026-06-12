@@ -26,10 +26,10 @@ export default function App() {
   const [activeSeqId, setActiveSeqId] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [toolMode, setToolMode] = useState<'image'|'video'|null>(null);
-  const [showStoryOnboard, dismissStoryOnboard] = useOnboarding('onboard-first-project');
+  const [loaded, setLoaded] = useState(false);
+  const [showStoryOnboard, dismissStoryOnboard, showStoryGuide] = useOnboarding('onboard-storyboard', loaded);
   const [showWelcome, setShowWelcome] = useState(true);
   const [theme, setTheme] = useState(getTheme());
-  const [loaded, setLoaded] = useState(false);
   const navigatorRef = useRef<any>(null);
 
   // Normalize DB row (JSON strings → JS objects), robust against all edge cases
@@ -42,14 +42,19 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [projs, seqs, shts, activeMeta] = await Promise.all([
-          db.projects.getAll(), db.sequences.getAll(), db.shots.getAll(), db.meta.get('activeProjectId')
+        const [projs, seqs, shts, onboardingState] = await Promise.all([
+          db.projects.getAll(), db.sequences.getAll(), db.shots.getAll(), db.meta.get('onboarding')
         ]);
+        if (onboardingState) {
+          Object.entries(onboardingState).forEach(([k, v]) => { if (v) localStorage.setItem(k, 'shown'); });
+        } else if (projs.length > 0) {
+          const allDone = { 'onboard-drafts': true, 'onboard-tools': true, 'onboard-storyboard': true };
+          Object.entries(allDone).forEach(([k]) => localStorage.setItem(k, 'shown'));
+          db.meta.set('onboarding', allDone).catch(() => {});
+        }
         setProjects(projs.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
         setSequences(seqs.map(normSeq));
         setShots(shts.map(normShot));
-        if (activeMeta && projs.find((p:any) => p.id === activeMeta)) setActiveId(activeMeta);
-        else if (projs.length) setActiveId(projs[0].id);
         // Migrate old ai_story/ai_character to documents (one-time)
         setTimeout(async () => {
           try {
@@ -310,10 +315,8 @@ export default function App() {
           onSelectImageTools={() => { setSelectedDraftId(null); setToolMode('image'); }}
           onSelectVideoTools={() => { setSelectedDraftId(null); setToolMode('video'); }}
           activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : 'storyboard'}
-          onShowWelcome={() => setShowWelcome(true)} />
-        {showWelcome ? (
-          <WelcomePage onClose={() => setShowWelcome(false)} onCreateProject={() => { setShowWelcome(false); const n = prompt('项目名称：'); if (n?.trim()) createProject(n.trim()); }} />
-        ) : loaded && projects.length === 0 && !activeId ? (
+          onShowWelcome={() => { setActiveId(null); setSelectedDraftId(null); setToolMode(null); }} />
+        {!activeId && !toolMode && !selectedDraftId ? (
           <WelcomePage onCreateProject={() => { const n = prompt('项目名称：'); if (n?.trim()) createProject(n.trim()); }} />
         ) : toolMode && activeId ? (
           <ToolsPanel mode={toolMode} />
@@ -332,7 +335,7 @@ export default function App() {
                 const as = projectSequences.find(s => s.id === activeSeqId);
                 return as ? <VideoOutputPanel sequence={as} onUpdate={updateSeqVideo} /> : null;
               })()}
-              <Toolbar project={activeProject} onUpload={addImages} shotCount={projectShots.length} activeSeqId={activeSeqId} />
+              <Toolbar project={activeProject} onUpload={addImages} shotCount={projectShots.length} activeSeqId={activeSeqId} onShowGuide={showStoryGuide} />
               <ShotBoard
                 project={activeProject} shots={projectShots} shotGlobalNum={shotGlobalNum}
                 onChangeShot={updateShot} onDeleteShot={deleteShot}

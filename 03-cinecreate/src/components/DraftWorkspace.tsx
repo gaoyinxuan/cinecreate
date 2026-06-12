@@ -1,5 +1,5 @@
 /**
- * DraftWorkspace — 5-phase AI video creation workflow.
+ * DraftWorkspace — AI video creation workflow.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../services/dbService';
@@ -12,63 +12,58 @@ const DS = 'https://api.deepseek.com/v1/chat/completions';
 
 interface Message { role: 'user'|'assistant'; content: string; timestamp: string; }
 
-const PHASES = ['故事大纲','角色设定','分镜规划','镜头制作'];
-const ASSET_KEYS = ['story','characters','storyboard','shots'];
+const PHASES = ['故事设定','角色设定','场景规划','镜头制作'];
+const ASSET_KEYS = ['story','characters','scenes','shots','sequences'];
 
 const SYSTEM_PROMPTS: Record<number,string> = {
-  1: `你是AI导演/编剧。当前阶段：故事大纲。
+  1: `你是AI导演/编剧。当前阶段：故事设定。
 
-【输出格式要求 - 非常重要】
-用自然文稿形式输出，像导演写给制片人的创意提案。要有标题、分段、画面感。
-不要输出JSON。不要输出代码块。不要用字段堆叠格式。
+【重要】聊天区只显示自然语言，禁止JSON/代码块。资产数据放<json>标签。
 
-输出结构：
-## 故事名称
-（一句话概括类型和基调）
-## 剧情简介
-（200字以内的引人入胜的概要）
-## 世界观设定
-（时代、地点、科技水平、社会背景）
-## 故事结构
-### 第一幕 · 开端
-（完整段落，有画面感）
-### 第二幕 · 发展
-（完整段落，有画面感）
-### 第三幕 · 结局
-（完整段落，有画面感）
-## 视觉风格建议
-（摄影风格、色调、节奏感）
+视觉基调仅包含：视觉媒介（超写实电影/真人电影/影视级CG/日漫/美漫/二次元动画/吉卜力风格/新海诚风格/厚涂插画/游戏CG）、参考作品（1部）。
+不要写光线、色彩、镜头语言——这些由阶段四镜头制作时补充。
+故事简介≤200字。
 
-最后用 <json>{"title":"...","logline":"...","worldBuilding":"...","structure":"第一幕:...\\n第二幕:...\\n第三幕:...","visualStyle":"..."}</json> 标记结构数据。`,
-  2: `你是AI角色设计师。当前阶段：角色定妆。
+最后用 <json>{"title":"故事名","duration":"时长","visualTone":{"medium":"视觉媒介","reference":"参考作品"},"worldBuilding":"世界观","summary":"简介≤200字"}</json> 标记。`,
 
-【输出格式 - 非常重要】
-用人物小传形式输出。每个角色独立成章。不要JSON。不要代码块。
+  2: `你是AI角色设计师。当前阶段：角色设定。
 
-格式：
-## 角色
-### 主角：[姓名]
-**定位**：（一句话）
-**外貌**：（自然描述）
-**服装**：（自然描述）
-**性格**：（自然描述）
-**背景故事**：（简短的背景）
-**角色定妆Prompt·中文**
-（完整中文Prompt）
-**角色定妆Prompt·English**
-（完整英文Prompt）
+【重要】聊天区展示完整角色信息（含Prompt），用结构化Markdown格式，禁止JSON/代码块。资产数据同步放<json>标签。
 
-### 配角：[姓名]
-（同上结构）
+主角Prompt必须包含三视图、外貌、穿搭、风格、配饰、气质。配角仅保留外貌、穿搭、气质。
 
-最后用 <json>[{"name":"...","role":"主角|配角|反派","appearance":"...","costume":"...","personality":"...","background":"...","promptCN":"...","promptEN":"..."}]</json> 标记数据。`,
-  3: `你是AI分镜导演。当前阶段：分镜规划——只负责整体设计，不生成画面描述和Prompt。
-输出内容：总时长、镜头数量、情绪曲线、剧情节奏。每个镜头仅输出：编号、名称、作用、景别、建议时长、转场方式。
-禁止输出画面描述、角色细节、环境细节、光影描述、任何Prompt。
-最后用<json>[{"scene":1,"name":"...","purpose":"...","shotType":"远景|中景|特写...","duration":"...","transition":"..."}]</json>标记。`,
-  4: `你是AI镜头制作设计师。当前阶段：镜头制作——基于前面完成的故事、角色、分镜规划，为每个镜头生成完整的画面描述、生图Prompt和动态Prompt。
-每个镜头独立输出：画面描述、生图中文Prompt、生图英文Prompt、动态中文Prompt、动态英文Prompt、运镜说明。
-最后用<json>[{"scene":1,"description":"...","imagePromptCN":"...","imagePromptEN":"...","motionPromptCN":"...","motionPromptEN":"...","motionDesc":"..."}]</json>标记。`
+最后用 <json>[{"name":"角色名","role":"主角|反派|配角|导师","shortDesc":"≤50字","prompt":"完整中文定妆Prompt"}]</json> 标记。`,
+
+  3: `你是AI场景规划师。当前阶段：场景规划。
+
+【重要】聊天区用清晰的结构化格式展示完整规划，禁止JSON/代码块。资产数据放<json>标签。
+
+场景描述要丰富，包含环境、氛围、光线、色调、镜头语言等。
+
+【聊天区格式】
+场景规划完成。根据故事内容，共规划N个场景，预计总时长约Xs。
+## 场景1：场景名称
+场景描述（含环境、氛围、光线色调、镜头语言，2-3句话）
+分镜序列：
+· Shot01 | 5s | 大全景 | 建立世界观 → 切入Shot02
+（每个场景都必须包含完整的分镜序列）
+
+最后用 <json>{"scenes":[{"name":"场景名","description":"场景描述"}],"sequences":[{"sceneIndex":0,"shots":[{"shotNumber":1,"duration":"5s","shotType":"大全景","purpose":"建立世界观","transition":"切入"}]}]}</json> 标记。`,
+
+  4: `你是AI镜头制作师。当前阶段：镜头Prompt生成。
+
+【重要】聊天区用清晰结构展示完整镜头信息。禁止JSON/代码块。资产数据放<json>标签。
+
+一次只生成1个Shot。模式：静态/对话→single_frame，运动/转场→start_end_frame。
+Prompt必须融合角色定妆+场景环境+视觉基调。
+
+【图片Prompt结构】必须包含：
+【景别】【构图】【画面内容】
+
+【视频Prompt结构】必须包含：
+【景别】【构图】【运镜手法】【画面内容】如有台词旁白则增加【台词】【旁白】
+
+最后用 <json>{"shotNumber":1,"sceneName":"场景名","duration":"5s","shotType":"景别","atmosphere":"色彩影调","composition":"构图","cameraMovement":"运镜","visualContent":"画面内容","dialogue":"台词","narration":"旁白","generationMode":"single_frame|start_end_frame","imagePrompts":[{"label":"首帧","prompt":"完整中文Prompt"}],"videoPrompt":"完整视频Prompt"}</json> 标记。single_frame时imagePrompts仅1项。`
 };
 
 export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: { projectId: string; draftId?: string|null; onDraftCreated?: (id:string)=>void }) {
@@ -76,44 +71,30 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const [msgs, setMsgs] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [pendingAsset, setPendingAsset] = useState<any>(null);
-  const [pendingMsgIdx, setPendingMsgIdx] = useState<number | null>(null);
-  const [savedMsgIdx, setSavedMsgIdx] = useState<number | null>(null);
-  const [pendingOriginal, setPendingOriginal] = useState<any>(null);
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
+  const [charExpanded, setCharExpanded] = useState<Record<string,boolean>>({});
+  const [copied, setCopied] = useState<string | null>(null);
+  const [editStoryData, setEditStoryData] = useState<any>(null);
+  const [editSceneData, setEditSceneData] = useState<{idx:number, data:any, shots?:any[]} | null>(null);
   const [editingAsset, setEditingAsset] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-  const [hasUnsaved, setHasUnsaved] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [keySet, setKeySet] = useState(false);
+  const [savedIdx, setSavedIdx] = useState<number | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<any>(null);
-  const [showOnboard, dismissOnboard] = useOnboarding('onboard-first-project');
+  const msgsRef = useRef<Message[]>([]);
+  const [showOnboard, dismissOnboard, showGuide] = useOnboarding('onboard-drafts');
 
-  useEffect(() => {
-    if (api) api.getApiKey().then((k:string)=>{ if(k){ setServiceKey(k); setKeySet(true); } });
-  }, []);
+  useEffect(() => { if (api) api.getApiKey().then((k:string)=>{ if(k){ setServiceKey(k); setKeySet(true); } }); }, []);
 
-  // Load draft
   useEffect(() => {
     (async () => {
       if (!projectId) return;
-      if (draftId) {
-        const all = await db.dts.getAll(projectId);
-        const d = all.find((x:any)=>x.id===draftId);
-        if (d) { setDraft(d); const conv = p(d.conversation); setMsgs(conv.length ? conv : [a('你好！我是AI导演助手 👋\n\n让我们从故事大纲开始。请告诉我：\n1. 你想做什么类型的故事？\n2. 主角是什么样的人？\n3. 希望什么视觉风格？\n4. 大概时长？\n5. 有没有参考作品？')]); return; }
-      }
+      if (draftId) { const all = await db.dts.getAll(projectId); const d = all.find((x:any)=>x.id===draftId); if (d) { setDraft(d); const conv = p(d.conversation); setMsgs(conv.length ? conv : [a(WELCOME)]); return; } }
       const all = await db.dts.getAll(projectId);
-      if (all.length) {
-        setDraft(all[0]); setMsgs(p(all[0].conversation));
-        if (onDraftCreated) onDraftCreated(all[0].id);
-      } else {
-        const d = await db.dts.create({ projectId, name:'草稿V1', currentStep:1, confirmedAssets:{}, conversation:[] });
-        setDraft(d); setMsgs([]);
-        if (onDraftCreated) onDraftCreated(d.id);
-        // AI initiates
-        setMsgs([a('你好！我是AI导演助手 👋\n\n让我们从故事大纲开始。请告诉我：\n1. 你想做什么类型的故事？（科幻/奇幻/悬疑/现实/...）\n2. 主角是什么样的人？\n3. 希望什么视觉风格？\n4. 大概时长？\n5. 有没有参考作品？')]);
-      }
+      if (all.length) { setDraft(all[0]); setMsgs(p(all[0].conversation)); if (onDraftCreated) onDraftCreated(all[0].id); }
+      else { const d = await db.dts.create({ projectId, name:'草稿V1', currentStep:1, confirmedAssets:{}, conversation:[] }); setDraft(d); setMsgs([]); if (onDraftCreated) onDraftCreated(d.id); setMsgs([a(WELCOME)]); }
     })();
   }, [projectId, draftId]);
 
@@ -121,369 +102,105 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
 
   const p = (s:any) => typeof s==='string' ? JSON.parse(s||'[]') : (s||[]);
   function a(text:string): Message { return { role:'assistant', content: text, timestamp: new Date().toISOString() }; }
+  const WELCOME = '👋 欢迎来到影创。\n\n我是你的 AI 导演助手，将陪你完成从故事构思、角色设计、场景规划到镜头制作的完整创作过程。\n\n我们先从故事设定开始。\n\n你可以用一句话、一个灵感，甚至一个模糊的想法来描述你想创作的内容。\n\n例如：\n- 未来火星殖民地发生的一场悬疑事件\n- 一位失忆特工寻找真实身份的故事\n- 赛博朋克城市中的爱情与背叛\n- 古代修仙世界中的成长冒险\n\n如果你已经有比较明确的想法，也可以告诉我：\n- 故事类型（科幻、悬疑、爱情、奇幻等）\n- 故事背景或世界观\n- 主角设定\n- 希望表达的主题\n\n不用一次说完整。\n\n先告诉我你的创意，我们一起把它发展成完整的故事。';
 
-  // Auto-save
-  const save = useCallback(async (messages: Message[]) => {
-    if (!draft?.id) return;
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => db.dts.update(draft.id, { conversation: messages }).catch(()=>{}), 500);
-  }, [draft]);
+  const save = useCallback(async (messages: Message[]) => { msgsRef.current = messages; if (!draft?.id) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => db.dts.update(draft.id, { conversation: messages }).catch(()=>{}), 500); }, [draft]);
+  useEffect(() => () => { clearTimeout(saveTimer.current); if (draft?.id && msgsRef.current.length > 0) db.dts.update(draft.id, { conversation: msgsRef.current }).catch(() => {}); }, [draft]);
 
-  const addMsg = (role:'user'|'assistant', text:string) => {
-    setMsgs(prev => { const next = [...prev, {role,content:text,timestamp:new Date().toISOString()}]; save(next); return next; });
-  };
+  const addMsg = (role:'user'|'assistant', text:string) => { if (role === 'user') setSavedIdx(null); setMsgs(prev => { const next = [...prev, {role,content:text,timestamp:new Date().toISOString()}]; save(next); return next; }); };
 
-  // Send
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const key = getApiKey();
-    if (!key) { setShowKey(true); return; }
+    if (!input.trim() || loading) return; const key = getApiKey(); if (!key) { setShowKey(true); return; }
     const userText = input.trim(); setInput(''); addMsg('user', userText); setLoading(true);
     try {
-      const step = draft?.currentStep || 1;
-      const assets = typeof draft?.confirmedAssets==='string' ? JSON.parse(draft.confirmedAssets||'{}') : (draft?.confirmedAssets||{});
-      const ctx = step > 1 ? `已确认的故事: ${JSON.stringify(assets.story||{}).slice(0,500)}。已确认的角色: ${JSON.stringify(assets.characters||[]).slice(0,500)}。` : '';
-      const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},
-        body: JSON.stringify({ model:'deepseek-chat', messages: [
-          { role:'system', content: SYSTEM_PROMPTS[step]+'\n'+ctx },
-          ...msgs.slice(-8).map(m=>({role:m.role,content:m.content})),
-          { role:'user', content: userText }
-        ], temperature:0.8, max_tokens: 4096 })
-      });
-      const data = await res.json();
-      const aiText = data.choices?.[0]?.message?.content || '';
-      addMsg('assistant', aiText);
-      // Try to parse JSON for pending asset
-      try {
-        const m = aiText.match(/```json\s*([\s\S]*?)```/) || [null, aiText];
-        const parsed = JSON.parse(m[1]?.trim() || aiText);
-        if (parsed && (parsed.title || Array.isArray(parsed))) setPendingAsset(parsed);
-      } catch {}
-    } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'请检查API Key和网络连接')); }
-    finally { setLoading(false); }
+      const step = draft?.currentStep || 1; const assets = parseAssets(draft?.confirmedAssets);
+      let ctx = ''; if (step > 1) { const parts: string[] = []; if (assets.story?.title) parts.push(`【故事】${assets.story.title}，${assets.story.duration||''}，${assets.story.visualTone?.medium||''}`); if (assets.characters?.length) parts.push(`【角色】${assets.characters.map((c:any)=>c.name+'('+c.role+')').join('、')}`); ctx = parts.join('\n'); }
+      const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`}, body: JSON.stringify({ model:'deepseek-chat', messages: [{ role:'system', content: SYSTEM_PROMPTS[step]+'\n'+ctx }, ...msgs.slice(-8).map(m=>({role:m.role,content:m.content})), { role:'user', content: userText }], temperature:0.8, max_tokens: 8192 }) });
+      const data = await res.json(); addMsg('assistant', data.choices?.[0]?.message?.content || '');
+    } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); } finally { setLoading(false); }
   };
 
-  // Confirm asset
-  const confirmAsset = async () => {
-    if (!pendingAsset || !draft?.id) return;
-    const assets = typeof draft.confirmedAssets==='string' ? JSON.parse(draft.confirmedAssets||'{}') : (draft.confirmedAssets||{});
-    // For step 4 (镜头制作): merge into 'shots' array by matching scene number
-    if (step === 4 && Array.isArray(pendingAsset)) {
-      const existing = Array.isArray(assets.shots) ? [...assets.shots] : [];
-      for (const item of pendingAsset) {
-        const idx = existing.findIndex((e:any) => e.scene === item.scene);
-        if (idx >= 0) existing[idx] = { ...existing[idx], ...item };
-        else existing.push(item);
-      }
-      assets.shots = existing;
-    } else if (step <= 2) {
-      const key = ASSET_KEYS[step-1];
-      assets[key] = pendingAsset;
-    }
-    const nextStep = step + 1;
-    const updated = { ...draft, currentStep: nextStep, confirmedAssets: assets };
-    setDraft(updated);
-    await db.dts.update(draft.id, { currentStep: nextStep, confirmedAssets: assets }).catch(()=>{});
-    setSavedMsgIdx(pendingMsgIdx); setPendingAsset(null); setPendingMsgIdx(null); setPendingOriginal(null); setHasUnsaved(false);
-    addMsg('assistant', '✅ 已确认并保存到资产库。');
-    if (nextStep <= 4) {
-      const nextGuide: Record<number,string> = {
-        2: '下一步：基于故事设定角色。告诉我主角的外貌、性格、风格偏好。',
-        3: '下一步：规划分镜。告诉我镜头数量、节奏偏好、景别风格。',
-        4: '下一步：为每个镜头生成完整Prompt。我会逐镜头生成，包含生图Prompt和动态Prompt。'
-      };
-      addMsg('assistant', nextGuide[nextStep] || '');
-    }
-    if (nextStep === 4) addMsg('assistant', '现在进入最终阶段：镜头制作。请确认后我开始逐镜头生成。');
-    if (nextStep > 4) addMsg('assistant', '🎉 全部4个阶段已完成！所有Prompt资产已可在右侧查看和复制。');
+  const extractJSON = (text: string): any => { let m = text.match(/<json>([\s\S]*?)<\/json>/i); if (m) { try { return JSON.parse(m[1].trim()); } catch {} } m = text.match(/```json\s*([\s\S]*?)```/i); if (m) { try { return JSON.parse(m[1].trim()); } catch {} } try { const p = JSON.parse(text.trim()); if (p && typeof p === 'object') return p; } catch {} return null; };
+
+  const confirmAsset = async (msgIdx: number) => {
+    if (!draft?.id) return; const msg = msgs[msgIdx]; if (!msg || msg.role !== 'assistant') return;
+    const json = extractJSON(msg.content); const assets = parseAssets(draft?.confirmedAssets);
+    if (step === 1 && json) { const vt = json.visualTone||{}; assets.story = { title: json.title||'', duration: json.duration||'', visualTone: { medium: vt.medium||'', reference: vt.reference||(vt.references||[])[0]||'' }, worldBuilding: json.worldBuilding||'', summary: json.summary||'' }; }
+    else if (step === 2 && json) { const chars: any[] = (Array.isArray(json) ? json : [json]).map((c:any) => ({ id: c.name||Date.now().toString(36), name: c.name||'', role: c.role||'配角', shortDesc: c.shortDesc||'', prompt: c.prompt||c.promptCN||'' })); const existing: any[] = Array.isArray(assets.characters) ? [...assets.characters] : []; for (const nc of chars) { const ei = existing.findIndex((c:any) => c.name === nc.name); if (ei >= 0) existing[ei] = nc; else existing.push(nc); } assets.characters = existing; }
+    else if (step === 3 && json) { if (json.scenes) assets.scenes = json.scenes.map((s:any,i:number) => ({ id: 'sc'+i, name: s.name||'', description: s.description||'' })); if (json.sequences) assets.sequences = json.sequences.map((g:any) => ({ sceneIndex: g.sceneIndex||0, shots: (g.shots||[]).map((sh:any) => ({ shotNumber: sh.shotNumber||0, duration: sh.duration||'5s', shotType: sh.shotType||'中景', purpose: sh.purpose||'', transition: sh.transition||'' })) })); }
+    else if (step === 4 && json) { const s = json; const shot = { id: 'shot'+Date.now(), sceneName: s.sceneName||'', shotNumber: s.shotNumber||((assets.shots?.length||0)+1), duration: s.duration||'5s', shotType: s.shotType||'中景', atmosphere: s.atmosphere||'', composition: s.composition||'', cameraMovement: s.cameraMovement||'', visualContent: s.visualContent||'', dialogue: s.dialogue||'', narration: s.narration||'', generationMode: s.generationMode==='start_end_frame'?'start_end_frame':'single_frame', imagePrompts: (s.imagePrompts||[]).map((ip:any) => ({ label: ip.label||'首帧', prompt: ip.prompt||ip.promptCN||'' })), videoPrompt: s.videoPrompt||s.videoPromptCN||'' }; const existing = Array.isArray(assets.shots) ? [...assets.shots] : []; const ei = existing.findIndex((x:any) => x.sceneName === shot.sceneName && x.shotNumber === shot.shotNumber); if (ei >= 0) existing[ei] = shot; else existing.push(shot); assets.shots = existing; }
+    const updated = { ...draft, confirmedAssets: assets }; setDraft(updated); await db.dts.update(draft.id, { confirmedAssets: assets }).catch(()=>{}); setSavedIdx(msgIdx); if (step === 4) { const nextNum = (assets.shots?.length||0)+1; addMsg('assistant', '✅ 已保存Shot#'+(nextNum-1)+'。请继续生成Shot#'+nextNum+'，或告诉我需要调整的内容。'); }
   };
 
-  const rejectAsset = () => { setPendingAsset(null); setPendingMsgIdx(null); setPendingOriginal(null); addMsg('assistant', '好的，请告诉我需要调整什么？'); };
-
-  // Exit protection
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (hasUnsaved || pendingAsset) { e.preventDefault(); e.returnValue = ''; } };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [hasUnsaved, pendingAsset]);
-
-  // Simplified chatAboutAsset
-  const chatAboutAsset = (key: string) => {
-    const data = assets[key];
-    if (!data) {
-      setInput(`请帮我生成${PHASES[ASSET_KEYS.indexOf(key)]}的内容。请描述你的需求：`);
-      const ta = document.querySelector('.chat-input-area textarea') as HTMLTextAreaElement;
-      if (ta) { ta.style.height = '100px'; ta.focus(); }
-      return;
-    }
-    addMsg('user', `请帮我优化${PHASES[ASSET_KEYS.indexOf(key)]}的内容：\n\`\`\`json\n${JSON.stringify(data)}\n\`\`\``);
+  const advancePhase = async () => {
+    if (!draft?.id || step >= 4 || loading) return; setSavedIdx(null); const nextStep = step + 1; const updated = { ...draft, currentStep: nextStep }; setDraft(updated); await db.dts.update(draft.id, { currentStep: nextStep }).catch(()=>{}); const key = getApiKey(); if (!key) { setShowKey(true); return; }
+    const guides: Record<number,string> = { 2:'故事设定已经完成。根据当前故事内容，我为你设计了核心角色。下面是第一版角色方案，你可以确认保存或调整：', 3:'角色设定已经完成。接下来规划场景和分镜。下面是场景规划方案：', 4:'场景规划已经完成。现在开始镜头Prompt生成，我将按顺序逐个生成：' };
+    addMsg('assistant', guides[nextStep]); setLoading(true);
+    try { const assets = parseAssets(draft?.confirmedAssets); const ctxParts: string[] = []; if (assets.story?.title) ctxParts.push(`【故事】${assets.story.title}\n时长：${assets.story.duration||''}\n视觉基调：${JSON.stringify(assets.story.visualTone||{})}\n世界观：${assets.story.worldBuilding||''}\n简介：${assets.story.summary||''}`); if (assets.characters?.length) ctxParts.push(`【角色】\n${assets.characters.map((c:any)=>`${c.name}(${c.role})：${c.shortDesc||''}\n定妆Prompt：${c.prompt?.slice(0,200)}`).join('\n\n')}`); const ctx = ctxParts.join('\n\n'); const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`}, body: JSON.stringify({ model:'deepseek-chat', messages: [{ role:'system', content: SYSTEM_PROMPTS[nextStep] + '\n' + (ctx ? '【已有资产】\n' + ctx : '') }, { role:'user', content: `请基于以上已确认的资产，生成${PHASES[nextStep-1]}的内容。` }], temperature:0.8, max_tokens: 8192 }) }); const data = await res.json(); addMsg('assistant', data.choices?.[0]?.message?.content || ''); } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); } finally { setLoading(false); }
   };
 
-  const assets = draft && typeof draft.confirmedAssets==='string' ? JSON.parse(draft.confirmedAssets||'{}') : (draft?.confirmedAssets||{});
-  const step = draft?.currentStep || 1;
+  const doCopy = (text: string) => { navigator.clipboard?.writeText(text).then(() => { setCopied(text.slice(0,20)); setTimeout(() => setCopied(null), 1500); }).catch(() => {}); };
 
-  // Bilingual prompt helpers
-  const getPromptCN = (item: any): string => {
-    if (!item) return ''; if (typeof item==='string') return item;
-    return item.promptCN || item.portraitPromptCN || item.prompt || item.portraitPrompt || '';
-  };
-  const getPromptEN = (item: any): string => {
-    if (!item) return '';
-    return item.promptEN || item.portraitPromptEN || '';
-  };
-  const copyToClipboard = (text: string) => { navigator.clipboard?.writeText(text).catch(()=>{}); };
+  const buildFullPrompt = (shot: any, type: 'image'|'video') => { const parts: string[] = []; const st = assets.story; if (st?.title) { const vt = st.visualTone||{}; parts.push(`【基础设定】\n故事：${st.title}。${st.worldBuilding?.slice(0,200)||''}`); parts.push(`【视觉基调】\n风格核心：${vt.medium||''}。参考：${vt.reference||''}`); } if (assets.characters?.length) { const charDesc = assets.characters.map((c:any) => `${c.name}：${c.prompt?.slice(0,300)||c.shortDesc||''}`).join('\n'); parts.push(`【角色信息】\n${charDesc}`); } if (shot.atmosphere) parts.push(`【色彩影调】\n${shot.atmosphere}`); parts.push(`【画面内容】\n景别：${shot.shotType||''}\n构图：${shot.composition||''}${type==='video'?`\n运镜手法：${shot.cameraMovement||''}`:''}\n画面内容：${shot.visualContent||''}`); return parts.join('\n\n'); };
 
-  // [优化] button: fill input with prompt context
-  const optimizePrompt = (item: any, label?: string) => {
-    if (!item || Object.keys(item).length === 0) {
-      setInput(`请帮我生成${label||'新的'}内容。请描述你的需求：`);
-      setPendingOriginal(null);
-    } else {
-      const cn = getPromptCN(item); const en = getPromptEN(item);
-      setPendingOriginal(item); // track "before" for diff
-      const text = cn ? `当前Prompt(中文)：\n${cn}\n\n${en ? `当前Prompt(英文)：\n${en}\n\n` : ''}请基于以上Prompt进行修改：` : `请帮我优化这个Prompt`;
-      setInput(text);
-    }
-    const ta = document.querySelector('.chat-input-area textarea') as HTMLTextAreaElement;
-    if (ta) ta.style.height = '120px';
-    setHasUnsaved(true);
-  };
+  const chatAboutAsset = (key: string) => { const data = (assets as any)[key]; if (!data) { setInput('请帮我生成相关内容。'); return; } addMsg('user', `请帮我优化内容：\n${JSON.stringify(data).slice(0, 500)}`); };
 
-  // Edit handler — targets specific array item via key-index
-  const startEditAsset = (key: string, item?: any, idx?: number) => {
-    const data = item ?? assets[key];
-    setEditingAsset(key + (idx!==undefined ? `-${idx}` : ''));
-    setEditText(JSON.stringify(data, null, 2));
-  };
-  const saveAsset = async () => {
-    if (!editingAsset || !draft?.id) return;
-    try {
-      const parsed = JSON.parse(editText);
-      const [key, idxStr] = editingAsset.split('-'); const idx = idxStr ? parseInt(idxStr) : undefined;
-      let updated: any;
-      if (idx !== undefined && Array.isArray(assets[key])) { const arr = [...assets[key]]; arr[idx]=parsed; updated={...assets, [key]:arr}; }
-      else { updated = {...assets, [key]:parsed}; }
-      setDraft({...draft, confirmedAssets:updated});
-      await db.dts.update(draft.id,{confirmedAssets:updated}).catch(()=>{});
-      setEditingAsset(null);
-    } catch {}
-  };
+  function parseAssets(raw: any) { if (!raw) return { story:null, characters:[], scenes:[], sequences:[], shots:[] }; const data = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return {}; } })() : raw; if (typeof data !== 'object') return { story:null, characters:[], scenes:[], sequences:[], shots:[] }; return { story: data.story||null, characters: data.characters||[], scenes: data.scenes||[], sequences: data.sequences||[], shots: data.shots||[] }; }
+  const assets = parseAssets(draft?.confirmedAssets); const step = draft?.currentStep || 1;
+
+  const optimizePrompt = (item: any, label?: string) => { let content = ''; if (item?.title) { content = [`【${label||'故事设定'}】`, item.title ? `名称：${item.title}` : '', item.duration ? `时长：${item.duration}` : '', item.visualTone?.medium ? `视觉媒介：${item.visualTone.medium}` : '', item.worldBuilding ? `世界观：${item.worldBuilding}` : '', item.summary ? `简介：${item.summary}` : ''].filter(Boolean).join('\n'); } else if (item?.name && item?.role) { content = `【角色：${item.name}（${item.role}）】\n定妆Prompt：${item.prompt||''}`; } else if (item?.name && item?.description !== undefined) { const seq = (assets.sequences||[]).find((g:any) => g.sceneIndex === (assets.scenes||[]).indexOf(item)); const shotsDesc = (seq?.shots||[]).map((sh:any) => `Shot${sh.shotNumber}(${sh.duration},${sh.shotType},${sh.purpose},→${sh.transition||'切至'})`).join(' | '); content = `【场景：${item.name}】\n描述：${item.description||''}${shotsDesc ? '\n分镜：'+shotsDesc : ''}`; } else if (item?.shotNumber !== undefined) { const imgs = (item.imagePrompts||[]).map((ip:any) => `${ip.label}Prompt：${ip.prompt||''}`).join('\n'); content = `【Shot${item.shotNumber}（${item.sceneName||''}，${item.duration}，${item.shotType}，${item.generationMode==='start_end_frame'?'首尾帧':'首帧'}）】\n构图：${item.composition||''}\n运镜：${item.cameraMovement||''}\n画面：${item.visualContent||''}\n${item.dialogue?'台词：'+item.dialogue+'\n':''}${imgs}\n视频Prompt：${item.videoPrompt||''}`; } else if (item?.text) { content = item.text.slice(0, 800); } if (content) setInput(`以下是我的${label||'内容'}，请帮我优化：\n\n${content}`); else setInput(`请帮我生成${label||'新的'}内容。`); };
+
+  const startEditAsset = (key: string, item?: any, idx?: number) => { const data = item ?? (assets as any)[key]; if (key === 'story' && data?.title) { setEditStoryData({...data, visualTone: data.visualTone||{medium:'',reference:''}}); return; } if (key === 'storyboard' && data?.name) { const seq = ((assets as any).sequences||[]).find((g:any) => g.sceneIndex === (idx??0)); setEditSceneData({idx: idx??0, data: {...data}, shots: (seq?.shots||[]).map((s:any)=>({...s}))}); return; } const text = data?.text || (typeof data === 'string' ? data : JSON.stringify(data, null, 2)); setEditingAsset(key + (idx!==undefined ? `-${idx}` : '')); setEditText(text); };
+  const saveStoryEdit = async () => { if (!editStoryData || !draft?.id) return; const ac = parseAssets(draft?.confirmedAssets); ac.story = editStoryData; setDraft({...draft, confirmedAssets: ac}); await db.dts.update(draft.id, {confirmedAssets: ac}).catch(()=>{}); setEditStoryData(null); };
+  const saveSceneEdit = async () => { if (!editSceneData || !draft?.id) return; const ac = parseAssets(draft?.confirmedAssets); const scenes = [...(ac.scenes||[])]; scenes[editSceneData.idx] = editSceneData.data; ac.scenes = scenes; const seqs = [...(ac.sequences||[])]; const seqIdx = seqs.findIndex((g:any) => g.sceneIndex === editSceneData.idx); const shotsData = (editSceneData as any).shots || []; if (seqIdx >= 0) seqs[seqIdx] = {...seqs[seqIdx], shots: shotsData}; else if (shotsData.length > 0) seqs.push({sceneIndex: editSceneData.idx, shots: shotsData}); ac.sequences = seqs; setDraft({...draft, confirmedAssets: ac}); await db.dts.update(draft.id, {confirmedAssets: ac}).catch(()=>{}); setEditSceneData(null); };
+  const saveAsset = async () => { if (!editingAsset || !draft?.id) return; const [key, idxStr] = editingAsset.split('-'); const idx = idxStr ? parseInt(idxStr) : undefined; let updated: any; let parsed: any; try { parsed = JSON.parse(editText); } catch { parsed = null; } if (key === 'storyboard' && idx !== undefined) { const sc = [...(assets.scenes||[])]; if (sc[idx]) sc[idx] = parsed && typeof parsed === 'object' ? { ...sc[idx], ...parsed } : sc[idx]; updated = { ...assets, scenes: sc }; } else if (idx !== undefined && Array.isArray((assets as any)[key])) { const arr = [...(assets as any)[key]]; arr[idx] = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? { ...arr[idx], ...parsed } : { ...arr[idx], text: editText }; updated = { ...assets, [key]: arr }; } else { updated = { ...assets, [key]: parsed && typeof parsed === 'object' ? parsed : { text: editText, timestamp: new Date().toISOString() } }; } setDraft({...draft, confirmedAssets: updated}); await db.dts.update(draft.id,{confirmedAssets: updated}).catch(()=>{}); setEditingAsset(null); };
 
   const assetList = [
-    { key:'story', label:'故事大纲', data: assets.story, hint:'标题、世界观、剧情结构', isArray:false },
-    { key:'characters', label:'角色设定', data: assets.characters, hint:'角色列表与定妆Prompt', isArray:true },
-    { key:'storyboard', label:'分镜规划', data: assets.storyboard, hint:'镜头数量、顺序、节奏、景别', isArray:true },
-    { key:'shots', label:'镜头制作', data: assets.shots, hint:'每个镜头的生图Prompt与动态Prompt', isArray:true },
+    { key:'story', label:'故事设定', data: assets.story, hint:'故事名称、世界观、简介', isArray:false, type:'story' },
+    { key:'characters', label:'角色设定', data: assets.characters, hint:'角色列表与定妆Prompt', isArray:true, type:'character' },
+    { key:'storyboard', label:'场景规划', data: { scenes: assets.scenes, sequences: assets.sequences }, hint:'场景列表与分镜规划', isArray:false, type:'storyboard' },
+    { key:'shots', label:'镜头制作', data: assets.shots, hint:'最终Prompt资产', isArray:true, type:'shot' },
   ];
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
       <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-3 px-6 py-2.5">
-        <span className="text-base font-bold text-[var(--text)]">{draft?.name||'草稿'}</span>
-        {!keySet && <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[#333]" onClick={()=>setShowKey(true)}>🔑 API Key</button>}
-        <div className="flex-1" />
+        <button className="text-xs w-5 h-5 rounded-full border border-[var(--border2)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--dim)] flex items-center justify-center shrink-0" onClick={showGuide} title="查看引导">?</button>
+        <span className="text-base font-bold text-[var(--text)]">{draft?.name||'草稿'}</span><span className="text-xs text-[var(--muted)]">|</span><span className="text-xs text-[var(--accent-text)] font-semibold">{PHASES[step-1]}</span>
+        {!keySet && <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[var(--border2)]" onClick={()=>setShowKey(true)}>🔑 API Key</button>}<div className="flex-1" />
       </div>
-
-      {/* Body */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Chat */}
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {msgs.map((m, i) => {
-              let display = m.content;
-              let jsonData: any = null;
-              if (m.role === 'assistant') {
-                // Extract <json>...</json> block for structured parsing
-                const jm = display.match(/<json>([\s\S]*?)<\/json>/);
-                if (jm) { try { jsonData = JSON.parse(jm[1].trim()); } catch {}; display = display.replace(/<json>[\s\S]*?<\/json>/g, '').trim(); }
-                // Also try ```json code blocks as fallback
-                if (!jsonData) {
-                  const cm = display.match(/```json\s*([\s\S]*?)```/);
-                  if (cm) { try { jsonData = JSON.parse(cm[1].trim()); } catch {}; display = display.replace(/```json[\s\S]*?```/g, '').trim(); }
-                }
-                // Auto-set pendingAsset only if JSON matches expected asset format for current step
-                if (jsonData && !pendingAsset && !loading) {
-                  const isValidAsset = (step: number, data: any): boolean => {
-                    if (!data) return false;
-                    if (step === 1) return !!(data.title && data.logline);
-                    if (step === 2) return Array.isArray(data) && data.length>0 && !!data[0].name && !!data[0].appearance;
-                    if (step === 3) return Array.isArray(data) && data.length>0 && data[0].scene !== undefined && !!data[0].purpose;
-                    if (step === 4) return Array.isArray(data) && data.length>0 && !!(data[0].imagePromptCN || data[0].promptCN);
-                    return false;
-                  };
-                  if (isValidAsset(step, jsonData)) { setPendingAsset(jsonData); setPendingMsgIdx(i); setHasUnsaved(true); }
-                }
-              }
-              // Simple markdown rendering
-              const renderMd = (text: string) => {
-                return text
-                  .replace(/^### (.+)$/gm, '<div class="text-sm text-[var(--text)] font-semibold mt-3 mb-1">$1</div>')
-                  .replace(/^## (.+)$/gm, '<div class="text-base text-[var(--text)] font-bold mt-4 mb-2 border-b border-[var(--border2)] pb-1">$1</div>')
-                  .replace(/^# (.+)$/gm, '<div class="text-lg text-[var(--text)] font-bold mt-4 mb-2">$1</div>')
-                  .replace(/\*\*(.+?)\*\*/g, '<strong class="text-[var(--text)]">$1</strong>')
-                  .replace(/\n\n/g, '<br/><br/>')
-                  .replace(/^---$/gm, '<hr class="border-[var(--border2)] my-3"/>')
-                  .replace(/^- (.+)$/gm, '<div class="ml-2 text-[var(--text2)]">• $1</div>');
-              };
-              return (
-              <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${m.role==='user'?'bg-indigo-500/15 text-[var(--text)]':'bg-[var(--card)] text-[var(--text)] border border-[var(--border2)]'}`}>
-                  <div dangerouslySetInnerHTML={{__html: renderMd(display)}} />
-                  {/* Confirm buttons — only on this specific message, not during loading */}
-                  {!loading && pendingAsset && i === pendingMsgIdx && (
-                    <div className="mt-3 pt-3 border-t border-[var(--border2)] space-y-2">
-                      <div className="flex justify-center gap-3">
-                        <button className="px-4 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs font-semibold rounded-lg border border-green-500/20" onClick={confirmAsset}>✓ 确认保存</button>
-                        <button className="px-4 py-1.5 bg-[#333] hover:bg-[#444] text-[var(--text3)] text-xs rounded-lg" onClick={rejectAsset}>{pendingOriginal ? '保留原版本' : '修改'}</button>
-                      </div>
-                    </div>
-                  )}
-                  {i === savedMsgIdx && (
-                    <div className="mt-2 text-center text-xs text-green-500/60">✓ 已保存到资产库</div>
-                  )}
-                </div>
-              </div>
-            )})}
-            {loading && <div className="text-center text-xs text-[var(--muted)] animate-pulse">AI 思考中...</div>}
-            <div ref={chatEnd} />
+            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-xl px-4 py-3 text-sm ${m.role==='user'?'bg-indigo-500/15 text-[var(--text)]':'bg-[var(--card)] text-[var(--text)] border border-[var(--border2)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(m.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').replace(/```[\s\S]*?```/g, '').trim())}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && i > 0 && !m.content.startsWith('📌') && !m.content.startsWith('✅') && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-green-500/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border2)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs font-semibold rounded-lg border border-green-500/20" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))}
+            {loading && <div className="text-center text-xs text-[var(--muted)] animate-pulse">AI 思考中...</div>}<div ref={chatEnd} />
           </div>
-          <div className="p-3 border-t border-[var(--border)]">
-            <div className="flex gap-2">
-              <textarea className="chat-input-area flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-indigo-500 resize-none"
-                style={{height: input.length > 100 ? '120px' : '48px', transition: 'height 0.2s'}}
-                placeholder="输入回复..." value={input} onChange={e=>setInput(e.target.value)}
-                onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); }}} />
-              <button className={`shrink-0 px-4 py-2 rounded-lg text-sm font-semibold ${loading?'bg-[#333] text-[var(--dim)]':'bg-indigo-500 hover:bg-indigo-400 text-white'}`}
-                disabled={loading} onClick={handleSend}>发送</button>
-            </div>
-          </div>
+          {step < 4 && !loading && msgs.length > 1 && (<div className="px-4 py-2 flex justify-center"><button className="px-4 py-1.5 text-xs text-[var(--accent-text)] hover:text-white hover:bg-indigo-500 rounded-lg border border-indigo-500/30 transition-colors" onClick={advancePhase}>→ 进入下一阶段：{PHASES[step]}</button></div>)}
+          <div className="p-3 border-t border-[var(--border)]"><div className="flex gap-2"><textarea className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-indigo-500 resize-none" style={{height: input.length > 200 ? '140px' : input.length > 80 ? '100px' : '48px', transition: 'height 0.2s'}} placeholder="输入回复..." value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); }}} /><button className={`shrink-0 px-4 py-2 rounded-lg text-sm font-semibold ${loading?'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)]':'bg-indigo-500 hover:bg-indigo-400 text-white'}`} disabled={loading} onClick={handleSend}>发送</button></div></div>
         </div>
-
-        {/* Right: Asset Library */}
         <div className="w-[38%] min-w-[280px] shrink-0 border-l border-[var(--border)] overflow-y-auto p-3 space-y-2 bg-[var(--surface)]">
-          <div className="flex items-center gap-2 mb-1 px-1">
-            <span className="text-xs text-[var(--dim)] font-semibold uppercase">资产库</span>
-            <div className="flex-1" />
-            <div className="flex gap-0.5">
-              {[1,2,3,4].map(i => (
-                <div key={i} className={`w-2 h-2 rounded-full ${i < step ? 'bg-green-500/60' : i === step ? 'bg-indigo-500' : 'bg-[#333]'}`} />
-              ))}
-            </div>
-          </div>
-          {assetList.map((item, ai) => {
-            const isActive = (ai+1) === step;
-            const hasData = !!item.data;
-            const isExpanded = expandedAsset === item.key;
-            const isEditing = editingAsset?.startsWith(item.key);
-            const arr = item.isArray && Array.isArray(item.data) ? item.data : (item.data ? [item.data] : []);
-            return (
-            <div key={item.key} className={`bg-[var(--card2)] border rounded-lg overflow-hidden transition-colors ${isActive ? 'ring-1 ring-indigo-500/40 border-indigo-500/30' : 'border-[var(--border)]'}`}>
-              <div className="flex items-center gap-1.5 p-3 cursor-pointer hover:bg-white/[0.02]" onClick={() => setExpandedAsset(isExpanded ? null : item.key)}>
-                <span className="text-xs">{isExpanded ? '▼' : '▶'}</span>
-                <span className={`text-xs flex-1 ${isActive ? 'text-[var(--text)] font-semibold' : 'text-[var(--text3)]'}`}>{item.label}</span>
-                {hasData && <span className="text-xs text-green-500/70">✓</span>}
-                {isActive && <span className="text-xs text-indigo-400/60">当前</span>}
-                <span className="text-xs text-[var(--muted)]">{arr.length ? arr.length+'项' : ''}</span>
-              </div>
-              {isExpanded && (
-                <div className="border-t border-[var(--border)] p-3 space-y-3">
-                  {isEditing ? (
-                    <>
-                      <textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text2)] font-mono outline-none focus:border-indigo-500 resize-none" rows={8} value={editText} onChange={e=>setEditText(e.target.value)} />
-                      <div className="flex gap-2"><button className="flex-1 text-xs px-2 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded" onClick={saveAsset}>保存</button><button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-[var(--text2)] rounded" onClick={()=>setEditingAsset(null)}>取消</button></div>
-                    </>
-                  ) : arr.length > 0 ? (
-                    <>
-                      {arr.map((d:any, di:number) => {
-                        // Shots have imagePrompt + motionPrompt sub-sections
-                        const isShot = item.key === 'shots';
-                        const isPlan = item.key === 'storyboard';
-                        const isChar = item.key === 'characters';
-                        const cn = isShot ? (d.imagePromptCN || '') : (getPromptCN(d));
-                        const en = isShot ? (d.imagePromptEN || '') : (getPromptEN(d));
-                        const motionCN = isShot ? (d.motionPromptCN || '') : '';
-                        const motionEN = isShot ? (d.motionPromptEN || '') : '';
-                        return (
-                          <div key={di} className="space-y-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-[var(--text2)] font-medium">{d.name || (d.scene ? `镜头${d.scene}` : `${item.label} #${di+1}`)}</span>
-                              {d.role && <span className={`text-xs px-1.5 py-0.5 rounded ${d.role==='主角'?'bg-yellow-500/20 text-yellow-400':d.role==='反派'?'bg-red-500/20 text-red-400':'bg-[#333] text-[var(--text3)]'}`}>{d.role}</span>}
-                              {isShot && d.duration && <span className="text-xs text-[var(--muted)]">{d.duration}</span>}
-                            </div>
-                            {isShot && d.description && <p className="text-xs text-[var(--text3)]">{d.description?.slice(0,100)}</p>}
-                            {isChar && d.appearance && <p className="text-xs text-[var(--text3)]">{d.appearance?.slice(0,80)}</p>}
-                            {isPlan && (
-                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
-                                {d.purpose && <span className="text-[var(--text3)]">作用: <span className="text-[var(--text2)]">{d.purpose}</span></span>}
-                                {d.shotType && <span className="text-[var(--text3)]">景别: <span className="text-[var(--text2)]">{d.shotType}</span></span>}
-                                {d.duration && <span className="text-[var(--text3)]">时长: <span className="text-[var(--text2)]">{d.duration}</span></span>}
-                                {d.transition && <span className="text-[var(--text3)]">转场: <span className="text-[var(--text2)]">{d.transition}</span></span>}
-                              </div>
-                            )}
-                            {/* Image prompt section */}
-                            {cn && (
-                              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2">
-                                <div className="text-[9px] text-[var(--muted)] mb-1">{isShot ? '🖼️ 生图Prompt' : 'Prompt'}</div>
-                                <p className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-wrap">{cn}</p>
-                                {en && <p className="text-xs text-[var(--text2)] leading-relaxed mt-1.5 pt-1.5 border-t border-[var(--border)]">{en}</p>}
-                                <div className="flex gap-1 mt-1.5">
-                                  <button className="text-[9px] px-1.5 py-0.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded" onClick={(e)=>{e.stopPropagation();copyToClipboard(cn);}}>复中</button>
-                                  {en && <button className="text-[9px] px-1.5 py-0.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded" onClick={(e)=>{e.stopPropagation();copyToClipboard(en);}}>复英</button>}
-                                </div>
-                              </div>
-                            )}
-                            {/* Motion prompt section */}
-                            {motionCN && (
-                              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2">
-                                <div className="text-[9px] text-[var(--muted)] mb-1">🎥 动态Prompt</div>
-                                <p className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-wrap">{motionCN}</p>
-                                {motionEN && <p className="text-xs text-[var(--text2)] leading-relaxed mt-1.5 pt-1.5 border-t border-[var(--border)]">{motionEN}</p>}
-                                <div className="flex gap-1 mt-1.5">
-                                  <button className="text-[9px] px-1.5 py-0.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded" onClick={(e)=>{e.stopPropagation();copyToClipboard(motionCN);}}>复中</button>
-                                  {motionEN && <button className="text-[9px] px-1.5 py-0.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded" onClick={(e)=>{e.stopPropagation();copyToClipboard(motionEN);}}>复英</button>}
-                                </div>
-                              </div>
-                            )}
-                            <div className="flex gap-1.5">
-                              <button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[#2a2b48] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={(e)=>{e.stopPropagation();startEditAsset(item.key,d,di);}}>✎ 编辑</button>
-                              <button className="text-xs px-2 py-1 bg-indigo-500/15 hover:bg-indigo-500/25 text-[var(--text)] rounded" onClick={(e)=>{e.stopPropagation();optimizePrompt(d,item.label);}}>🔧 优化</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-xs text-[var(--muted)]">暂无内容 · {item.hint}</p>
-                      <div className="flex gap-2">
-                        <button className="text-xs px-2 py-1 bg-indigo-500/15 hover:bg-indigo-500/25 text-[var(--text)] rounded" onClick={() => { chatAboutAsset(item.key); }}>💬 AI 生成</button>
-                        <button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[#2a2b48] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={() => startEditAsset(item.key)}>✎ 手动创建</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )})}
+          <div className="flex items-center gap-2 mb-1 px-1"><span className="text-xs text-[var(--dim)] font-semibold uppercase">资产库</span><div className="flex-1" /><div className="flex gap-0.5">{[1,2,3,4].map(i => (<div key={i} className={`w-2 h-2 rounded-full ${i < step ? 'bg-green-500/60' : i === step ? 'bg-indigo-500' : 'bg-[var(--border2)]'}`} />))}</div></div>
+          {assetList.map((it) => { const isActive = it.type === 'storyboard' ? step === 3 : (ASSET_KEYS.indexOf(it.key)+1) === step; const arr = it.type === 'storyboard' ? [] : (it.isArray && Array.isArray(it.data) ? it.data : (it.data && (it.data.title||it.data.name||it.data.text||it.data.shotNumber!==undefined) ? [it.data] : [])); const hasData = it.type === 'story' ? !!it.data?.title : it.type === 'storyboard' ? (!!it.data.scenes?.length || !!it.data.sequences?.length) : arr.length > 0; const isExpanded = expandedAsset === it.key; const isEditing = editingAsset?.startsWith(it.key); return (<div key={it.key} className={`bg-[var(--card2)] border rounded-lg overflow-hidden transition-colors ${isActive ? 'ring-1 ring-indigo-500/40 border-indigo-500/30' : 'border-[var(--border)]'}`}><div className="flex items-center gap-1.5 p-3 cursor-pointer hover:bg-white/[0.02]" onClick={() => setExpandedAsset(isExpanded ? null : it.key)}><span className="text-xs">{isExpanded ? '▼' : '▶'}</span><span className={`text-xs flex-1 ${isActive ? 'text-[var(--text)] font-semibold' : 'text-[var(--text3)]'}`}>{it.label}</span>{hasData && <span className="text-xs text-green-500/70">✓</span>}{isActive && <span className="text-xs text-indigo-400/60">当前</span>}{it.type !== 'story' && <span className="text-xs text-[var(--muted)]">{it.type === 'storyboard' ? (it.data.scenes||[]).length+'项' : arr.length ? arr.length+'项' : ''}</span>}</div>{isExpanded && <ExpandedAsset item={it} arr={arr} isEditing={isEditing} editText={editText} setEditText={setEditText} saveAsset={saveAsset} startEditAsset={startEditAsset} optimizePrompt={optimizePrompt} setEditingAsset={setEditingAsset} charExpanded={charExpanded} setCharExpanded={setCharExpanded} doCopy={doCopy} copied={copied} editStoryData={editStoryData} setEditStoryData={setEditStoryData} saveStoryEdit={saveStoryEdit} editSceneData={editSceneData} setEditSceneData={setEditSceneData} saveSceneEdit={saveSceneEdit} buildFullPrompt={buildFullPrompt} assets={assets} />}</div>)})}
         </div>
       </div>
       {showKey && <InlinePrompt title="DeepSeek API Key" onConfirm={k=>{ setServiceKey(k); if(api)api.setApiKey(k); setShowKey(false); setKeySet(true); }} onCancel={()=>setShowKey(false)} />}
-      {/* Onboarding */}
-      {showOnboard && (
-        <OnboardingGuide title="欢迎使用 AI 导演" storageKey="onboard-drafts" onClose={dismissOnboard}
-          buttons={[{label:'前往配置 API',primary:true,onClick:()=>{dismissOnboard();setShowKey(true);}},{label:'稍后配置',onClick:dismissOnboard}]}>
-          <p>文稿模块用于故事大纲创作、角色设定设计、分镜规划设计、镜头 Prompt 生成。</p>
-          <p>开始使用前，请先配置 AI 模型 API（支持 DeepSeek、OpenAI、Gemini 及兼容 OpenAI 格式的模型服务）。</p>
-        </OnboardingGuide>
-      )}
-      {/* API warning banner */}
-      {!keySet && !showOnboard && (
-        <div className="absolute top-12 left-0 right-0 z-10 flex items-center justify-center pointer-events-none">
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-full px-4 py-1.5 text-xs text-yellow-400/80 pointer-events-auto cursor-pointer"
-            onClick={()=>setShowKey(true)}>⚠ 尚未配置 AI 模型 API，AI 导演功能暂不可用 — 点击配置</div>
-        </div>
-      )}
+      {showOnboard && (<OnboardingGuide title="欢迎使用 AI 导演" storageKey="onboard-drafts" onClose={dismissOnboard} buttons={[{label:'前往配置 API',primary:true,onClick:()=>{dismissOnboard();setShowKey(true);}},{label:'稍后配置',onClick:dismissOnboard}]}><p>文稿模块用于故事大纲创作、角色设定设计、场景规划设计、镜头 Prompt 生成。</p><p>开始使用前，请先配置 AI 模型 API。</p></OnboardingGuide>)}
     </div>
   );
+}
+
+function renderMd(text: string) { return text.replace(/^### (.+)$/gm, '<div class="text-sm text-[var(--text)] font-semibold mt-3 mb-1">$1</div>').replace(/^## (.+)$/gm, '<div class="text-base text-[var(--text)] font-bold mt-4 mb-2 border-b border-[var(--border2)] pb-1">$1</div>').replace(/^# (.+)$/gm, '<div class="text-lg text-[var(--text)] font-bold mt-4 mb-2">$1</div>').replace(/\*\*(.+?)\*\*/g, '<strong class="text-[var(--text)]">$1</strong>').replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>').replace(/^---$/gm, '<hr class="border-[var(--border2)] my-3"/>').replace(/^- (.+)$/gm, '<div class="ml-2 text-[var(--text2)]">• $1</div>'); }
+
+function ExpandedAsset({ item, arr, isEditing, editText, setEditText, saveAsset, startEditAsset, optimizePrompt, setEditingAsset, charExpanded, setCharExpanded, doCopy, copied, editStoryData, setEditStoryData, saveStoryEdit, editSceneData, setEditSceneData, saveSceneEdit, buildFullPrompt, assets }: any) {
+  if (editStoryData) { const s = editStoryData; return (<div className="border-t border-[var(--border)] p-3 space-y-2"><div className="text-xs text-[var(--muted)] font-semibold mb-2">编辑故事设定</div><input className="w-full bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text)] outline-none focus:border-indigo-500" placeholder="故事名称" value={s.title||''} onChange={(e:any) => setEditStoryData({...s, title: e.target.value})} /><div className="grid grid-cols-2 gap-2"><input className="bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-indigo-500" placeholder="视频时长" value={s.duration||''} onChange={(e:any) => setEditStoryData({...s, duration: e.target.value})} /><select className="bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-indigo-500" value={s.visualTone?.medium||''} onChange={(e:any) => setEditStoryData({...s, visualTone: {...s.visualTone, medium: e.target.value}})}><option value="">视觉媒介...</option><option>超写实电影</option><option>真人电影</option><option>影视级CG</option><option>日漫</option><option>美漫</option><option>二次元动画</option><option>吉卜力风格</option><option>新海诚风格</option><option>厚涂插画</option><option>游戏CG</option></select></div><input className="w-full bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-indigo-500" placeholder="参考作品（1部）" value={s.visualTone?.reference||''} onChange={(e:any) => setEditStoryData({...s, visualTone: {...s.visualTone, reference: e.target.value}})} /><textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-indigo-500 resize-none" rows={3} placeholder="世界观设定" value={s.worldBuilding||''} onChange={(e:any) => setEditStoryData({...s, worldBuilding: e.target.value})} /><textarea className="w-full bg-[var(--surface)] border border-indigo-500/20 rounded px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-indigo-500 resize-none" rows={3} placeholder="故事简介（≤200字）" value={s.summary||''} onChange={(e:any) => setEditStoryData({...s, summary: e.target.value})} /><div className="flex gap-2 pt-2"><button className="flex-1 text-xs py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded" onClick={saveStoryEdit}>保存修改</button><button className="text-xs px-3 py-1.5 text-[var(--muted)] hover:text-[var(--text2)] rounded" onClick={() => setEditStoryData(null)}>取消</button></div></div>); }
+  if (editSceneData) { const s = editSceneData.data; const shots: any[] = editSceneData.shots || []; const totalSec = shots.reduce((sum:number, sh:any) => sum + (parseInt(sh.duration)||0), 0); const updateShot = (i: number, field: string, val: any) => { const ns = [...shots]; ns[i] = {...ns[i], [field]: val}; setEditSceneData({...editSceneData, shots: ns}); }; const addShot = () => { setEditSceneData({...editSceneData, shots: [...shots, {shotNumber: shots.length+1, duration:'5s', shotType:'中景', purpose:'', transition:''}]}); }; const delShot = (i: number) => { setEditSceneData({...editSceneData, shots: shots.filter((_:any,si:number) => si !== i).map((sh:any,si:number) => ({...sh, shotNumber: si+1}))}); }; return (<div className="border-t border-[var(--border)] p-3 space-y-2"><div className="text-xs text-[var(--muted)] font-semibold">编辑场景</div><input className="w-full bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text)] outline-none focus:border-indigo-500" placeholder="场景名称" value={s.name||''} onChange={(e:any) => setEditSceneData({...editSceneData, data: {...s, name: e.target.value}})} /><textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-indigo-500 resize-none" rows={3} placeholder="场景描述（含环境、氛围、镜头语言）" value={s.description||''} onChange={(e:any) => setEditSceneData({...editSceneData, data: {...s, description: e.target.value}})} /><div className="text-xs text-[var(--muted)] font-semibold pt-1">分镜列表</div>{shots.map((sh: any, si: number) => (<div key={si} className="flex items-center gap-1"><span className="text-xs text-[var(--accent-text)] font-mono w-10">Shot{sh.shotNumber}</span><input className="w-12 bg-[var(--surface)] border border-[var(--border)] rounded px-1 py-1 text-xs text-[var(--text)] outline-none focus:border-indigo-500" placeholder="时长" value={sh.duration||''} onChange={(e:any) => updateShot(si, 'duration', e.target.value)} /><input className="w-14 bg-[var(--surface)] border border-[var(--border)] rounded px-1 py-1 text-xs text-[var(--text)] outline-none focus:border-indigo-500" placeholder="景别" value={sh.shotType||''} onChange={(e:any) => updateShot(si, 'shotType', e.target.value)} /><input className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded px-1 py-1 text-xs text-[var(--text)] outline-none focus:border-indigo-500" placeholder="作用" value={sh.purpose||''} onChange={(e:any) => updateShot(si, 'purpose', e.target.value)} /><input className="w-16 bg-[var(--surface)] border border-[var(--border)] rounded px-1 py-1 text-xs text-[var(--text)] outline-none focus:border-indigo-500" placeholder="转场" value={sh.transition||''} onChange={(e:any) => updateShot(si, 'transition', e.target.value)} /><button className="text-xs text-[var(--muted)] hover:text-red-400 shrink-0" onClick={() => delShot(si)}>✕</button></div>))}<button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-[var(--text)] rounded border border-[var(--border)] w-full" onClick={addShot}>+ 添加镜头</button><div className="flex gap-2 pt-2"><button className="flex-1 text-xs py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded" onClick={saveSceneEdit}>保存修改</button><button className="text-xs px-3 py-1.5 text-[var(--muted)] hover:text-[var(--text2)] rounded" onClick={() => setEditSceneData(null)}>取消</button></div></div>); }
+  if (isEditing) { return (<div className="border-t border-[var(--border)] p-3 space-y-3"><textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text2)] font-mono outline-none focus:border-indigo-500 resize-none" rows={8} value={editText} onChange={(e:any) => setEditText(e.target.value)} /><div className="flex gap-2"><button className="flex-1 text-xs px-2 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded" onClick={saveAsset}>保存</button><button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-[var(--text2)] rounded" onClick={() => setEditingAsset(null)}>取消</button></div></div>); }
+  return (<div className="border-t border-[var(--border)] p-3 space-y-3">
+    {item.type === 'story' && item.data?.title ? (<div className="space-y-3">{item.data.title && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3"><div className="text-xs text-[var(--muted)] font-semibold tracking-wider mb-1">故事名称</div><div className="text-sm font-bold text-[var(--text)]">{item.data.title}</div></div>}<div className="grid grid-cols-2 gap-2">{(item.data.duration || item.data.targetDuration) && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="text-xs text-[var(--muted)] font-semibold tracking-wider mb-0.5">视频时长</div><div className="text-xs text-[var(--text2)]">{item.data.duration || item.data.targetDuration}</div></div>}<div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="text-xs text-[var(--muted)] font-semibold tracking-wider mb-0.5">视觉媒介</div><div className="text-xs text-[var(--text2)]">{item.data.visualTone?.medium || item.data.visualType || '未设定'}</div></div></div>{(item.data.visualTone?.reference || (item.data.visualTone?.references||[])[0]) && (<div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="text-xs text-[var(--muted)] font-semibold tracking-wider mb-0.5">参考作品</div><div className="text-xs text-[var(--text2)]">{item.data.visualTone?.reference || item.data.visualTone?.references[0]}</div></div>)}{(item.data.summary || item.data.logline) && <div className="bg-[var(--surface)] border border-indigo-500/20 rounded-lg p-3"><div className="text-xs text-[var(--muted)] font-semibold tracking-wider mb-1">故事简介</div><div className="text-xs text-[var(--text2)] leading-relaxed">{item.data.summary || item.data.logline || '暂无'}</div></div>}{item.data.worldBuilding && (<div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3"><div className="text-xs text-[var(--muted)] font-semibold tracking-wider mb-1">世界观设定</div><div className="text-xs text-[var(--text2)] leading-relaxed">{item.data.worldBuilding}</div></div>)}<div className="flex gap-2"><button className="text-xs px-3 py-1.5 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] rounded border border-[var(--border)]" onClick={() => startEditAsset(item.key)}>编辑故事设定</button><button className="text-xs px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-[var(--accent-text)] rounded border border-indigo-500/20" onClick={() => optimizePrompt(item.data, item.label)}>AI 优化</button></div></div>)
+    : item.type === 'character' && arr.length > 0 ? (<div className="space-y-2">{arr.map((c: any, ci: number) => { const ck = item.key + '-' + ci; const isOpen = !!charExpanded[ck]; return (<div key={ci} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5"><div className="flex items-center gap-2 cursor-pointer" onClick={() => setCharExpanded({...charExpanded, [ck]: !isOpen})}><span className="text-xs">{isOpen ? '▼' : '▶'}</span><span className="text-xs font-semibold text-[var(--text)]">{c.name}</span><span className="text-xs px-1.5 py-0.5 rounded bg-[var(--card)] text-[var(--text3)]">{c.role}</span>{c.shortDesc && <span className="text-xs text-[var(--muted)] truncate">{c.shortDesc}</span>}</div>{isOpen && (<div className="mt-3 space-y-3"><div><div className="text-xs text-[var(--muted)] mb-1">定妆Prompt</div><div className="text-xs text-[var(--text2)] leading-relaxed whitespace-pre-wrap bg-[var(--bg)] rounded p-2">{c.prompt}</div><button className={`text-xs mt-1 px-2 py-0.5 rounded border ${copied === c.prompt?.slice(0,20) ? 'border-green-500/40 text-green-400 bg-green-500/10' : 'border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)]'}`} onClick={() => doCopy(c.prompt)}>{copied === c.prompt?.slice(0,20) ? '已复制 ✓' : '复制Prompt'}</button></div><div className="flex gap-2 pt-1 border-t border-[var(--border)]"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={() => startEditAsset(item.key, c, ci)}>编辑角色</button><button className="text-xs px-2 py-1 bg-indigo-500/15 hover:bg-indigo-500/25 text-[var(--text)] rounded" onClick={() => optimizePrompt(c, item.label)}>AI 优化</button></div></div>)}</div>)})}</div>)
+    : item.type === 'storyboard' ? (<div className="space-y-2">{(item.data.scenes||[]).length > 0 && (() => { const allShots = (item.data.sequences||[]).flatMap((g:any) => g.shots||[]); const totalSec = allShots.reduce((sum:number, sh:any) => sum + (parseInt(sh.duration)||0), 0); return <div className="text-xs text-[var(--muted)]">预计总时长 {Math.floor(totalSec/60)}m{totalSec%60}s · {allShots.length}个镜头 · {item.data.scenes.length}个场景</div>; })()}{(item.data.scenes||[]).length > 0 ? (item.data.scenes||[]).map((s: any, i: number) => { const seq = (item.data.sequences||[]).find((g:any) => g.sceneIndex === i); const shots = seq?.shots || []; return (<div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5"><span className="text-xs font-semibold text-[var(--text)]">{s.name}</span><span className="text-xs text-[var(--muted)] ml-2">{shots.length}个镜头</span><div className="text-xs text-[var(--text2)] mt-1">{s.description}</div>{shots.length > 0 && (<div className="space-y-1 mt-2">{shots.map((sh: any) => (<div key={sh.shotNumber} className="text-xs bg-[var(--bg)] rounded px-2 py-1"><span className="text-[var(--accent-text)] font-mono font-semibold">Shot{sh.shotNumber}</span><span className="text-[var(--text2)] ml-1">{sh.duration}</span><span className="text-[var(--text3)] ml-1">{sh.shotType}</span><span className="text-[var(--dim)] mx-1">|</span><span className="text-[var(--text2)]">{sh.purpose}</span>{sh.transition && <span className="text-[var(--dim)] ml-1">→ {sh.transition}</span>}</div>))}</div>)}<div className="flex gap-2 mt-2"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={(e) => { e.stopPropagation(); startEditAsset('storyboard', s, i); }}>修改场景</button><button className="text-xs px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-[var(--text)] rounded" onClick={(e) => { e.stopPropagation(); optimizePrompt(s, '场景'); }}>AI 优化</button></div></div>)}) : (<p className="text-xs text-[var(--muted)]">暂无内容 · 场景列表与分镜规划</p>)}</div>)
+    : item.type === 'shot' && arr.length > 0 ? (<div className="space-y-1.5">{[...arr].sort((a: any, b: any) => (a.shotNumber||0) - (b.shotNumber||0)).map((shot: any) => { const sk = 'shot-' + shot.id; const isOpen = !!charExpanded[sk]; return (<div key={shot.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="flex items-center gap-2 cursor-pointer" onClick={() => setCharExpanded({...charExpanded, [sk]: !isOpen})}><span className="text-xs">{isOpen ? '▼' : '▶'}</span><span className="text-xs text-[var(--accent-text)] font-mono">Shot{shot.shotNumber}</span><span className="text-xs text-[var(--text2)]">{shot.sceneName}</span><span className="text-xs text-[var(--muted)]">{shot.duration} · {shot.shotType} · {shot.generationMode==='start_end_frame'?'首尾帧':'首帧'}</span></div>{isOpen && <div className="mt-2 space-y-3 border-t border-[var(--border)] pt-2"><div className="bg-[var(--bg)] rounded-lg p-3 text-xs border border-[var(--border)]"><div className="text-[var(--muted)] font-semibold mb-2">基础设定</div>{assets.characters?.map((c:any) => (<div key={c.name} className="text-[var(--text2)] mb-1">· {c.name}（{c.role}）：{c.shortDesc}</div>))}{shot.sceneName && (() => { const scene = (assets.scenes||[]).find((s:any) => s.name === shot.sceneName); return scene ? <div className="text-[var(--text3)] mt-2 pt-2 border-t border-[var(--border)]">场景：{scene.description?.slice(0,200)}</div> : null; })()}</div><div className="bg-[var(--bg)] rounded-lg p-3 text-xs border border-[var(--border)]"><div className="text-[var(--muted)] font-semibold mb-2">氛围与画质</div><div className="text-[var(--text2)]">风格核心：{assets.story?.visualTone?.medium||''} · {assets.story?.visualTone?.reference||''}</div>{shot.atmosphere && <div className="text-[var(--text3)] mt-1">色彩影调：{shot.atmosphere}</div>}</div>{shot.imagePrompts?.map((ip: any, i: number) => (<div key={i} className="border border-indigo-500/20 rounded-lg p-3 text-xs bg-indigo-500/5"><div className="flex items-center justify-between mb-2"><span className="text-indigo-400 font-semibold text-xs">{ip.label}Prompt</span><button className="text-xs px-2 py-1 bg-indigo-500/15 hover:bg-indigo-500/25 text-[var(--accent-text)] rounded hover:bg-indigo-500/20 text-[var(--accent-text)] rounded" onClick={() => doCopy(buildFullPrompt(shot, 'image'))}>复制完整Prompt</button></div><div className="text-[var(--text2)] whitespace-pre-wrap max-h-40 overflow-y-auto">{ip.prompt}</div></div>))}{shot.videoPrompt && <div className="border border-green-500/20 rounded-lg p-3 text-xs bg-green-500/5"><div className="flex items-center justify-between mb-2"><span className="text-green-400 font-semibold text-xs">视频Prompt</span><button className="text-xs px-2 py-1 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded hover:bg-green-500/20 text-green-400 rounded" onClick={() => doCopy(buildFullPrompt(shot, 'video'))}>复制完整Prompt</button></div><div className="text-[var(--text2)] whitespace-pre-wrap max-h-40 overflow-y-auto">{shot.videoPrompt}</div></div>}<div className="flex gap-2 pt-1 border-t border-[var(--border)]"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={() => startEditAsset(item.key, shot, arr.indexOf(shot))}>修改分镜</button><button className="text-xs px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-[var(--text)] rounded" onClick={() => optimizePrompt(shot, '分镜')}>AI 优化</button></div></div>}</div>)})}</div>)
+    : arr.length > 0 ? (<div>{arr.map((d: any, di: number) => (<div key={di} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 mb-2"><span className="text-xs text-[var(--text2)] font-medium">{item.label} #{di+1}</span><div className="text-xs text-[var(--text2)] leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto mt-1">{typeof d.text === 'string' ? d.text.slice(0, 500) : JSON.stringify(d)}</div></div>))}</div>)
+    : (<div className="space-y-2"><p className="text-xs text-[var(--muted)]">暂无内容 · {item.hint}</p><button className="text-xs px-2 py-1 bg-indigo-500/15 hover:bg-indigo-500/25 text-[var(--text)] rounded" onClick={() => startEditAsset(item.key)}>✎ 手动创建</button></div>)}
+  </div>);
 }

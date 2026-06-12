@@ -66,7 +66,21 @@
       "Bash(taskkill /F /IM node.exe)",
       "Bash(powershell *)",
       "Bash(git rm *)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(rm -rf \"D:/05产品/cc/0507/03-cinecreate/dist/renderer\" \"D:/05产品/cc/0507/03-cinecreate/node_modules/.vite\")",
+      "Bash(curl *)",
+      "Bash(rm -rf \"D:/05产品/cc/0507/03-cinecreate/dist/renderer\")",
+      "Bash(ping *)",
+      "Bash(GIT_CURL_VERBOSE=1 GIT_TRACE=1 git push origin main)",
+      "Bash(ssh *)",
+      "Bash(gh auth *)",
+      "Bash(git remote *)",
+      "Bash(ssh-keyscan github.com)",
+      "Bash(gh ssh-key *)",
+      "Bash(GIT_ASKPASS=echo git push \"https://gaoyinxuan:$\\(gh auth token\\)@github.com/gaoyinxuan/0507-cc.git\" main)",
+      "Bash(gh api *)",
+      "Bash(GIT_CURL_VERBOSE=1 git push origin main)"
     ]
   }
 }

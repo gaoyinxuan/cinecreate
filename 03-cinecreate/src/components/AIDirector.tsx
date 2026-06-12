@@ -144,12 +144,12 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
               <option value="scifi">科幻</option>
             </select>
           </div>
-          <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[#333] text-[var(--dim)] cursor-wait' : 'bg-indigo-500 hover:bg-indigo-400 text-white'}`}
+          <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-indigo-500 hover:bg-indigo-400 text-white'}`}
             disabled={loading} onClick={handleGenerateStory}>
             {loading ? '生成中...' : '① 生成故事'}
           </button>
           {story && (
-            <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[#333] text-[var(--dim)] cursor-wait' : 'bg-indigo-500/50 hover:bg-indigo-400/50 text-[var(--text)] border border-indigo-500/30'}`}
+            <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-indigo-500/50 hover:bg-indigo-400/50 text-[var(--text)] border border-indigo-500/30'}`}
               disabled={loading} onClick={handleGenerateChars}>
               {loading ? '生成中...' : '② 生成角色'}
             </button>
@@ -197,7 +197,7 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
                         <div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs text-[var(--text2)] font-semibold">{c.name}</span>
-                            <span className={`text-xs px-1.5 py-0.5 rounded ${c.role==='主角' ? 'bg-yellow-500/20 text-yellow-400' : c.role==='反派' ? 'bg-red-500/20 text-red-400' : 'bg-[#333] text-[var(--text3)]'}`}>{c.role}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${c.role==='主角' ? 'bg-yellow-500/20 text-yellow-600' : c.role==='反派' ? 'bg-red-500/20 text-red-500' : 'bg-[var(--card2)] text-[var(--text3)]'}`}>{c.role}</span>
                           </div>
                           <div className="text-xs text-[var(--text3)] line-clamp-3">{c.appearance}</div>
                         </div>

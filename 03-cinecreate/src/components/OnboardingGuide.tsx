@@ -2,6 +2,7 @@
  * Reusable first-time onboarding overlay.
  */
 import React from 'react';
+import { db } from '../services/dbService';
 
 interface Props {
   title: string;
@@ -14,6 +15,10 @@ interface Props {
 export default function OnboardingGuide({ title, children, buttons, onClose, storageKey }: Props) {
   React.useEffect(() => {
     localStorage.setItem(storageKey, 'shown');
+    db.meta.get('onboarding').then((state: any) => {
+      const next = { ...(state || {}), [storageKey]: true };
+      db.meta.set('onboarding', next).catch(() => {});
+    }).catch(() => {});
   }, [storageKey]);
 
   return (
@@ -32,11 +37,12 @@ export default function OnboardingGuide({ title, children, buttons, onClose, sto
   );
 }
 
-export function useOnboarding(key: string): [boolean, () => void] {
+export function useOnboarding(key: string, ready: boolean = true): [boolean, () => void, () => void] {
   const [show, setShow] = React.useState(false);
   React.useEffect(() => {
-    if (!localStorage.getItem(key)) setShow(true);
-  }, [key]);
+    if (ready && !localStorage.getItem(key)) setShow(true);
+  }, [key, ready]);
   const dismiss = () => setShow(false);
-  return [show, dismiss];
+  const showGuide = () => setShow(true);
+  return [show, dismiss, showGuide];
 }
