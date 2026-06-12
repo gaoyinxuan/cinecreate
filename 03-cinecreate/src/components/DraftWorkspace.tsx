@@ -81,6 +81,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const [showKey, setShowKey] = useState(false);
   const [keySet, setKeySet] = useState(false);
   const [savedIdx, setSavedIdx] = useState<number | null>(null);
+  const [inspoTag, setInspoTag] = useState<string | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<any>(null);
   const msgsRef = useRef<Message[]>([]);
@@ -91,10 +92,10 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   useEffect(() => {
     (async () => {
       if (!projectId) return;
-      if (draftId) { const all = await db.dts.getAll(projectId); const d = all.find((x:any)=>x.id===draftId); if (d) { setDraft(d); const conv = p(d.conversation); setMsgs(conv.length ? conv : [a(WELCOME)]); return; } }
+      if (draftId) { const all = await db.dts.getAll(projectId); const d = all.find((x:any)=>x.id===draftId); if (d) { setDraft(d); setMsgs(p(d.conversation)); return; } }
       const all = await db.dts.getAll(projectId);
       if (all.length) { setDraft(all[0]); setMsgs(p(all[0].conversation)); if (onDraftCreated) onDraftCreated(all[0].id); }
-      else { const d = await db.dts.create({ projectId, name:'草稿V1', currentStep:1, confirmedAssets:{}, conversation:[] }); setDraft(d); setMsgs([]); if (onDraftCreated) onDraftCreated(d.id); setMsgs([a(WELCOME)]); }
+      else { const d = await db.dts.create({ projectId, name:'草稿V1', currentStep:1, confirmedAssets:{}, conversation:[] }); setDraft(d); setMsgs([]); if (onDraftCreated) onDraftCreated(d.id); }
     })();
   }, [projectId, draftId]);
 
@@ -102,7 +103,17 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
 
   const p = (s:any) => typeof s==='string' ? JSON.parse(s||'[]') : (s||[]);
   function a(text:string): Message { return { role:'assistant', content: text, timestamp: new Date().toISOString() }; }
-  const WELCOME = '👋 欢迎来到影创。\n\n我是你的 AI 导演助手，将陪你完成从故事构思、角色设计、场景规划到镜头制作的完整创作过程。\n\n我们先从故事设定开始。\n\n你可以用一句话、一个灵感，甚至一个模糊的想法来描述你想创作的内容。\n\n例如：\n- 未来火星殖民地发生的一场悬疑事件\n- 一位失忆特工寻找真实身份的故事\n- 赛博朋克城市中的爱情与背叛\n- 古代修仙世界中的成长冒险\n\n如果你已经有比较明确的想法，也可以告诉我：\n- 故事类型（科幻、悬疑、爱情、奇幻等）\n- 故事背景或世界观\n- 主角设定\n- 希望表达的主题\n\n不用一次说完整。\n\n先告诉我你的创意，我们一起把它发展成完整的故事。';
+  const INSPIRATION_TAGS = ['修仙','奇幻','科幻','悬疑','爱情','治愈','动作','冒险','历史','赛博朋克'];
+  const INSPIRATION_CARDS = [
+    {tags:['修仙','奇幻'], title:'修仙日常', desc:'隐居生活、宗门成长、道侣陪伴'},
+    {tags:['科幻','赛博朋克'], title:'赛博都市', desc:'未来科技、阴谋、身份谜团'},
+    {tags:['科幻','冒险','动作'], title:'末日废土', desc:'生存、探索、公路冒险'},
+    {tags:['奇幻','冒险'], title:'东方奇幻', desc:'神兽、秘境、英雄成长'},
+    {tags:['悬疑'], title:'悬疑推理', desc:'案件调查与真相揭露'},
+    {tags:['治愈','爱情'], title:'温馨治愈', desc:'平凡生活与情感故事'},
+    {tags:['历史','动作'], title:'历史传奇', desc:'乱世英雄与时代变迁'},
+    {tags:['科幻','冒险'], title:'星际探索', desc:'星际文明与未知世界'},
+  ];
 
   const save = useCallback(async (messages: Message[]) => { msgsRef.current = messages; if (!draft?.id) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => db.dts.update(draft.id, { conversation: messages }).catch(()=>{}), 500); }, [draft]);
   useEffect(() => () => { clearTimeout(saveTimer.current); if (draft?.id && msgsRef.current.length > 0) db.dts.update(draft.id, { conversation: msgsRef.current }).catch(() => {}); }, [draft]);
@@ -172,11 +183,51 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white rounded-br-md':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(m.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').replace(/```[\s\S]*?```/g, '').trim())}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && i > 0 && !m.content.startsWith('📌') && !m.content.startsWith('✅') && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))}
+            {msgs.length === 0 ? (
+              <div className="max-w-2xl mx-auto py-8">
+                <div className="text-center mb-10">
+                  <div className="text-2xl mb-3">🎬</div>
+                  <h2 className="text-lg font-bold text-[var(--text)] mb-2">开始你的 AI 视频创作</h2>
+                  <p className="text-xs text-[var(--text3)] leading-relaxed">从一个灵感开始，逐步完成故事、角色、场景与镜头设计，并沉淀为可复用的创作资产。</p>
+                </div>
+                <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 mb-8">
+                  <div className="text-xs text-[var(--text2)] font-semibold mb-3">在文稿模块中，你将完成：</div>
+                  <div className="text-xs text-[var(--text3)] space-y-1.5">
+                    <div>· 故事设定（世界观、视觉基调、故事简介）</div>
+                    <div>· 角色设计（角色卡片与定妆 Prompt）</div>
+                    <div>· 场景规划（场景拆解与分镜序列规划）</div>
+                    <div>· 镜头制作（图片 Prompt 与视频 Prompt）</div>
+                  </div>
+                  <div className="text-xs text-[var(--muted)] mt-3">所有内容都将自动沉淀至资产库，支持编辑、优化与复用。</div>
+                </div>
+                {/* Inspiration */}
+                <div className="mb-8">
+                  <div className="text-xs text-[var(--text2)] font-semibold mb-1">✨ 创作灵感</div>
+                  <div className="text-xs text-[var(--muted)] mb-3">没有明确想法？从一个方向开始。</div>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    <button className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${!inspoTag ? 'bg-[var(--accent-solid)] text-white' : 'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)] border border-[var(--border)]'}`} onClick={()=>setInspoTag(null)}>全部</button>
+                    {INSPIRATION_TAGS.map(t => (
+                      <button key={t} className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${inspoTag===t ? 'bg-[var(--accent-solid)] text-white' : 'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)] border border-[var(--border)]'}`} onClick={()=>setInspoTag(inspoTag===t?null:t)}>{t}</button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {INSPIRATION_CARDS.filter(c => !inspoTag || c.tags.includes(inspoTag)).map(c => (
+                      <div key={c.title} className="bg-[var(--card)] border border-[var(--border)] hover:border-[var(--accent-text)]/30 rounded-xl p-3 cursor-pointer transition-colors"
+                        onClick={() => setInput(`我想创作一个${c.title}主题的故事，关于${c.desc}。`)}>
+                        <div className="text-xs font-semibold text-[var(--text)] mb-0.5">{c.title}</div>
+                        <div className="text-[11px] text-[var(--text3)]">{c.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white rounded-br-md':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(m.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').replace(/```[\s\S]*?```/g, '').trim())}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && i > 0 && !m.content.startsWith('📌') && !m.content.startsWith('✅') && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))
+            )}
             {loading && <div className="text-center text-xs text-[var(--muted)] animate-pulse">AI 思考中...</div>}<div ref={chatEnd} />
           </div>
           {step < 4 && !loading && msgs.length > 1 && (<div className="px-4 py-2 flex justify-center"><button className="px-4 py-1.5 text-xs text-[var(--accent-text)] hover:text-white hover:bg-[var(--accent-solid)] rounded-lg border-2 border-[var(--accent-text)]/30 transition-colors" onClick={advancePhase}>进入下一阶段：{PHASES[step]} →</button></div>)}
-          <div className="p-3 border-t border-[var(--border)]"><div className="relative"><textarea className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-xl px-4 py-3 pr-12 text-sm text-[var(--text)] outline-none focus:border-gold-400 resize-none" style={{height: input.length > 200 ? '120px' : input.length > 80 ? '80px' : '52px', transition: 'height 0.2s'}} placeholder="输入回复..." value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); }}} /><button className={`absolute right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition-all ${loading?'bg-[var(--card2)] text-[var(--muted)]':'bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white'}`} style={{bottom:12}} disabled={loading} onClick={handleSend} title="发送">
+          <div className="p-3 border-t border-[var(--border)]"><div className="relative"><textarea className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-xl px-4 py-3 pr-12 text-sm text-[var(--text)] outline-none focus:border-gold-400 resize-none" style={{height: input.length > 200 ? '120px' : input.length > 80 ? '80px' : '52px', transition: 'height 0.2s'}} placeholder="描述你的创意、故事想法或参考作品...&#10;例如：末日爆发后，机器人骑着鸵鸟穿越废土" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); }}} /><button className={`absolute right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition-all ${loading?'bg-[var(--card2)] text-[var(--muted)]':'bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white'}`} style={{bottom:12}} disabled={loading} onClick={handleSend} title="发送">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14.5 1.5L1 7.5L6.5 9.5L8.5 15L14.5 1.5Z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M6.5 9.5L14.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button></div></div>
         </div>
