@@ -117,7 +117,7 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
           {steps.map((s, i) => (
             <React.Fragment key={s}>
               {i > 0 && <span className="text-[var(--dim)] text-xs">→</span>}
-              <span className={`text-xs px-2 py-1 rounded-full ${step > i+1 ? 'bg-green-500/20 text-green-400' : step === i+1 ? 'bg-indigo-500/20 text-[var(--text)]' : 'bg-[var(--card)] text-[var(--muted)]'}`}>
+              <span className={`text-xs px-2 py-1 rounded-full ${step > i+1 ? 'bg-green-500/20 text-green-400' : step === i+1 ? 'bg-gold-400/20 text-[var(--text)]' : 'bg-[var(--card)] text-[var(--muted)]'}`}>
                 {step > i+1 ? '✓' : ''} {s}
               </span>
             </React.Fragment>
@@ -131,7 +131,7 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
         {/* Left: Input */}
         <div className="w-80 shrink-0 border-r border-[var(--border)] p-4 flex flex-col gap-3 overflow-y-auto">
           <div className="text-xs text-[var(--dim)] font-semibold uppercase">创意输入</div>
-          <textarea className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded-lg p-3 text-sm text-[var(--text)] outline-none focus:border-indigo-500 resize-none min-h-[120px]"
+          <textarea className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded-lg p-3 text-sm text-[var(--text)] outline-none focus:border-gold-400 resize-none min-h-[120px]"
             placeholder="输入你的创意描述...&#10;&#10;例如：一个老年物理学家发现宇宙即将毁灭，驾驶飞船寻找人类最后的希望。"
             value={creative} onChange={e => setCreative(e.target.value)} />
           <div className="flex items-center gap-2">
@@ -144,12 +144,12 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
               <option value="scifi">科幻</option>
             </select>
           </div>
-          <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-indigo-500 hover:bg-indigo-400 text-white'}`}
+          <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-gold-400 hover:bg-gold-500 text-white'}`}
             disabled={loading} onClick={handleGenerateStory}>
             {loading ? '生成中...' : '① 生成故事'}
           </button>
           {story && (
-            <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-indigo-500/50 hover:bg-indigo-400/50 text-[var(--text)] border border-indigo-500/30'}`}
+            <button className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${loading ? 'bg-[var(--card2)] text-[var(--muted)] border border-[var(--border2)] cursor-wait' : 'bg-gold-400/50 hover:bg-gold-500/50 text-[var(--text)] border border-gold-400/30'}`}
               disabled={loading} onClick={handleGenerateChars}>
               {loading ? '生成中...' : '② 生成角色'}
             </button>
@@ -180,7 +180,7 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
                     <span className="text-xs text-[var(--muted)]">可编辑 JSON</span>
                   </div>
                   {storyEditable && (
-                    <textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 text-xs text-[var(--text2)] outline-none focus:border-indigo-500 resize-none font-mono"
+                    <textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 text-xs text-[var(--text2)] outline-none focus:border-gold-400 resize-none font-mono"
                       style={{ minHeight: '300px' }}
                       value={storyEditable} onChange={e => setStoryEditable(e.target.value)} />
                   )}
@@ -203,7 +203,7 @@ export default function AIDirector({ projectId, onClose }: { projectId: string; 
                         </div>
                       ))}
                     </div>
-                    <textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 text-xs text-[var(--text2)] outline-none focus:border-indigo-500 resize-none font-mono"
+                    <textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 text-xs text-[var(--text2)] outline-none focus:border-gold-400 resize-none font-mono"
                       style={{ minHeight: '150px' }}
                       value={charsEditable} onChange={e => setCharsEditable(e.target.value)} />
                   </div>

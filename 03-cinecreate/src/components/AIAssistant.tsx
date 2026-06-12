@@ -46,15 +46,15 @@ export default function AIAssistant({ projectId, contextDoc, onDocCreated }: Pro
         <span className="text-xs text-[var(--dim)] font-semibold uppercase">🤖 AI 助手</span>
         {contextDoc && <span className="text-xs text-[var(--muted)] truncate">上下文: {contextDoc.title}</span>}
       </div>
-      <textarea className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg p-2 text-xs text-[var(--text)] outline-none focus:border-indigo-500 resize-none h-16"
+      <textarea className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg p-2 text-xs text-[var(--text)] outline-none focus:border-gold-400 resize-none h-16"
         placeholder="输入创意描述，或基于选中文稿生成..."
         id="aiPrompt" />
       <div className="flex flex-wrap gap-1.5">
-        <button className="text-xs px-2.5 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-[var(--text)] rounded-lg border border-indigo-500/20 disabled:opacity-40"
+        <button className="text-xs px-2.5 py-1.5 bg-gold-400/20 hover:bg-gold-400/30 text-[var(--text)] rounded-lg border border-gold-400/20 disabled:opacity-40"
           disabled={loading} onClick={() => { const inp = (document.getElementById('aiPrompt') as HTMLTextAreaElement)?.value; if(inp.trim()) runAgent('story', inp.trim()); else setError('请输入创意描述'); }}>
           {loading ? '⏳' : '📖'} 生成故事
         </button>
-        <button className="text-xs px-2.5 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-[var(--text)] rounded-lg border border-indigo-500/20 disabled:opacity-40"
+        <button className="text-xs px-2.5 py-1.5 bg-gold-400/20 hover:bg-gold-400/30 text-[var(--text)] rounded-lg border border-gold-400/20 disabled:opacity-40"
           disabled={loading || !contextDoc} onClick={() => runAgent('characters', '')}>
           {loading ? '⏳' : '👤'} 生成角色
         </button>

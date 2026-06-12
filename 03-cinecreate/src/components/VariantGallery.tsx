@@ -49,7 +49,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
   const imgUrl = (blob?: Blob) => blob ? URL.createObjectURL(blob) : null;
 
   return (
-    <div className={`space-y-3 ${dragOver ? 'ring-2 ring-indigo-500 rounded-lg' : ''}`}
+    <div className={`space-y-3 ${dragOver ? 'ring-2 ring-gold-400 rounded-lg' : ''}`}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) addVariant(Array.from(e.dataTransfer.files)); }}>
@@ -57,7 +57,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
         <div className="relative rounded-lg overflow-hidden bg-[var(--card2)] border border-[var(--border2)] cursor-pointer group/img" style={{ aspectRatio: '16/9' }}
           onClick={() => onLightbox(primary.imageBlob!, primary.label)}>
           {primary.imageBlob && <img src={imgUrl(primary.imageBlob)!} className="w-full h-full object-cover group-hover/img:opacity-80" alt="" />}
-          <span className="absolute top-2 left-2 bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{primary.label}</span>
+          <span className="absolute top-2 left-2 bg-gold-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">{primary.label}</span>
           {otherVariants.length >= 1 && (
             <button className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/img:opacity-100"
               onClick={handleCompare}>对比 →</button>
@@ -66,7 +66,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
             <div className="absolute inset-0 z-20 bg-black/80 flex flex-col items-center justify-center gap-2 rounded-lg" onClick={e => e.stopPropagation()}>
               <span className="text-xs text-[var(--text3)] mb-1">选择对比对象</span>
               {(otherVariants||[]).map(v => (
-                <button key={v.id} className="text-xs px-3 py-1.5 bg-[var(--card)] hover:bg-indigo-500/30 text-[var(--text)] hover:text-white rounded-lg"
+                <button key={v.id} className="text-xs px-3 py-1.5 bg-[var(--card)] hover:bg-gold-400/30 text-[var(--text)] hover:text-white rounded-lg"
                   onClick={e => { e.stopPropagation(); setComparePick(false); onCompare(v.id); }}>{v.label}</button>
               ))}
               <button className="text-xs text-[var(--muted)] hover:text-[var(--text2)] mt-1" onClick={e => { e.stopPropagation(); setComparePick(false); }}>取消</button>
@@ -78,7 +78,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
         {(variants||[]).map((v, i) => {
           const isP = v.isPrimary;
           return (
-            <div key={v.id} className={`relative shrink-0 w-24 rounded-lg overflow-hidden border-2 transition-colors group/var ${isP ? 'border-indigo-400' : 'border-transparent hover:border-[var(--border2)]'}`}>
+            <div key={v.id} className={`relative shrink-0 w-24 rounded-lg overflow-hidden border-2 transition-colors group/var ${isP ? 'border-gold-500' : 'border-transparent hover:border-[var(--border2)]'}`}>
               <div className="aspect-video bg-[var(--card2)] cursor-pointer" onClick={() => onLightbox(v.imageBlob!, v.label)}>
                 {v.imageBlob && <img src={imgUrl(v.imageBlob)!} className="w-full h-full object-cover" alt="" />}
               </div>
@@ -93,7 +93,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
             </div>
           );
         })}
-        <label className="shrink-0 w-24 aspect-video rounded-lg border-2 border-dashed border-[var(--border2)] hover:border-indigo-500/50 flex flex-col items-center justify-center cursor-pointer group/add"
+        <label className="shrink-0 w-24 aspect-video rounded-lg border-2 border-dashed border-[var(--border2)] hover:border-gold-400/50 flex flex-col items-center justify-center cursor-pointer group/add"
           onMouseEnter={() => { pasteTargetRef.current = { type: 'variant', shotId }; }}
           onMouseLeave={() => { pasteTargetRef.current = null; }}>
           <span className="text-2xl text-[var(--dim)] group-hover/add:text-[var(--dim)]">+</span>

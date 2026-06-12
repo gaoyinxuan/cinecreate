@@ -51,12 +51,12 @@ export default function ToolsPanel({ mode }: Props) {
         <button className="text-xs w-5 h-5 rounded-full border border-[var(--border2)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--dim)] flex items-center justify-center shrink-0 mr-2" onClick={showGuide} title="查看引导">?</button>
         {filtered.map((t,i)=>(
           <div key={t.name} className="group flex items-center">
-            <button className={`text-xs px-3 py-1 rounded transition-colors ${i===activeIdx?'bg-indigo-500/20 text-[var(--text)] font-semibold':'text-[var(--dim)] hover:text-[var(--text2)]'}`}
+            <button className={`text-xs px-3 py-1 rounded transition-colors ${i===activeIdx?'bg-gold-400/20 text-[var(--text)] font-semibold':'text-[var(--dim)] hover:text-[var(--text2)]'}`}
               onClick={()=>setActiveIdx(i)}>{t.name}</button>
             {!DEF_TOOLS.some(dt=>dt.name===t.name)&&<button className="text-[8px] text-[var(--muted)] hover:text-red-400 hidden group-hover:block -ml-1" onClick={()=>deleteTool(t)}>✕</button>}
           </div>
         ))}
-        <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-indigo-400" onClick={()=>{setNm('');setUr('');setShowAdd(true);}}>＋ 添加</button>
+        <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-gold-500" onClick={()=>{setNm('');setUr('');setShowAdd(true);}}>＋ 添加</button>
         <div className="flex-1" />
         <button className="text-xs px-2 py-0.5 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[#333]"
           onClick={()=>{ const t = filtered[activeIdx]; if(t) { setRefreshing(true); setRefreshKey(k=>k+1); setErrors(p=>({...p,[t.name]:false})); setTimeout(()=>setRefreshing(false), 2000); } }}
@@ -73,7 +73,7 @@ export default function ToolsPanel({ mode }: Props) {
                   <div className="text-3xl opacity-40">🌐</div>
                   <div className="text-sm text-[var(--text3)]">{t.name} 暂时无法加载</div>
                   <div className="text-xs text-[var(--muted)] space-y-1">可能原因：网络问题、需要特殊网络环境、网站服务异常</div>
-                  <button className="px-4 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-[var(--text)] text-xs rounded-lg" onClick={()=>setErrors(p=>({...p,[t.name]:false}))}>重新加载</button>
+                  <button className="px-4 py-1.5 bg-gold-400/20 hover:bg-gold-400/30 text-[var(--text)] text-xs rounded-lg" onClick={()=>setErrors(p=>({...p,[t.name]:false}))}>重新加载</button>
                   {mode==='image' && <button className="px-4 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 text-xs rounded-lg" onClick={()=>setActiveIdx(1)}>切换到豆包</button>}
                   {mode==='video' && <button className="px-4 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 text-xs rounded-lg" onClick={()=>setActiveIdx(0)}>切换到即梦</button>}
                 </div>
@@ -94,9 +94,9 @@ export default function ToolsPanel({ mode }: Props) {
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60" onClick={()=>setShowAdd(false)}>
           <div className="bg-[var(--card)] border border-[var(--border2)] rounded-xl p-6 w-80 shadow-2xl" onClick={e=>e.stopPropagation()}>
             <div className="text-sm text-[var(--text)] font-semibold mb-3">添加{mode==='image'?'生图':'视频'}工具</div>
-            <input className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-indigo-500 mb-3" placeholder="工具名称" value={nm} onChange={e=>setNm(e.target.value)} />
-            <input className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-indigo-500 mb-4" placeholder="网址" value={ur} onChange={e=>setUr(e.target.value)} />
-            <div className="flex gap-2"><button className="flex-1 py-2 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-semibold rounded-lg" onClick={addTool}>添加</button><button className="px-3 py-2 text-sm text-[var(--text3)]" onClick={()=>setShowAdd(false)}>取消</button></div>
+            <input className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-gold-400 mb-3" placeholder="工具名称" value={nm} onChange={e=>setNm(e.target.value)} />
+            <input className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-gold-400 mb-4" placeholder="网址" value={ur} onChange={e=>setUr(e.target.value)} />
+            <div className="flex gap-2"><button className="flex-1 py-2 bg-gold-400 hover:bg-gold-500 text-white text-sm font-semibold rounded-lg" onClick={addTool}>添加</button><button className="px-3 py-2 text-sm text-[var(--text3)]" onClick={()=>setShowAdd(false)}>取消</button></div>
           </div>
         </div>
       )}

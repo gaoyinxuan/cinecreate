@@ -12,7 +12,7 @@ export default function TimecodeInput({ value, onChange, placeholder = '00:00', 
     return cleaned;
   };
   return (
-    <input className={`bg-[var(--card2)] border rounded px-2 py-1 text-[var(--text)] w-20 text-center font-mono text-xs focus:outline-none ${hasError ? 'border-red-500/50' : 'border-[var(--border2)] focus:border-indigo-500'}`}
+    <input className={`bg-[var(--card2)] border rounded px-2 py-1 text-[var(--text)] w-20 text-center font-mono text-xs focus:outline-none ${hasError ? 'border-red-500/50' : 'border-[var(--border2)] focus:border-gold-400'}`}
       placeholder={placeholder} value={focused ? value : (value || '')}
       onFocus={() => setFocused(true)}
       onBlur={() => { setFocused(false); if (value?.trim()) { const f = parseAndFormat(value); if (f !== value) onChange(f); } }}

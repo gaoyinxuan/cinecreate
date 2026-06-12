@@ -73,7 +73,7 @@ export default function ProjectSidebar(props: Props) {
 
   // L2: Leaf item — uses same arrow placeholder width as Section for text alignment
   const Leaf = ({active,onClick,icon,label,onEdit,onDelete,hoverBtns}:{active?:boolean;onClick:()=>void;icon:string;label:string;onEdit?:()=>void;onDelete?:()=>void;hoverBtns?:boolean}) => (
-    <div className={`group flex items-center h-7 rounded cursor-pointer ${active?'bg-indigo-500/15 text-[var(--text)] font-semibold':'text-[var(--text2)] hover:bg-white/[0.04]'}`} onClick={onClick}>
+    <div className={`group flex items-center h-7 rounded cursor-pointer ${active?'bg-gold-400/15 text-[var(--text)] font-semibold':'text-[var(--text2)] hover:bg-white/[0.04]'}`} onClick={onClick}>
       <span className={aw}>&nbsp;</span>
       <span className="text-xs font-semibold truncate flex-1">{icon} {label}</span>
       {hoverBtns && (
@@ -99,9 +99,12 @@ export default function ProjectSidebar(props: Props) {
       {/* Logo */}
       <div className="px-5 py-3 border-b border-[var(--border)]">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-sm font-bold text-[var(--text)] tracking-wide">🎬 影创</h1>
-            <p className="text-xs text-[var(--muted)] mt-0.5">CineCreate</p>
+          <div className="flex items-center gap-2.5">
+            <svg width="28" height="28" viewBox="0 0 256 256" fill="none" className="shrink-0"><rect width="256" height="256" rx="56" fill="#111"/><path d="M70 90A58 58 0 0 0 70 166" stroke="#D6B36A" stroke-width="14" stroke-linecap="round"/><path d="M70 70h48M70 70v48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M186 70h-48M186 70v48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M70 186h48M70 186v-48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M186 186h-48M186 186v-48" stroke="#D6B36A" stroke-width="9" stroke-linecap="round"/><path d="M120 110L120 146L162 128Z" fill="#D6B36A"/></svg>
+            <div>
+              <h1 className="text-sm font-bold text-[var(--accent-text)] tracking-wide">影创</h1>
+              <p className="text-xs text-[var(--muted)] mt-0.5">CineCreate</p>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <button className="text-xs text-[var(--muted)] hover:text-[var(--text2)] flex items-center gap-1" onClick={() => { toggleTheme(); window.dispatchEvent(new Event('themechange')); }} title="切换主题">{theme==='dark'?'🌙':'☀️'}<span className="text-[var(--muted)]">{theme==='dark'?'深色':'浅色'}</span></button>
@@ -132,12 +135,12 @@ export default function ProjectSidebar(props: Props) {
           {/* Inline create project */}
           {creating && (
             <div className="mb-2 px-1">
-              <div className="flex items-center gap-1 bg-[var(--card)] border border-indigo-500/50 rounded-lg px-2 py-1">
+              <div className="flex items-center gap-1 bg-[var(--card)] border border-gold-400/50 rounded-lg px-2 py-1">
                 <span className="text-xs">📁</span>
                 <input className="flex-1 bg-transparent text-xs text-[var(--text)] outline-none min-w-0" placeholder="项目名称..."
                   value={newName} onChange={e=>setNewName(e.target.value)}
                   onKeyDown={e=>{if(e.key==='Enter')submitCreate();if(e.key==='Escape'){setCreating(false);setNewName('');}}} autoFocus />
-                <button className="text-xs px-2 py-0.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded" onClick={submitCreate}>确定</button>
+                <button className="text-xs px-2 py-0.5 bg-gold-400 hover:bg-gold-500 text-white rounded" onClick={submitCreate}>确定</button>
                 <button className="text-xs text-[var(--text3)] hover:text-[var(--text)]" onClick={()=>{setCreating(false);setNewName('');}}>取消</button>
               </div>
             </div>
@@ -153,11 +156,11 @@ export default function ProjectSidebar(props: Props) {
             const isActive = activeId===prj.id, isExp = !!expanded[prj.id];
             return (<div key={prj.id} className="mb-0.5">
               {/* Project row */}
-              <div className={`group flex items-center gap-1 h-8 rounded-lg cursor-pointer transition-colors ${isActive?'bg-indigo-500/15 text-[var(--text)] border border-indigo-500/20':'hover:bg-white/[0.03] text-[var(--text2)] border border-transparent'}`}
+              <div className={`group flex items-center gap-1 h-8 rounded-lg cursor-pointer transition-colors ${isActive?'bg-gold-400/15 text-[var(--text)] border border-gold-400/20':'hover:bg-white/[0.03] text-[var(--text2)] border border-transparent'}`}
                 onClick={()=>{if(isActive)setExpanded({[prj.id]:!isExp});else{onSelect(prj.id);setExpanded({[prj.id]:true});}}}>
                 <span className="w-4 text-center text-xs shrink-0">{isActive?(isExp?'▼':'▶'):''}</span>
                 {editId===prj.id ? (
-                  <input className="flex-1 bg-[var(--card)] border border-indigo-500 rounded px-1 py-0 text-xs text-[var(--text)] outline-none min-w-0"
+                  <input className="flex-1 bg-[var(--card)] border border-gold-400 rounded px-1 py-0 text-xs text-[var(--text)] outline-none min-w-0"
                     value={editName} onChange={e=>setEditName(e.target.value)}
                     onBlur={()=>{if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}}
                     onKeyDown={e=>{if(e.key==='Enter'){if(editName.trim())onRename(prj.id,editName.trim());setEditId(null);}if(e.key==='Escape')setEditId(null);}}
@@ -220,11 +223,11 @@ export default function ProjectSidebar(props: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={()=>setEditDraftId(null)}>
           <div className="bg-[var(--card)] border border-[var(--border2)] rounded-xl p-4 w-72 shadow-2xl" onClick={e=>e.stopPropagation()}>
             <div className="text-xs text-[var(--text3)] mb-2">重命名草稿</div>
-            <input className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-indigo-500 mb-3"
+            <input className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-gold-400 mb-3"
               value={editDraftName} onChange={e=>setEditDraftName(e.target.value)}
               onKeyDown={e=>{if(e.key==='Enter'){if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}if(e.key==='Escape')setEditDraftId(null);}} autoFocus />
             <div className="flex gap-2">
-              <button className="flex-1 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-semibold rounded-lg" onClick={()=>{if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}}>确定</button>
+              <button className="flex-1 py-1.5 bg-gold-400 hover:bg-gold-500 text-white text-xs font-semibold rounded-lg" onClick={()=>{if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}}>确定</button>
               <button className="flex-1 py-1.5 bg-[#2a2b48] text-[var(--text2)] text-xs rounded-lg" onClick={()=>setEditDraftId(null)}>取消</button>
             </div>
           </div>

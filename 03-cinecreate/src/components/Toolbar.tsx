@@ -21,7 +21,7 @@ export default function Toolbar({ project, onUpload, shotCount, activeSeqId, onS
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
         onChange={e => { if (e.target.files?.length) { onUpload(Array.from(e.target.files)); e.target.value = ''; } }} />
       {activeSeqId && (
-        <button className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-semibold rounded-lg"
+        <button className="px-3 py-1.5 bg-gold-400 hover:bg-gold-500 text-white text-xs font-semibold rounded-lg"
           onClick={() => fileRef.current?.click()}>📷 上传图片</button>
       )}
     </div>
