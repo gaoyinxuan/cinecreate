@@ -81,6 +81,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const [showKey, setShowKey] = useState(false);
   const [keySet, setKeySet] = useState(false);
   const [savedIdx, setSavedIdx] = useState<number | null>(null);
+  const [selectedTags, setSelectedTags] = useState<Record<string,string>>({});
   const chatEnd = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<any>(null);
   const msgsRef = useRef<Message[]>([]);
@@ -110,6 +111,24 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     {label:'类型', tags:['剧情短片','动画MV','电影预告片','世界观展示']},
   ];
   const HOT_TAGS = ['AI短剧','国风修仙','机器人题材','治愈日常'];
+
+  const toggleTag = (cat: string, tag: string) => {
+    setSelectedTags(prev => {
+      const next = {...prev};
+      if (next[cat] === tag) { delete next[cat]; }
+      else { next[cat] = tag; }
+      // Build input text
+      const texts: string[] = ['创作'];
+      if (next['题材']) texts.push(`一个${next['题材']}题材`);
+      if (next['风格']) texts.push(`${next['风格']}风格`);
+      if (next['情绪']) texts.push(`${next['情绪']}的情绪`);
+      if (next['关系']) texts.push(`聚焦${next['关系']}关系`);
+      texts.push(next['类型'] ? `以${next['类型']}的形式呈现` : '的短片');
+      texts.push('。');
+      setInput(texts.join(''));
+      return next;
+    });
+  };
 
   const save = useCallback(async (messages: Message[]) => { msgsRef.current = messages; if (!draft?.id) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => db.dts.update(draft.id, { conversation: messages }).catch(()=>{}), 500); }, [draft]);
   useEffect(() => () => { clearTimeout(saveTimer.current); if (draft?.id && msgsRef.current.length > 0) db.dts.update(draft.id, { conversation: msgsRef.current }).catch(() => {}); }, [draft]);
@@ -204,10 +223,13 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
                     <div key={row.label} className="flex items-center gap-2 mb-2">
                       <span className="text-[11px] text-[var(--muted)] w-10 shrink-0 text-right">[{row.label}]</span>
                       <div className="flex gap-1.5 flex-wrap">
-                        {row.tags.map(t => (
-                          <button key={t} className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--card)] border border-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] hover:border-[var(--accent-text)]/30 transition-colors"
-                            onClick={() => setInput(`创作一个${t}风格的${row.label==='题材'?'故事':row.label==='类型'?'视频':'内容'}。`)}>{t}</button>
-                        ))}
+                        {row.tags.map(t => {
+                          const sel = selectedTags[row.label] === t;
+                          return (
+                            <button key={t} className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${sel ? 'bg-[#D6B36A] text-white border-[#D6B36A]' : 'bg-[var(--card)] border border-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] hover:border-[var(--accent-text)]/30'}`}
+                              onClick={() => toggleTag(row.label, t)}>{sel ? '✓ ' : ''}{t}</button>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
