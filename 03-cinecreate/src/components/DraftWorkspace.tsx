@@ -110,8 +110,6 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     {label:'关系', tags:['师徒','道侣','搭档','人与AI']},
     {label:'类型', tags:['剧情短片','动画MV','电影预告片','世界观展示']},
   ];
-  const HOT_TAGS = ['AI短剧','国风修仙','机器人题材','治愈日常'];
-
   const toggleTag = (cat: string, tag: string) => {
     setSelectedTags(prev => {
       const next = {...prev};
@@ -233,16 +231,6 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
                       </div>
                     </div>
                   ))}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border)]">
-                    <span className="text-[11px] font-semibold text-[var(--text2)] w-10 shrink-0 text-right">🔥</span>
-                    <span className="text-[11px] text-[var(--muted)] mr-1">热门</span>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {HOT_TAGS.map(t => (
-                        <button key={t} className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--accent-bg)] border border-[var(--accent-text)]/15 text-[var(--accent-text)] hover:bg-[var(--accent-solid)]/15 transition-colors"
-                          onClick={() => setInput(`我想创作一个关于${t}的内容。`)}>{t}</button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
             ) : (
