@@ -115,15 +115,15 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
       const next = {...prev};
       if (next[cat] === tag) { delete next[cat]; }
       else { next[cat] = tag; }
-      // Build input text
-      const texts: string[] = ['创作'];
-      if (next['题材']) texts.push(`一个${next['题材']}题材`);
-      if (next['风格']) texts.push(`${next['风格']}风格`);
-      if (next['情绪']) texts.push(`${next['情绪']}的情绪`);
-      if (next['关系']) texts.push(`聚焦${next['关系']}关系`);
-      texts.push(next['类型'] ? `以${next['类型']}的形式呈现` : '的短片');
-      texts.push('。');
-      setInput(texts.join(''));
+      const parts: string[] = [];
+      if (next['题材']) parts.push(`${next['题材']}题材`);
+      else parts.push('一个短片');
+      if (next['风格']) parts.push(`${next['风格']}风格`);
+      if (next['情绪']) parts.push(`${next['情绪']}的情绪氛围`);
+      if (next['关系']) parts.push(`聚焦${next['关系']}关系`);
+      if (next['类型']) parts.push(`以${next['类型']}的形式呈现`);
+      parts.push('。');
+      setInput(`创作${parts.join('，')}`);
       return next;
     });
   };
