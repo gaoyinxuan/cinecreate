@@ -1,12 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-13 -13 58.2 58.4">
-  <style>
-    .st0{fill:#000}
-    .circ{stroke:#000;fill:white;stroke-width:1}
-  </style>
-  <circle class="circ" cx="16.1" cy="16.1" r="25"/>
-  <circle class="st0" cx="5.5" cy="5.5" r="5.5"/>
-  <circle class="st0" cx="26.6" cy="5.5" r="5.5"/>
-  <circle class="st0" cx="5.5" cy="26.9" r="5.5"/>
-  <circle class="st0" cx="26.6" cy="26.9" r="5.5"/>
-  <path transform="rotate(-45.361 16.087 16.23)" class="st0" d="M1.1 15.1h30v2.3h-30z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <!-- Favicon-optimized: thicker strokes for 16×16 visibility -->
+  <rect width="256" height="256" rx="56" fill="#111111"/>
+  <!-- C-arc — extra bold -->
+  <path d="M 70 90 A 58 58 0 0 0 70 166" stroke="#D6B36A" stroke-width="15" stroke-linecap="round"/>
+  <!-- Viewfinder corners — extra bold -->
+  <path d="M 70 70 h 48 M 70 70 v 48" stroke="#D6B36A" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 186 70 h -48 M 186 70 v 48" stroke="#D6B36A" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 70 186 h 48 M 70 186 v -48" stroke="#D6B36A" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 186 186 h -48 M 186 186 v -48" stroke="#D6B36A" stroke-width="10" stroke-linecap="round"/>
+  <!-- Play triangle — larger for visibility -->
+  <path d="M 120 110 L 120 146 L 162 128 Z" fill="#D6B36A"/>
 </svg>

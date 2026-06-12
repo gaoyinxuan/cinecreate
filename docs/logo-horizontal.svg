@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 64" fill="none">
+  <!-- Horizontal logo: icon mark + 影创 | CineCreate -->
+  <!-- Dark background for preview -->
+  <rect width="400" height="64" rx="12" fill="#111111"/>
+
+  <!-- Icon mark (simplified, 48x48) -->
+  <!-- Left C-arc -->
+  <path d="M 18 28 A 12 12 0 0 0 18 44" stroke="#D6B36A" stroke-width="3" stroke-linecap="round"/>
+  <!-- Viewfinder corners -->
+  <path d="M 18 20 h 10 M 18 20 v 10" stroke="#D6B36A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 42 20 h -10 M 42 20 v 10" stroke="#D6B36A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 18 52 h 10 M 18 52 v -10" stroke="#D6B36A" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 42 52 h -10 M 42 52 v -10" stroke="#D6B36A" stroke-width="2" stroke-linecap="round"/>
+  <!-- Play triangle -->
+  <path d="M 28 28 L 28 40 L 38 34 Z" fill="#D6B36A"/>
+
+  <!-- Divider line -->
+  <line x1="68" y1="16" x2="68" y2="48" stroke="#D6B36A" stroke-opacity="0.3" stroke-width="1"/>
+
+  <!-- Chinese text: 影创 -->
+  <text x="88" y="40" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif" font-size="24" font-weight="700" fill="#D6B36A" letter-spacing="0.08em">影创</text>
+
+  <!-- English text: CineCreate -->
+  <text x="88" y="54" font-family="'Inter',-apple-system,sans-serif" font-size="11" font-weight="600" fill="#D6B36A" fill-opacity="0.6" letter-spacing="0.12em">CineCreate</text>
+</svg>
