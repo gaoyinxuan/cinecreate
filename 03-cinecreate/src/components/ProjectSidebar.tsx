@@ -55,7 +55,7 @@ export default function ProjectSidebar(props: Props) {
 
   // ── Shared styles ──
   const rowBase = 'flex items-center h-7 rounded cursor-pointer transition-colors group';
-  const rowActive = 'bg-black/5 text-[var(--text)]';
+  const rowActive = 'bg-[#D6B36A]/15 text-[var(--text)] font-medium';
   const rowIdle = 'text-[var(--text3)] hover:bg-black/3 hover:text-[var(--text2)]';
   const chevron = (open:boolean) => (
     <svg width="10" height="10" viewBox="0 0 10 10" className={`shrink-0 mr-1 transition-transform ${open?'rotate-90':''}`}>
@@ -145,7 +145,7 @@ export default function ProjectSidebar(props: Props) {
                 <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs px-0.5" onClick={()=>setMenuOpen(menuOpen===prj.id?null:prj.id)}>⋯</button>
                 {menuOpen===prj.id && (
                   <div className="absolute right-0 top-full mt-1 bg-[var(--card)] border border-[var(--border)] rounded-md shadow-lg z-50 py-0.5 min-w-[90px]">
-                    <button className="block w-full text-left text-[11px] px-3 py-1 text-[var(--text2)] hover:bg-black/4"
+                    <button className="block w-full text-left text-[11px] px-3 py-1 text-[var(--text2)] hover:bg-[#D6B36A]/15"
                       onClick={()=>{setEditId(prj.id);setEditName(prj.name);setMenuOpen(null);}}>重命名</button>
                     <button className="block w-full text-left text-[11px] px-3 py-1 text-[var(--text2)] hover:bg-red-500/8 hover:text-red-500"
                       onClick={()=>{setDelProjId(prj.id);setMenuOpen(null);}}>删除</button>
@@ -159,7 +159,7 @@ export default function ProjectSidebar(props: Props) {
               <div className="ml-5 border-l border-[var(--border)] pl-2 space-y-0">
                 {/* 文稿 */}
                 <div>
-                  <div className={`${rowBase} px-1 ${activeMode==='drafts'&&selectedDraftId?'bg-black/5 text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
+                  <div className={`${rowBase} px-1 text-[var(--text3)] hover:text-[var(--text2)]`}
                     onClick={()=>setShowDocs({[prj.id]:!showDocs[prj.id]})}>
                     <span className="w-3.5 flex items-center justify-center shrink-0">
                       {showDocs[prj.id] ? chevron(true) : <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50"><rect x="1.5" y="1" width="7" height="8" rx="1" stroke="currentColor" stroke-width="1"/><line x1="3.5" y1="3.5" x2="6.5" y2="3.5" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/><line x1="3.5" y1="5.5" x2="6.5" y2="5.5" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/><line x1="3.5" y1="7.5" x2="5" y2="7.5" stroke="currentColor" stroke-width="0.8" stroke-linecap="round"/></svg>}
@@ -171,7 +171,7 @@ export default function ProjectSidebar(props: Props) {
                   {showDocs[prj.id] && <div className="ml-3">
                     {delDraftId && <DelBar msg="永久删除此草稿？" onConfirm={()=>{db.dts.delete(delDraftId).catch(()=>{});setDrafts(p=>p.filter(x=>x.id!==delDraftId));setDelDraftId(null);}} onCancel={()=>setDelDraftId(null)}/>}
                     {drafts.map((d:any)=>(
-                      <div key={d.id} className={`${rowBase} text-[11px] px-1 ${selectedDraftId===d.id?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
+                      <div key={d.id} className={`${rowBase} text-[11px] px-1 ${selectedDraftId===d.id?'text-[var(--text)] font-medium bg-[#D6B36A]/15':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
                         onClick={()=>onSelectDraft(d.id)}>
                         <span className="w-3.5 shrink-0" />
                         <span className="flex-1 truncate">{d.name}</span>
@@ -202,9 +202,9 @@ export default function ProjectSidebar(props: Props) {
                     <span className="text-[11px] flex-1">工具</span>
                   </div>
                   {showTool[prj.id] && <div className="ml-3">
-                    <div className={`${rowBase} text-[11px] px-1 ${activeMode==='tools-image'?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
+                    <div className={`${rowBase} text-[11px] px-1 ${activeMode==='tools-image'?'text-[var(--text)] font-medium bg-[#D6B36A]/15':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
                       onClick={()=>onSelectImageTools()}><span className="w-3.5 shrink-0" /><span className="flex-1">生图</span></div>
-                    <div className={`${rowBase} text-[11px] px-1 ${activeMode==='tools-video'?'text-[var(--text)] font-medium bg-black/4':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
+                    <div className={`${rowBase} text-[11px] px-1 ${activeMode==='tools-video'?'text-[var(--text)] font-medium bg-[#D6B36A]/15':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-black/2'}`}
                       onClick={()=>onSelectVideoTools()}><span className="w-3.5 shrink-0" /><span className="flex-1">视频</span></div>
                   </div>}
                 </div>
