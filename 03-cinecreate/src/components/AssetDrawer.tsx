@@ -1,11 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { db } from '../services/dbService';
 
-export default function AssetDrawer() {
+let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+interface AssetItem {
+  id: string; name: string; type: 'image'|'video'|'prompt';
+  blobId: string; url: string; createdAt: string;
+}
+
+export default function AssetDrawer({ projectId }: { projectId: string | null }) {
   const [open, setOpen] = useState(false);
+  const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [filter, setFilter] = useState<string>('全部');
+  const [search, setSearch] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load assets from db
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      try {
+        const meta = await db.meta.get(`assets_${projectId}`);
+        if (meta && Array.isArray(meta)) {
+          const items = await Promise.all(meta.map(async (m: any) => {
+            const blob = await db.blobs.load(m.blobId);
+            return blob ? { ...m, url: URL.createObjectURL(blob) } : null;
+          }));
+          setAssets(items.filter(Boolean) as AssetItem[]);
+        } else { setAssets([]); }
+      } catch { setAssets([]); }
+    })();
+  }, [projectId]);
+
+  const saveToDb = useCallback(async (items: AssetItem[]) => {
+    if (!projectId) return;
+    const meta = items.map(({ url, ...rest }) => rest);
+    await db.meta.set(`assets_${projectId}`, meta);
+  }, [projectId]);
+
+  const importFiles = useCallback(async (files: File[]) => {
+    const news: AssetItem[] = [];
+    for (const f of files) {
+      const isImage = f.type.startsWith('image/');
+      const isVideo = f.type.startsWith('video/');
+      if (!isImage && !isVideo) continue;
+      const id = uid(), blobId = uid();
+      try {
+        await db.blobs.save(blobId, f);
+        news.push({ id, name: f.name, type: isImage ? 'image' : 'video', blobId, url: URL.createObjectURL(f), createdAt: new Date().toISOString() });
+      } catch {}
+    }
+    if (news.length) {
+      const all = [...assets, ...news];
+      setAssets(all);
+      saveToDb(all);
+    }
+  }, [assets, saveToDb]);
+
+  const removeAsset = useCallback(async (item: AssetItem) => {
+    URL.revokeObjectURL(item.url);
+    try { await db.blobs.delete(item.blobId); } catch {}
+    const filtered = assets.filter(a => a.id !== item.id);
+    setAssets(filtered);
+    saveToDb(filtered);
+  }, [assets, saveToDb]);
+
+  const filtered = assets.filter(a => {
+    if (filter !== '全部' && filter !== (a.type === 'image' ? '图片' : a.type === 'video' ? '视频' : 'Prompt')) return false;
+    if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const types = ['全部','图片','视频','Prompt'];
 
   return (
     <>
-      {/* Floating trigger button */}
       <button
         className="fixed bottom-5 right-5 z-[100] w-10 h-10 rounded-full bg-[var(--card)] border border-[var(--border)] shadow-lg flex items-center justify-center text-lg hover:scale-110 hover:shadow-xl transition-all"
         onClick={() => setOpen(!open)}
@@ -14,36 +84,66 @@ export default function AssetDrawer() {
         📦
       </button>
 
-      {/* Mini panel */}
       {open && (
-        <div className="fixed bottom-16 right-5 z-[99] w-80 max-h-[480px] bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+        <div
+          className={`fixed bottom-16 right-5 z-[99] w-80 max-h-[520px] bg-[var(--card)] border rounded-xl shadow-2xl flex flex-col overflow-hidden transition-colors ${dragOver ? 'border-[var(--accent-text)] bg-[var(--accent-bg)]' : 'border-[var(--border)]'}`}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); importFiles(Array.from(e.dataTransfer.files)); }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-            <span className="text-sm font-semibold text-[var(--text)]">素材库</span>
+            <span className="text-sm font-semibold text-[var(--text)]">素材库{assets.length ? ` (${assets.length})` : ''}</span>
             <button className="text-[var(--muted)] hover:text-[var(--text)] text-sm" onClick={() => setOpen(false)}>✕</button>
           </div>
           {/* Search */}
           <div className="px-4 py-2">
-            <input className="w-full bg-[var(--card2)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent-text)]/30" placeholder="搜索资产..." />
+            <input className="w-full bg-[var(--card2)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent-text)]/30" placeholder="搜索资产..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           {/* Filter tabs */}
           <div className="flex gap-1 px-4 pb-2">
-            {['全部','图片','视频','Prompt'].map(t => (
-              <button key={t} className={`text-[10px] px-2.5 py-1 rounded-full transition-colors ${t==='全部'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)]'}`}>{t}</button>
+            {types.map(t => (
+              <button key={t} className={`text-[10px] px-2.5 py-1 rounded-full transition-colors ${filter===t?'bg-[var(--accent-solid)] text-white':'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)]'}`}
+                onClick={() => setFilter(t)}>{t}</button>
             ))}
           </div>
-          {/* Empty state */}
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
-              <div className="text-2xl mb-2 opacity-20">📂</div>
-              <div className="text-xs text-[var(--muted)]">暂无资产</div>
-              <div className="text-[10px] text-[var(--dim)] mt-1">拖拽文件到此处导入</div>
-            </div>
+          {/* Asset grid or empty */}
+          <div className="flex-1 overflow-y-auto px-4 py-2 min-h-[120px]">
+            {filtered.length === 0 ? (
+              <div className="flex items-center justify-center h-full py-10">
+                <div className="text-center">
+                  <div className="text-2xl mb-2 opacity-20">📂</div>
+                  <div className="text-xs text-[var(--muted)]">{assets.length ? '无匹配结果' : '暂无资产'}</div>
+                  <div className="text-[10px] text-[var(--dim)] mt-1">拖拽文件到此处导入</div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {filtered.map(a => (
+                  <div key={a.id} className="group relative aspect-square rounded-lg overflow-hidden bg-black border border-[var(--border)]">
+                    {a.type === 'image' ? (
+                      <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <video src={a.url} className="w-full h-full object-cover" />
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                      <button className="text-white text-xs bg-black/60 hover:bg-red-500/80 rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                        onClick={e => { e.stopPropagation(); removeAsset(a); }}>✕</button>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[8px] text-white truncate px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">{a.name}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {/* Footer */}
           <div className="flex gap-2 px-4 py-3 border-t border-[var(--border)]">
-            <button className="flex-1 py-1.5 text-[11px] bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition-colors">+ 导入</button>
-            <button className="flex-1 py-1.5 text-[11px] bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] rounded-lg transition-colors">打开全部</button>
+            <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden"
+              onChange={e => { if (e.target.files?.length) { importFiles(Array.from(e.target.files)); e.target.value = ''; } }} />
+            <button className="flex-1 py-1.5 text-[11px] bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition-colors"
+              onClick={() => fileRef.current?.click()}>+ 导入</button>
+            <button className="flex-1 py-1.5 text-[11px] bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] rounded-lg transition-colors"
+              onClick={() => setOpen(false)}>关闭</button>
           </div>
         </div>
       )}

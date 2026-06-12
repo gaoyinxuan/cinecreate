@@ -307,7 +307,7 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <AssetDrawer />
+      <AssetDrawer projectId={activeId} />
       <div className="flex h-screen">
         <ProjectSidebar
           projects={projects} activeId={activeId} activeSeqId={activeSeqId}
