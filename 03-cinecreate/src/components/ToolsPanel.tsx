@@ -90,7 +90,7 @@ export default function ToolsPanel({ mode }: Props) {
 
   const api = (window as any).electronAPI;
 
-  // Listen for new-tab events from main process (global interception)
+  // Listen for new-tab events from main process
   useEffect(() => {
     if (!api) return;
     return api.onToolOpenTab((url: string) => {
@@ -98,9 +98,30 @@ export default function ToolsPanel({ mode }: Props) {
     });
   }, [activeTool]);
 
-  // Handle webview events
-  const setupWebview = (el: any, toolName: string) => {
+  // Handle webview: transform navigations into new tabs
+  const setupWebview = (el: any, toolName: string, tabUrl: string) => {
     if (!el) return;
+    let initialLoad = true;
+
+    el.addEventListener('did-finish-load', () => { initialLoad = false; });
+    el.addEventListener('did-navigate', () => { initialLoad = false; });
+
+    // User clicks a link → open as new tab instead of navigating away
+    el.addEventListener('will-navigate', (e: any) => {
+      if (initialLoad || e.url === tabUrl || e.url === el.src) return;
+      e.preventDefault();
+      openPageTab(toolName, e.url, '新页面');
+    });
+
+    // window.open / target=_blank → new tab
+    el.addEventListener('new-window', (e: any) => {
+      e.preventDefault();
+      if (e.url && e.url !== 'about:blank') {
+        openPageTab(toolName, e.url, e.frameName || '新页面');
+      }
+    });
+
+    // Track page title
     el.addEventListener('page-title-updated', (e: any) => {
       setPageTabs(prev => {
         const cur = prev[toolName] || [];
@@ -164,7 +185,7 @@ export default function ToolsPanel({ mode }: Props) {
                 {/* Show only the active page tab webview */}
                 {(pageTabs[t.name]||[]).map(pt => (
                   <div key={pt.id} className="absolute inset-0" style={{display:pt.id===activePages[t.name]?'block':'none'}}>
-                    <webview ref={el => { if(el) setupWebview(el, t.name); }}
+                    <webview ref={el => { if(el) setupWebview(el, t.name, pt.url); }}
                       src={pt.url} className="w-full h-full" style={{height:'100%'}}
                       partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                       onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}                  </div>
