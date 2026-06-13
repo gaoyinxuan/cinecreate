@@ -88,80 +88,26 @@ export default function ToolsPanel({ mode }: Props) {
   const tabs = activeTool ? (pageTabs[activeTool.name] || []) : [];
   const activePageId = activeTool ? (activePages[activeTool.name] || tabs[0]?.id) : '';
 
-  // Handle webview: intercept new-window + inject window.open override
+  // Handle webview events
   const setupWebview = (el: any, toolName: string) => {
     if (!el) return;
     const tabId = activePageId;
     webviewRefs.current[`${toolName}-${tabId}`] = el;
 
-    // Intercept new-window event (target=_blank, ctrl+click, etc.)
-    const newWinHandler = (e: any) => {
-      e.preventDefault();
-      if (e.url && e.url !== 'about:blank' && !e.url.startsWith('javascript:')) {
+    // Only intercept new-window (target=_blank, window.open with new-window disposition)
+    el.addEventListener('new-window', (e: any) => {
+      if (e.url && e.url !== 'about:blank') {
         openPageTab(toolName, e.url, e.frameName || '新页面');
       }
-    };
-    el.addEventListener('new-window', newWinHandler);
-
-    // Intercept will-navigate for redirect-type navigations
-    const willNavHandler = (e: any) => {
-      if (e.url === el.src || e.url === 'about:blank') return;
-      // Only intercept if it looks like a new domain/page (not same-page hash)
-      try {
-        const cur = new URL(el.src); const next = new URL(e.url);
-        if (cur.origin !== next.origin || (cur.pathname !== next.pathname && next.pathname !== '/')) {
-          e.preventDefault();
-          openPageTab(toolName, e.url, '新页面');
-        }
-      } catch {}
-    };
-    el.addEventListener('will-navigate', willNavHandler);
-
-    // Track page title
-    const titleHandler = (e: any) => {
-      const title = e.title || '新页面';
-      setPageTabs(prev => {
-        const cur = prev[toolName] || [];
-        return {...prev, [toolName]: cur.map(t => t.id === tabId ? {...t, title} : t)};
-      });
-    };
-    el.addEventListener('page-title-updated', titleHandler);
-
-    // After page loads, inject JS to override window.open
-    el.addEventListener('dom-ready', () => {
-      el.executeJavaScript(`
-        (function(){
-          var _open = window.open;
-          window.open = function(url, target, features) {
-            if (url && url !== 'about:blank') {
-              // Post to host — will be caught by console-message
-              console.log('__CINECREATE_OPEN__' + url + '__CINECREATE_END__');
-            }
-            return null;
-          };
-          // Also capture target=_blank clicks via event delegation
-          document.addEventListener('click', function(e){
-            var a = e.target.closest('a');
-            if (a && a.target === '_blank' && a.href) {
-              e.preventDefault();
-              console.log('__CINECREATE_OPEN__' + a.href + '__CINECREATE_END__');
-            }
-          }, true);
-        })();
-      `);
     });
 
-    // Listen for console messages from injected JS
-    const consoleHandler = (e: any) => {
-      const msg = e.message || '';
-      if (msg.startsWith('__CINECREATE_OPEN__')) {
-        const url = msg.replace('__CINECREATE_OPEN__', '').replace('__CINECREATE_END__', '');
-        if (url && url !== 'about:blank') {
-          openPageTab(toolName, url, '新页面');
-        }
-      }
-    };
-    el.addEventListener('console-message', consoleHandler);
+    // Track page title
+    el.addEventListener('page-title-updated', (e: any) => {
+      setPageTabs(prev => {
+        const cur = prev[toolName] || [];
+        return {...prev, [toolName]: cur.map(t => t.id === tabId ? {...t, title: e.title || t.title} : t)};
+      });
+    });
   };
 
   return (
