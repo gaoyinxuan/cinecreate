@@ -97,6 +97,7 @@ export default function ToolsPanel({ mode }: Props) {
     });
     // Any navigation to a new URL → new tab instead
     el.addEventListener('will-navigate', (e: any) => {
+      console.log('[will-navigate]', el.getURL(), '→', e.url);
       if (e.url === el.getURL()) return;
       e.preventDefault();
       const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
@@ -105,12 +106,17 @@ export default function ToolsPanel({ mode }: Props) {
     });
     // window.open → new tab
     el.addEventListener('new-window', (e: any) => {
+      console.log('[new-window]', e.url, e.frameName);
       e.preventDefault();
       if (e.url && e.url !== 'about:blank') {
         const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
         setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
         setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
       }
+    });
+    // Open DevTools on this webview (press F12 on webview)
+    el.addEventListener('dom-ready', () => {
+      // el.openDevTools();
     });
   };
 
