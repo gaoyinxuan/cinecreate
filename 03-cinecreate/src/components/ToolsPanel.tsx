@@ -88,24 +88,80 @@ export default function ToolsPanel({ mode }: Props) {
   const tabs = activeTool ? (pageTabs[activeTool.name] || []) : [];
   const activePageId = activeTool ? (activePages[activeTool.name] || tabs[0]?.id) : '';
 
-  // Handle webview new-window event
+  // Handle webview: intercept new-window + inject window.open override
   const setupWebview = (el: any, toolName: string) => {
     if (!el) return;
-    webviewRefs.current[`${toolName}-${activePageId}`] = el;
-    const handler = (e: any) => {
+    const tabId = activePageId;
+    webviewRefs.current[`${toolName}-${tabId}`] = el;
+
+    // Intercept new-window event (target=_blank, ctrl+click, etc.)
+    const newWinHandler = (e: any) => {
       e.preventDefault();
-      if (e.url && e.url !== 'about:blank') {
-        openPageTab(toolName, e.url, '新页面');
+      if (e.url && e.url !== 'about:blank' && !e.url.startsWith('javascript:')) {
+        openPageTab(toolName, e.url, e.frameName || '新页面');
       }
     };
-    el.addEventListener('new-window', handler);
-    el.addEventListener('page-title-updated', (e: any) => {
+    el.addEventListener('new-window', newWinHandler);
+
+    // Intercept will-navigate for redirect-type navigations
+    const willNavHandler = (e: any) => {
+      if (e.url === el.src || e.url === 'about:blank') return;
+      // Only intercept if it looks like a new domain/page (not same-page hash)
+      try {
+        const cur = new URL(el.src); const next = new URL(e.url);
+        if (cur.origin !== next.origin || (cur.pathname !== next.pathname && next.pathname !== '/')) {
+          e.preventDefault();
+          openPageTab(toolName, e.url, '新页面');
+        }
+      } catch {}
+    };
+    el.addEventListener('will-navigate', willNavHandler);
+
+    // Track page title
+    const titleHandler = (e: any) => {
       const title = e.title || '新页面';
       setPageTabs(prev => {
         const cur = prev[toolName] || [];
-        return {...prev, [toolName]: cur.map(t => t.id === activePages[toolName] ? {...t, title} : t)};
+        return {...prev, [toolName]: cur.map(t => t.id === tabId ? {...t, title} : t)};
       });
+    };
+    el.addEventListener('page-title-updated', titleHandler);
+
+    // After page loads, inject JS to override window.open
+    el.addEventListener('dom-ready', () => {
+      el.executeJavaScript(`
+        (function(){
+          var _open = window.open;
+          window.open = function(url, target, features) {
+            if (url && url !== 'about:blank') {
+              // Post to host — will be caught by console-message
+              console.log('__CINECREATE_OPEN__' + url + '__CINECREATE_END__');
+            }
+            return null;
+          };
+          // Also capture target=_blank clicks via event delegation
+          document.addEventListener('click', function(e){
+            var a = e.target.closest('a');
+            if (a && a.target === '_blank' && a.href) {
+              e.preventDefault();
+              console.log('__CINECREATE_OPEN__' + a.href + '__CINECREATE_END__');
+            }
+          }, true);
+        })();
+      `);
     });
+
+    // Listen for console messages from injected JS
+    const consoleHandler = (e: any) => {
+      const msg = e.message || '';
+      if (msg.startsWith('__CINECREATE_OPEN__')) {
+        const url = msg.replace('__CINECREATE_OPEN__', '').replace('__CINECREATE_END__', '');
+        if (url && url !== 'about:blank') {
+          openPageTab(toolName, url, '新页面');
+        }
+      }
+    };
+    el.addEventListener('console-message', consoleHandler);
   };
 
   return (
@@ -167,8 +223,9 @@ export default function ToolsPanel({ mode }: Props) {
                       src={pt.url} className="w-full h-full" style={{height:'100%'}}
                       partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                       onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
+
                       // @ts-ignore
-                      allowpopups="true" />
+                      allowpopups="false" />
                   </div>
                 ))}
               </div>
