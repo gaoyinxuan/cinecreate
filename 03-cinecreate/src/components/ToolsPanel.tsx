@@ -89,12 +89,27 @@ export default function ToolsPanel({ mode }: Props) {
   const activePageId = activeTool ? (activePages[activeTool.name] || tabs[0]?.id) : '';
 
   // Handle webview events
-  const setupWebview = (el: any, toolName: string) => {
+  const setupWebview = (el: any, toolName: string, tabUrl: string) => {
     if (!el) return;
-    const tabId = activePageId;
-    webviewRefs.current[`${toolName}-${tabId}`] = el;
+    let loaded = false;
 
-    // Intercept all popup/new-window attempts
+    el.addEventListener('did-finish-load', () => { loaded = true; });
+
+    // Intercept navigation to new pages → open as new tab
+    el.addEventListener('will-navigate', (e: any) => {
+      if (!loaded) return; // skip initial load
+      try {
+        const cur = new URL(tabUrl);
+        const next = new URL(e.url);
+        // Different page (not just hash/query change) → capture as new tab
+        if (cur.pathname !== next.pathname) {
+          e.preventDefault();
+          openPageTab(toolName, e.url, '新页面');
+        }
+      } catch { e.preventDefault(); openPageTab(toolName, e.url, '新页面'); }
+    });
+
+    // Intercept window.open or target=_blank
     el.addEventListener('new-window', (e: any) => {
       e.preventDefault();
       if (e.url && e.url !== 'about:blank') {
@@ -106,7 +121,7 @@ export default function ToolsPanel({ mode }: Props) {
     el.addEventListener('page-title-updated', (e: any) => {
       setPageTabs(prev => {
         const cur = prev[toolName] || [];
-        return {...prev, [toolName]: cur.map(t => t.id === tabId ? {...t, title: e.title || t.title} : t)};
+        return {...prev, [toolName]: cur.map(t => t.id === activePageId ? {...t, title: e.title || t.title} : t)};
       });
     });
   };
@@ -166,7 +181,7 @@ export default function ToolsPanel({ mode }: Props) {
                 {/* Show only the active page tab webview */}
                 {(pageTabs[t.name]||[]).map(pt => (
                   <div key={pt.id} className="absolute inset-0" style={{display:pt.id===activePages[t.name]?'block':'none'}}>
-                    <webview ref={el => { if(el && pt.id===activePages[t.name]) setupWebview(el, t.name); }}
+                    <webview ref={el => { if(el) setupWebview(el, t.name, pt.url); }}
                       src={pt.url} className="w-full h-full" style={{height:'100%'}}
                       partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                       onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}                  </div>
