@@ -78,6 +78,31 @@ export default function ToolsPanel({ mode }: Props) {
     setActiveTabByTool(prev => ({...prev, [toolName]: tabId}));
   };
 
+  // When webview loads, track URL + title. When user navigates away, create new tab.
+  const handleWebview = (el: any, toolName: string, tabId: string) => {
+    if (!el) return;
+    el.addEventListener('page-title-updated', (e: any) => {
+      updateTabTitle(toolName, tabId, e.title || '新标签页');
+    });
+    // Any navigation to a new URL → new tab instead
+    el.addEventListener('will-navigate', (e: any) => {
+      if (e.url === el.getURL()) return;
+      e.preventDefault();
+      const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
+      setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
+      setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
+    });
+    // window.open → new tab
+    el.addEventListener('new-window', (e: any) => {
+      e.preventDefault();
+      if (e.url && e.url !== 'about:blank') {
+        const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
+        setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
+        setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
+      }
+    });
+  };
+
   const updateTabTitle = (toolName: string, tabId: string, title: string) => {
     setTabsByTool(prev => ({
       ...prev,
@@ -107,22 +132,24 @@ export default function ToolsPanel({ mode }: Props) {
           disabled={refreshing}>{refreshing?'刷新中...':'刷新当前'}</button>
       </div>
 
-      {/* Row 2: Page tabs for current tool */}
+      {/* Row 2: Page tabs — Chrome style */}
       {activeTool && (
-        <div className="bg-[var(--bg)] border-b border-[var(--border)] flex items-center px-2 overflow-x-auto shrink-0"
-          style={{minHeight:34}}>
-          {currentTabs.map(pt => (
-            <div key={pt.id} className={`flex items-center h-8 px-3 text-[11px] rounded-t-md cursor-pointer border border-transparent whitespace-nowrap max-w-[160px] transition-colors mr-0.5 ${pt.id===currentActiveId?'bg-[var(--card)] border-[var(--border)] border-b-[var(--card)] text-[var(--text)] font-medium':'text-[var(--dim)] hover:text-[var(--text2)] hover:bg-[var(--card2)]'}`}
-              style={{marginBottom:-1}}
-              onClick={() => selectTab(activeTool.name, pt.id)}>
-              <span className="truncate">{pt.title}</span>
-              {currentTabs.length > 1 && (
-                <button className="text-[var(--muted)] hover:text-red-400 ml-1.5 shrink-0 text-[10px]"
+        <div className="bg-[var(--bg2)] flex items-end px-1 overflow-x-auto shrink-0" style={{minHeight:36}}>
+          {currentTabs.map(pt => {
+            const active = pt.id === currentActiveId;
+            return (
+              <div key={pt.id} className={`group flex items-center gap-1.5 px-3 h-8 rounded-t-lg cursor-pointer text-[12px] whitespace-nowrap max-w-[180px] select-none shrink-0 transition-colors ${active ? 'bg-[var(--bg)] text-[var(--text)] font-medium' : 'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-[var(--bg)]/50'}`}
+                onClick={() => selectTab(activeTool.name, pt.id)}>
+                <div className="w-3.5 h-3.5 rounded-full bg-[var(--text3)]/20 flex items-center justify-center shrink-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text3)]/40" />
+                </div>
+                <span className="truncate">{pt.title}</span>
+                <button className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all shrink-0"
                   onClick={e => { e.stopPropagation(); closeTab(activeTool.name, pt.id); }}>✕</button>
-              )}
-            </div>
-          ))}
-          <button className="text-[var(--muted)] hover:text-[var(--text2)] text-sm px-2 shrink-0"
+              </div>
+            );
+          })}
+          <button className="h-8 w-8 flex items-center justify-center text-[var(--text3)] hover:text-[var(--text)] hover:bg-[var(--bg)]/50 rounded-t-lg text-sm shrink-0 mb-0"
             onClick={() => addTab(activeTool.name)} title="新建标签页">+</button>
         </div>
       )}
@@ -142,10 +169,10 @@ export default function ToolsPanel({ mode }: Props) {
             ) : (
               (tabsByTool[t.name]||[]).map(pt => (
                 <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
-                  <webview src={pt.url} className="w-full h-full" style={{height:'100%'}}
+                  <webview ref={el => handleWebview(el, t.name, pt.id)}
+                    src={pt.url} className="w-full h-full" style={{height:'100%'}}
                     partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                     onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
-                    onPageTitleUpdated={(e:any) => updateTabTitle(t.name, pt.id, (e as any).title || pt.title)}
                   />
                 </div>
               ))
