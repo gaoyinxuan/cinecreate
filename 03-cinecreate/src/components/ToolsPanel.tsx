@@ -85,23 +85,12 @@ export default function ToolsPanel({ mode }: Props) {
   // ref-based webview event binding (React JSX props DON'T work for webview events)
   const attachWebview = useCallback((el: any, toolName: string) => {
     if (!el) return;
-    const onNewWin = (e: any) => {
-      console.log('[NEW-WINDOW]', e.url, e.frameName, e.disposition);
-      e.preventDefault();
-      if (e.url && e.url !== 'about:blank') openNewTab(toolName, e.url);
-    };
     const onTitle = (e: any) => {
       const title = e.title || '...';
-      setTabsByTool(prev => {
-        const tabs = prev[toolName] || [];
-        const idx = tabs.findIndex(t => t.id === currentActiveId);
-        if (idx < 0) return prev;
-        return {...prev, [toolName]: tabs.map((t,i) => i===idx?{...t,title}:t)};
-      });
+      updateTabTitle(toolName, currentActiveId, title);
     };
-    el.addEventListener('new-window', onNewWin);
     el.addEventListener('page-title-updated', onTitle);
-  }, [openNewTab, currentActiveId]);
+  }, [currentActiveId, updateTabTitle]);
 
   const addTool = () => { if(!nm.trim()||!ur.trim()) return; setCustomTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]); setShowAdd(false); };
   const deleteTool = (t:Tool) => { setCustomTools(p=>p.filter(x=>x!==t)); if(activeIdx>=filtered.length-1) setActiveIdx(Math.max(0,activeIdx-1)); };

@@ -18,24 +18,22 @@ function createWindow() {
     }
   });
 
-  // Intercept all popups from webviews — two-pronged approach
-  const blockPopups = (wc: any) => {
+  // Block ALL popups — BrowserWindow level + per-webview
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url && url !== 'about:blank') {
+      mainWindow?.webContents.send('tool:open-tab', url);
+    }
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('did-attach-webview', (_e, wc) => {
     try {
       wc.setWindowOpenHandler(({ url }: any) => {
-        if (url && url !== 'about:blank' && mainWindow) {
-          mainWindow.webContents.send('tool:open-tab', url);
+        if (url && url !== 'about:blank') {
+          mainWindow?.webContents.send('tool:open-tab', url);
         }
         return { action: 'deny' };
       });
     } catch {}
-  };
-  // Hook 1: when webview attaches to main window
-  mainWindow.webContents.on('did-attach-webview', (_e, wc) => { blockPopups(wc); });
-  // Hook 2: global catch-all for any new webContents
-  app.on('web-contents-created', (_e, wc) => {
-    if (wc.hostWebContents?.id === mainWindow?.webContents.id) {
-      blockPopups(wc);
-    }
   });
 
   // In dev mode (no built renderer), load from Vite; otherwise load built files
