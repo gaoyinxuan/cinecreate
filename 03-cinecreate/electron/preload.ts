@@ -60,13 +60,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getApiKey: (): Promise<string> => ipcRenderer.invoke('app:getApiKey'),
   setApiKey: (key: string) => ipcRenderer.invoke('app:setApiKey', key),
 
-  // Asset library
-  assetGetPath: () => ipcRenderer.invoke('asset:getPath'),
-  assetGetProjectPath: (pid: string) => ipcRenderer.invoke('asset:getProjectPath', pid),
-  assetSave: (scope: 'global'|string, filename: string, buffer: ArrayBuffer) => ipcRenderer.invoke('asset:save', scope, filename, buffer),
-  assetList: (scope: 'global'|string) => ipcRenderer.invoke('asset:list', scope),
-  assetDelete: (filePath: string) => ipcRenderer.invoke('asset:delete', filePath),
-
   // Dialogs
   confirm: (message: string, title?: string): Promise<boolean> => ipcRenderer.invoke('dialog:confirm', message, title),
 });

@@ -286,35 +286,3 @@ ipcMain.handle('dialog:confirm', async (_e, message: string, title: string) => {
   });
   return response === 1;
 });
-
-// ── Asset library: file system storage ──────────
-const assetBaseDir = path.join(app.getPath('userData'), 'assets');
-const projectAssetsDir = (pid: string) => path.join(app.getPath('userData'), 'projects', pid, 'assets');
-
-function ensureDir(dir: string) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
-
-ipcMain.handle('asset:getPath', () => assetBaseDir);
-ipcMain.handle('asset:getProjectPath', (_e, pid: string) => projectAssetsDir(pid));
-
-ipcMain.handle('asset:save', (_e, scope: 'global'|string, filename: string, buffer: ArrayBuffer) => {
-  const dir = scope === 'global' ? assetBaseDir : projectAssetsDir(scope);
-  ensureDir(dir);
-  const fname = `${Date.now()}_${filename}`;
-  fs.writeFileSync(path.join(dir, fname), Buffer.from(buffer));
-  return { path: path.join(dir, fname), name: fname };
-});
-
-ipcMain.handle('asset:list', (_e, scope: 'global'|string) => {
-  const dir = scope === 'global' ? assetBaseDir : projectAssetsDir(scope);
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).map(f => {
-    const fp = path.join(dir, f);
-    const stat = fs.statSync(fp);
-    return { name: f, path: fp, size: stat.size, mtime: stat.mtime.toISOString() };
-  }).sort((a,b) => new Date(b.mtime).getTime() - new Date(a.mtime).getTime());
-});
-
-ipcMain.handle('asset:delete', (_e, filePath: string) => {
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  return true;
-});
