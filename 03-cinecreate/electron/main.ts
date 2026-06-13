@@ -17,7 +17,6 @@ function createWindow() {
       webviewTag: true
     }
   });
-
   // In dev mode (no built renderer), load from Vite; otherwise load built files
   const rendererPath = path.join(__dirname, '../renderer/index.html');
   if (!fs.existsSync(rendererPath)) {
