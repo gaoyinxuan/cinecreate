@@ -15,6 +15,7 @@ import PreviewPanel from './components/PreviewPanel';
 import { getTheme, toggleTheme } from './services/themeService';
 import VideoOutputPanel from './components/VideoOutputPanel';
 import AssetDrawer from './components/AssetDrawer';
+import AssetBoard from './components/AssetBoard';
 import ToastProvider from './components/ToastProvider';
 
 let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -28,7 +29,7 @@ export default function App() {
   const [activeSeqId, setActiveSeqId] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [toolMode, setToolMode] = useState<'image'|'video'|null>(null);
-  const [viewMode, setViewMode] = useState<'preview'|'storyboard'>('preview');
+  const [viewMode, setViewMode] = useState<'preview'|'storyboard'|'assets'>('preview');
   const [loaded, setLoaded] = useState(false);
   const [showStoryOnboard, dismissStoryOnboard, showStoryGuide] = useOnboarding('onboard-storyboard', loaded);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -318,6 +319,7 @@ export default function App() {
           onSelectStoryboard={() => { setSelectedDraftId(null); setToolMode(null); setViewMode('storyboard'); }}
           onSelectImageTools={() => { setSelectedDraftId(null); setToolMode('image'); }}
           onSelectVideoTools={() => { setSelectedDraftId(null); setToolMode('video'); }}
+          onSelectAssets={() => { setSelectedDraftId(null); setToolMode(null); setViewMode('assets'); }}
           activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : viewMode}
           onShowWelcome={() => { setActiveId(null); setSelectedDraftId(null); setToolMode(null); }} />
         {!activeId && !toolMode && !selectedDraftId ? (
@@ -326,6 +328,8 @@ export default function App() {
           <ToolsPanel mode={toolMode} />
         ) : selectedDraftId && activeId ? (
           <DraftWorkspace projectId={activeId} draftId={selectedDraftId} onDraftCreated={(id)=>setSelectedDraftId(id)} />
+        ) : activeId && viewMode === 'assets' ? (
+          <AssetBoard projectId={activeId} />
         ) : activeId && viewMode === 'storyboard' ? (
           <>
             <div className="flex-1 flex flex-col min-w-0">

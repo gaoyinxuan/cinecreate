@@ -3,7 +3,7 @@ import { db } from '../services/dbService';
 
 let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
 
-const CATEGORIES = ['全部','人物','场景','道具','参考','Prompt'];
+const CATEGORIES = ['人物','场景','道具','参考','Prompt'];
 
 interface AssetItem {
   id: string; name: string; category: string;
@@ -13,7 +13,7 @@ interface AssetItem {
 export default function AssetDrawer({ projectId }: { projectId: string | null }) {
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<AssetItem[]>([]);
-  const [filter, setFilter] = useState('全部');
+  const [filter, setFilter] = useState('人物');
   const [search, setSearch] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [importing, setImporting] = useState<{files:File[]}|null>(null);
@@ -75,7 +75,7 @@ export default function AssetDrawer({ projectId }: { projectId: string | null })
   }, [assets, saveMeta]);
 
   const filtered = assets.filter(a => {
-    if (filter !== '全部' && a.category !== filter) return false;
+    if (a.category !== filter) return false;
     if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -106,7 +106,7 @@ export default function AssetDrawer({ projectId }: { projectId: string | null })
             <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--card2)]">
               <div className="text-[11px] text-[var(--text2)] mb-2">{importing.files.length} 个文件，选择分类：</div>
               <div className="flex gap-1 flex-wrap mb-2">
-                {CATEGORIES.filter(c=>c!=='全部').map(c => (
+                {CATEGORIES.map(c => (
                   <button key={c} className={`text-[10px] px-2.5 py-1 rounded-full transition-colors ${importCat===c?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] border border-[var(--border)] text-[var(--text3)] hover:text-[var(--text)]'}`}
                     onClick={() => setImportCat(c)}>{c}</button>
                 ))}
