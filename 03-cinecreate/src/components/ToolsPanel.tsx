@@ -76,7 +76,13 @@ export default function ToolsPanel({ mode }: Props) {
   };
 
   // IPC from main process
+  const [wvPreloadPath, setWvPreloadPath] = useState('');
   const api = (window as any).electronAPI;
+  useEffect(() => {
+    if (api?.getWebviewPreloadPath) {
+      api.getWebviewPreloadPath().then((p: string) => setWvPreloadPath(p));
+    }
+  }, []);
   useEffect(() => {
     if (!api || !activeTool) return;
     return api.onToolOpenTab((url: string) => { openNewTab(activeTool.name, url); });
@@ -85,12 +91,15 @@ export default function ToolsPanel({ mode }: Props) {
   // ref-based webview event binding (React JSX props DON'T work for webview events)
   const attachWebview = useCallback((el: any, toolName: string) => {
     if (!el) return;
-    const onTitle = (e: any) => {
-      const title = e.title || '...';
-      updateTabTitle(toolName, currentActiveId, title);
+    const onTitle = (e: any) => updateTabTitle(toolName, currentActiveId, e.title || '...');
+    const onIpcMsg = (e: any) => {
+      if (e.channel === 'open-tab' && e.args[0]) {
+        openNewTab(toolName, e.args[0]);
+      }
     };
     el.addEventListener('page-title-updated', onTitle);
-  }, [currentActiveId, updateTabTitle]);
+    el.addEventListener('ipc-message', onIpcMsg);
+  }, [currentActiveId, updateTabTitle, openNewTab]);
 
   const addTool = () => { if(!nm.trim()||!ur.trim()) return; setCustomTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]); setShowAdd(false); };
   const deleteTool = (t:Tool) => { setCustomTools(p=>p.filter(x=>x!==t)); if(activeIdx>=filtered.length-1) setActiveIdx(Math.max(0,activeIdx-1)); };
@@ -153,6 +162,7 @@ export default function ToolsPanel({ mode }: Props) {
                 <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
                   <webview ref={el => attachWebview(el, t.name)}
                     src={pt.url} className="w-full h-full" style={{height:'100%'}}
+                    preload={wvPreloadPath}
                     partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                     onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
                   />

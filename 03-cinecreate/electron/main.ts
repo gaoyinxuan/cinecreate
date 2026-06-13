@@ -291,6 +291,9 @@ ipcMain.handle('app:setApiKey', (_e, key: string) => {
 });
 
 // Native dialogs (replaces blocked prompt/confirm in renderer)
+// Webview preload path
+ipcMain.handle('get-webview-preload-path', () => path.join(__dirname, 'webview-preload.js'));
+
 import { dialog } from 'electron';
 ipcMain.handle('dialog:prompt', async (_e, title: string, defaultValue: string) => {
   if (!mainWindow) return null;

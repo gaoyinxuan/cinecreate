@@ -66,6 +66,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('tool:open-tab', h);
     return () => { ipcRenderer.removeListener('tool:open-tab', h); };
   },
+  webviewPreloadPath: '', // populated below
+  getWebviewPreloadPath: () => ipcRenderer.invoke('get-webview-preload-path'),
 
   // Dialogs
   confirm: (message: string, title?: string): Promise<boolean> => ipcRenderer.invoke('dialog:confirm', message, title),
