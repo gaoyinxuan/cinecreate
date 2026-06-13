@@ -99,26 +99,8 @@ export default function ToolsPanel({ mode }: Props) {
   }, [activeTool]);
 
   // Handle webview events
-  const setupWebview = (el: any, toolName: string, tabUrl: string) => {
+  const setupWebview = (el: any, toolName: string) => {
     if (!el) return;
-    let loaded = false;
-
-    el.addEventListener('did-finish-load', () => { loaded = true; });
-
-    // Intercept same-webview navigations to new pages → new tab
-    el.addEventListener('will-navigate', (e: any) => {
-      if (!loaded) return;
-      try {
-        const cur = new URL(tabUrl);
-        const next = new URL(e.url);
-        if (cur.pathname !== next.pathname) {
-          e.preventDefault();
-          openPageTab(toolName, e.url, '新页面');
-        }
-      } catch {}
-    });
-
-    // Track page title
     el.addEventListener('page-title-updated', (e: any) => {
       setPageTabs(prev => {
         const cur = prev[toolName] || [];
@@ -182,7 +164,7 @@ export default function ToolsPanel({ mode }: Props) {
                 {/* Show only the active page tab webview */}
                 {(pageTabs[t.name]||[]).map(pt => (
                   <div key={pt.id} className="absolute inset-0" style={{display:pt.id===activePages[t.name]?'block':'none'}}>
-                    <webview ref={el => { if(el) setupWebview(el, t.name, pt.url); }}
+                    <webview ref={el => { if(el) setupWebview(el, t.name); }}
                       src={pt.url} className="w-full h-full" style={{height:'100%'}}
                       partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                       onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}                  </div>

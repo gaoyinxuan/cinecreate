@@ -17,6 +17,15 @@ function createWindow() {
       webviewTag: true
     }
   });
+
+  // Intercept ALL window.open from any webview child
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url && url !== 'about:blank') {
+      mainWindow?.webContents.send('tool:open-tab', url);
+    }
+    return { action: 'deny' };
+  });
+
   // In dev mode (no built renderer), load from Vite; otherwise load built files
   const rendererPath = path.join(__dirname, '../renderer/index.html');
   if (!fs.existsSync(rendererPath)) {
@@ -50,16 +59,6 @@ async function bootstrap() {
 
 app.whenReady().then(bootstrap);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-
-// Global interception of all new windows from webviews
-app.on('web-contents-created', (_event, contents) => {
-  contents.setWindowOpenHandler(({ url }) => {
-    if (mainWindow && url && url !== 'about:blank') {
-      mainWindow.webContents.send('tool:open-tab', url);
-    }
-    return { action: 'deny' };
-  });
-});
 
 // ── IPC Handlers ────────────────────────────────
 
