@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import OnboardingGuide, { useOnboarding } from './OnboardingGuide';
 
 type ToolCategory = 'image'|'video';
@@ -49,18 +49,22 @@ export default function ToolsPanel({ mode }: Props) {
   const currentTabs = activeTool ? (tabsByTool[activeTool.name] || []) : [];
   const currentActiveId = activeTool ? (activeTabByTool[activeTool.name] || currentTabs[0]?.id) : '';
 
+  const openTab = useCallback((toolName: string, url: string) => {
+    if (!url) return;
+    const tab: PageTab = { id: tid(), url, title: url };
+    setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
+    setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
+  }, []);
+
   const closeTab = (toolName: string, tabId: string) => {
     setTabsByTool(prev => {
-      const remaining = (prev[toolName]||[]).filter(t => t.id !== tabId);
-      if (remaining.length === 0) return prev;
-      return {...prev, [toolName]: remaining};
+      const r = (prev[toolName]||[]).filter(t => t.id !== tabId);
+      return r.length ? {...prev, [toolName]: r} : prev;
     });
     setActiveTabByTool(prev => {
-      if (prev[toolName] === tabId) {
-        const remaining = (tabsByTool[toolName]||[]).filter(t => t.id !== tabId);
-        return {...prev, [toolName]: remaining[0]?.id || ''};
-      }
-      return prev;
+      if (prev[toolName] !== tabId) return prev;
+      const r = (tabsByTool[toolName]||[]).filter(t => t.id !== tabId);
+      return {...prev, [toolName]: r[0]?.id || ''};
     });
   };
 
@@ -71,7 +75,6 @@ export default function ToolsPanel({ mode }: Props) {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Row 1: Tool tabs */}
       <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-0 px-4 py-2">
-        <button className="text-xs w-5 h-5 rounded-full border border-[var(--border2)] text-[var(--muted)] hover:text-[var(--text)] flex items-center justify-center shrink-0 mr-2" onClick={showGuide}>?</button>
         {filtered.map((t,i)=>(
           <div key={t.name} className="group flex items-center">
             <button className={`text-xs px-3 py-1 rounded transition-colors ${i===activeIdx?'bg-[var(--accent-solid)]/20 text-[var(--text)] font-semibold':'text-[var(--dim)] hover:text-[var(--text2)]'}`}
@@ -87,12 +90,12 @@ export default function ToolsPanel({ mode }: Props) {
       </div>
 
       {/* Row 2: Page tabs */}
-      {activeTool && currentTabs.length > 0 && (
+      {activeTool && (
         <div className="bg-[var(--bg2)] flex items-end px-1 overflow-x-auto shrink-0" style={{minHeight:36}}>
           {currentTabs.map(pt => {
             const active = pt.id === currentActiveId;
             return (
-              <div key={pt.id} className={`group flex items-center gap-1.5 px-3 h-8 rounded-t-lg cursor-pointer text-[12px] whitespace-nowrap max-w-[180px] select-none shrink-0 transition-colors ${active ? 'bg-[var(--bg)] text-[var(--text)] font-medium' : 'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-[var(--bg)]/50'}`}
+              <div key={pt.id} className={`group flex items-center gap-1.5 px-3 h-8 rounded-t-lg cursor-pointer text-[12px] whitespace-nowrap max-w-[160px] select-none shrink-0 transition-colors ${active?'bg-[var(--bg)] text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-[var(--bg)]/50'}`}
                 onClick={() => setActiveTabByTool(prev=>({...prev,[activeTool.name]:pt.id}))}>
                 <div className="w-3.5 h-3.5 rounded-full bg-[var(--text3)]/20 flex items-center justify-center shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-[var(--text3)]/40" />
@@ -100,7 +103,7 @@ export default function ToolsPanel({ mode }: Props) {
                 <span className="truncate">{pt.title}</span>
                 {currentTabs.length > 1 && (
                   <button className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all shrink-0"
-                    onClick={e => { e.stopPropagation(); closeTab(activeTool.name, pt.id); }}>✕</button>
+                    onClick={e=>{e.stopPropagation();closeTab(activeTool.name,pt.id)}}>✕</button>
                 )}
               </div>
             );
@@ -122,12 +125,10 @@ export default function ToolsPanel({ mode }: Props) {
               </div>
             ) : (
               (tabsByTool[t.name]||[]).map(pt => (
-                <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
-                  <webview src={pt.url} className="w-full h-full" style={{height:'100%'}}
-                    partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
-                    onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
-                  />
-                </div>
+                <TabWebview key={pt.id} toolName={t.name} tab={pt} active={pt.id===(activeTabByTool[t.name]||'')}
+                  onOpenTab={openTab} onUpdateTitle={(title)=>{
+                    setTabsByTool(prev=>({...prev,[t.name]:(prev[t.name]||[]).map(x=>x.id===pt.id?{...x,title}:x)}));
+                  }}/>
               ))
             )}
           </div>
@@ -151,6 +152,57 @@ export default function ToolsPanel({ mode }: Props) {
           <p>工具模块用于 AI 生图、AI 视频生成、Prompt 验证、素材制作。</p>
         </OnboardingGuide>
       )}
+    </div>
+  );
+}
+
+/* Individual webview wrapper with event handling */
+function TabWebview({ toolName, tab, active, onOpenTab, onUpdateTitle }: {
+  toolName: string; tab: PageTab; active: boolean;
+  onOpenTab: (toolName:string, url:string)=>void;
+  onUpdateTitle: (title:string)=>void;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current as any;
+    if (!el) return;
+
+    const onDomReady = () => { loadedRef.current = true; };
+    const onTitle = (e: any) => { onUpdateTitle(e.title || tab.title); };
+
+    // window.open → new tab
+    const onNewWin = (e: any) => {
+      e.preventDefault();
+      if (e.url) onOpenTab(toolName, e.url);
+    };
+
+    // same-page navigation to new URL → new tab
+    const onWillNav = (e: any) => {
+      if (!loadedRef.current || e.url === el.src) return;
+      e.preventDefault();
+      onOpenTab(toolName, e.url);
+    };
+
+    el.addEventListener('dom-ready', onDomReady);
+    el.addEventListener('page-title-updated', onTitle);
+    el.addEventListener('new-window', onNewWin);
+    el.addEventListener('will-navigate', onWillNav);
+
+    return () => {
+      el.removeEventListener('dom-ready', onDomReady);
+      el.removeEventListener('page-title-updated', onTitle);
+      el.removeEventListener('new-window', onNewWin);
+      el.removeEventListener('will-navigate', onWillNav);
+    };
+  }, [toolName, tab.id]);
+
+  return (
+    <div className="absolute inset-0" style={{display:active?'block':'none'}}>
+      <webview ref={ref as any} src={tab.url} className="w-full h-full" style={{height:'100%'}}
+        partition={`persist:tool-${toolName.replace(/[^a-zA-Z0-9]/g,'')}`}
+      />
     </div>
   );
 }
