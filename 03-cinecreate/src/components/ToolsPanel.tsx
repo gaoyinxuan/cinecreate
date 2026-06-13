@@ -88,6 +88,16 @@ export default function ToolsPanel({ mode }: Props) {
   const tabs = activeTool ? (pageTabs[activeTool.name] || []) : [];
   const activePageId = activeTool ? (activePages[activeTool.name] || tabs[0]?.id) : '';
 
+  const api = (window as any).electronAPI;
+
+  // Listen for new-tab events from main process (global interception)
+  useEffect(() => {
+    if (!api) return;
+    return api.onToolOpenTab((url: string) => {
+      if (activeTool) openPageTab(activeTool.name, url, '新页面');
+    });
+  }, [activeTool]);
+
   // Handle webview events
   const setupWebview = (el: any, toolName: string, tabUrl: string) => {
     if (!el) return;
@@ -95,26 +105,17 @@ export default function ToolsPanel({ mode }: Props) {
 
     el.addEventListener('did-finish-load', () => { loaded = true; });
 
-    // Intercept navigation to new pages → open as new tab
+    // Intercept same-webview navigations to new pages → new tab
     el.addEventListener('will-navigate', (e: any) => {
-      if (!loaded) return; // skip initial load
+      if (!loaded) return;
       try {
         const cur = new URL(tabUrl);
         const next = new URL(e.url);
-        // Different page (not just hash/query change) → capture as new tab
         if (cur.pathname !== next.pathname) {
           e.preventDefault();
           openPageTab(toolName, e.url, '新页面');
         }
-      } catch { e.preventDefault(); openPageTab(toolName, e.url, '新页面'); }
-    });
-
-    // Intercept window.open or target=_blank
-    el.addEventListener('new-window', (e: any) => {
-      e.preventDefault();
-      if (e.url && e.url !== 'about:blank') {
-        openPageTab(toolName, e.url, e.frameName || '新页面');
-      }
+      } catch {}
     });
 
     // Track page title

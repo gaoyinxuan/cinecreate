@@ -51,6 +51,16 @@ async function bootstrap() {
 app.whenReady().then(bootstrap);
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
+// Global interception of all new windows from webviews
+app.on('web-contents-created', (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (mainWindow && url && url !== 'about:blank') {
+      mainWindow.webContents.send('tool:open-tab', url);
+    }
+    return { action: 'deny' };
+  });
+});
+
 // ── IPC Handlers ────────────────────────────────
 
 ipcMain.handle('db:getProjects', () => queryAll('SELECT * FROM projects ORDER BY createdAt'));
