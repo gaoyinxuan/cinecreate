@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import OnboardingGuide, { useOnboarding } from './OnboardingGuide';
 
 type ToolCategory = 'image'|'video';
@@ -29,14 +29,12 @@ export default function ToolsPanel({ mode }: Props) {
   const [nm, setNm] = useState(''); const [ur, setUr] = useState('');
   const [showOnboard, dismissOnboard, showGuide] = useOnboarding('onboard-tools');
 
-  // Page tabs per tool — each is a webview
   const [tabsByTool, setTabsByTool] = useState<Record<string,PageTab[]>>({});
   const [activeTabByTool, setActiveTabByTool] = useState<Record<string,string>>({});
 
   const filtered = tools.filter(t=>t.cat===mode);
   useEffect(() => { if(activeIdx >= filtered.length) setActiveIdx(0); }, [filtered.length]);
 
-  // Ensure every tool has at least its default tab
   useEffect(() => {
     filtered.forEach(t => {
       if (!tabsByTool[t.name]) {
@@ -51,13 +49,16 @@ export default function ToolsPanel({ mode }: Props) {
   const currentTabs = activeTool ? (tabsByTool[activeTool.name] || []) : [];
   const currentActiveId = activeTool ? (activeTabByTool[activeTool.name] || currentTabs[0]?.id) : '';
 
-  const addTab = (toolName: string) => {
-    const tool = tools.find(t => t.name === toolName);
-    const url = tool?.url || 'https://www.google.com';
-    const tab: PageTab = { id: tid(), url, title: toolName };
+  const updateTabTitle = useCallback((toolName: string, tabId: string, title: string) => {
+    setTabsByTool(prev => ({...prev, [toolName]: (prev[toolName]||[]).map(t => t.id===tabId?{...t,title}:t)}));
+  }, []);
+
+  const openNewTab = useCallback((toolName: string, url: string) => {
+    if (!url || url === 'about:blank') return;
+    const tab: PageTab = { id: tid(), url, title: url };
     setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
     setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
-  };
+  }, []);
 
   const closeTab = (toolName: string, tabId: string) => {
     setTabsByTool(prev => {
@@ -74,49 +75,41 @@ export default function ToolsPanel({ mode }: Props) {
     });
   };
 
-  const selectTab = (toolName: string, tabId: string) => {
-    setActiveTabByTool(prev => ({...prev, [toolName]: tabId}));
-  };
-
-  // IPC listener: main process sends URLs captured from webviews
+  // IPC from main process
   const api = (window as any).electronAPI;
   useEffect(() => {
     if (!api || !activeTool) return;
-    return api.onToolOpenTab((url: string) => {
-      const tab: PageTab = { id: tid(), url, title: '加载中...' };
-      setTabsByTool(prev => ({...prev, [activeTool.name]: [...(prev[activeTool.name]||[]), tab]}));
-      setActiveTabByTool(prev => ({...prev, [activeTool.name]: tab.id}));
-    });
-  }, [activeTool?.name]);
+    return api.onToolOpenTab((url: string) => { openNewTab(activeTool.name, url); });
+  }, [activeTool?.name, openNewTab]);
 
-  // When webview loads, track URL + title. When user navigates away, create new tab.
-  const onPageTitleUpdated = (toolName: string, tabId: string) => (e: any) => {
-    updateTabTitle(toolName, tabId, e.title || '新标签页');
-  };
-  const onWillNavigate = (toolName: string) => (e: any) => {
-    console.log('[will-navigate]', e.url);
-    e.preventDefault();
-    const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
-    setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
-    setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
-  };
-  const onNewWindow = (toolName: string) => (e: any) => {
-    console.log('[new-window]', e.url);
-    e.preventDefault();
-    if (e.url && e.url !== 'about:blank') {
-      const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
-      setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
-      setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
-    }
-  };
-  const onDomReady = () => { console.log('[dom-ready] webview loaded'); };
-
-  const updateTabTitle = (toolName: string, tabId: string, title: string) => {
-    setTabsByTool(prev => ({
-      ...prev,
-      [toolName]: (prev[toolName]||[]).map(t => t.id === tabId ? {...t, title} : t)
-    }));
-  };
+  // ref-based webview event binding (React JSX props DON'T work for webview events)
+  const attachWebview = useCallback((el: any, toolName: string) => {
+    if (!el) return;
+    let loaded = false;
+    const onDomReady = () => { loaded = true; };
+    const onWillNav = (e: any) => {
+      if (!loaded) return;
+      e.preventDefault();
+      openNewTab(toolName, e.url);
+    };
+    const onNewWin = (e: any) => {
+      e.preventDefault();
+      openNewTab(toolName, e.url);
+    };
+    const onTitle = (e: any) => {
+      // Find the tab that has this webview's current URL
+      setTabsByTool(prev => {
+        const tabs = prev[toolName] || [];
+        const idx = tabs.findIndex(t => t.url === el.src || t.id === currentActiveId);
+        if (idx >= 0) updateTabTitle(toolName, tabs[idx].id, e.title || tabs[idx].title);
+        return prev;
+      });
+    };
+    el.addEventListener('dom-ready', onDomReady);
+    el.addEventListener('will-navigate', onWillNav);
+    el.addEventListener('new-window', onNewWin);
+    el.addEventListener('page-title-updated', onTitle);
+  }, [openNewTab, currentActiveId, updateTabTitle]);
 
   const addTool = () => { if(!nm.trim()||!ur.trim()) return; setCustomTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]); setShowAdd(false); };
   const deleteTool = (t:Tool) => { setCustomTools(p=>p.filter(x=>x!==t)); if(activeIdx>=filtered.length-1) setActiveIdx(Math.max(0,activeIdx-1)); };
@@ -140,27 +133,29 @@ export default function ToolsPanel({ mode }: Props) {
           disabled={refreshing}>{refreshing?'刷新中...':'刷新当前'}</button>
       </div>
 
-      {/* Row 2: Page tabs — Chrome style */}
+      {/* Row 2: Page tabs */}
       {activeTool && (
         <div className="bg-[var(--bg2)] flex items-end px-1 overflow-x-auto shrink-0" style={{minHeight:36}}>
           {currentTabs.map(pt => {
             const active = pt.id === currentActiveId;
             return (
               <div key={pt.id} className={`group flex items-center gap-1.5 px-3 h-8 rounded-t-lg cursor-pointer text-[12px] whitespace-nowrap max-w-[180px] select-none shrink-0 transition-colors ${active ? 'bg-[var(--bg)] text-[var(--text)] font-medium' : 'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-[var(--bg)]/50'}`}
-                onClick={() => selectTab(activeTool.name, pt.id)}>
+                onClick={() => setActiveTabByTool(prev=>({...prev,[activeTool.name]:pt.id}))}>
                 <div className="w-3.5 h-3.5 rounded-full bg-[var(--text3)]/20 flex items-center justify-center shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-[var(--text3)]/40" />
                 </div>
                 <span className="truncate">{pt.title}</span>
-                <button className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all shrink-0"
-                  onClick={e => { e.stopPropagation(); closeTab(activeTool.name, pt.id); }}>✕</button>
+                {currentTabs.length > 1 && (
+                  <button className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all shrink-0"
+                    onClick={e => { e.stopPropagation(); closeTab(activeTool.name, pt.id); }}>✕</button>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Webview area — show active tool's active tab */}
+      {/* Webview area */}
       <div className="flex-1 relative bg-[var(--bg)]">
         {filtered.map((t,i) => (
           <div key={t.name} className="absolute inset-0" style={{display:i===activeIdx?'block':'none'}}>
@@ -175,12 +170,9 @@ export default function ToolsPanel({ mode }: Props) {
             ) : (
               (tabsByTool[t.name]||[]).map(pt => (
                 <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
-                  <webview src={pt.url} className="w-full h-full" style={{height:'100%'}}
+                  <webview ref={el => attachWebview(el, t.name)}
+                    src={pt.url} className="w-full h-full" style={{height:'100%'}}
                     partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
-                    onDomReady={onDomReady}
-                    onPageTitleUpdated={onPageTitleUpdated(t.name, pt.id)}
-                    onWillNavigate={onWillNavigate(t.name)}
-                    onNewWindow={onNewWindow(t.name)}
                     onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
                   />
                 </div>
