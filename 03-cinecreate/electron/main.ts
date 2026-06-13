@@ -18,24 +18,6 @@ function createWindow() {
     }
   });
 
-  // Block ALL popups — BrowserWindow level + per-webview
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url && url !== 'about:blank') {
-      mainWindow?.webContents.send('tool:open-tab', url);
-    }
-    return { action: 'deny' };
-  });
-  mainWindow.webContents.on('did-attach-webview', (_e, wc) => {
-    try {
-      wc.setWindowOpenHandler(({ url }: any) => {
-        if (url && url !== 'about:blank') {
-          mainWindow?.webContents.send('tool:open-tab', url);
-        }
-        return { action: 'deny' };
-      });
-    } catch {}
-  });
-
   // In dev mode (no built renderer), load from Vite; otherwise load built files
   const rendererPath = path.join(__dirname, '../renderer/index.html');
   if (!fs.existsSync(rendererPath)) {
@@ -291,9 +273,6 @@ ipcMain.handle('app:setApiKey', (_e, key: string) => {
 });
 
 // Native dialogs (replaces blocked prompt/confirm in renderer)
-// Webview preload path
-ipcMain.handle('get-webview-preload-path', () => path.join(__dirname, 'webview-preload.js'));
-
 import { dialog } from 'electron';
 ipcMain.handle('dialog:prompt', async (_e, title: string, defaultValue: string) => {
   if (!mainWindow) return null;
