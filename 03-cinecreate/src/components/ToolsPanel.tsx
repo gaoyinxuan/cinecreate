@@ -90,34 +90,39 @@ export default function ToolsPanel({ mode }: Props) {
   }, [activeTool?.name]);
 
   // When webview loads, track URL + title. When user navigates away, create new tab.
-  const handleWebview = (el: any, toolName: string, tabId: string) => {
-    if (!el) return;
-    el.addEventListener('page-title-updated', (e: any) => {
-      updateTabTitle(toolName, tabId, e.title || '新标签页');
-    });
-    // Any navigation to a new URL → new tab instead
-    el.addEventListener('will-navigate', (e: any) => {
-      console.log('[will-navigate]', el.getURL(), '→', e.url);
-      if (e.url === el.getURL()) return;
-      e.preventDefault();
-      const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
-      setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
-      setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
-    });
-    // window.open → new tab
-    el.addEventListener('new-window', (e: any) => {
-      console.log('[new-window]', e.url, e.frameName);
-      e.preventDefault();
-      if (e.url && e.url !== 'about:blank') {
+  const wvRefs = useRef<Record<string,any>>({});
+
+  // Bind event listeners whenever tabs change
+  useEffect(() => {
+    Object.entries(wvRefs.current).forEach(([key, el]) => {
+      if (!el) return;
+      const [toolName, tabId] = key.split('::');
+      const onTitle = (e: any) => updateTabTitle(toolName, tabId, e.title || '新标签页');
+      const onWillNav = (e: any) => {
+        console.log('[will-navigate]', e.url);
+        if (e.url === el.src) return;
+        e.preventDefault();
         const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
         setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
         setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
-      }
+      };
+      const onNewWin = (e: any) => {
+        console.log('[new-window]', e.url);
+        e.preventDefault();
+        if (e.url && e.url !== 'about:blank') {
+          const tab: PageTab = { id: tid(), url: e.url, title: '加载中...' };
+          setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
+          setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
+        }
+      };
+      el.addEventListener('page-title-updated', onTitle);
+      el.addEventListener('will-navigate', onWillNav);
+      el.addEventListener('new-window', onNewWin);
     });
-    // Open DevTools on this webview (press F12 on webview)
-    el.addEventListener('dom-ready', () => {
-      // el.openDevTools();
-    });
+  }, [tabsByTool]);
+
+  const setWvRef = (toolName: string, tabId: string) => (el: any) => {
+    if (el) wvRefs.current[`${toolName}::${tabId}`] = el;
   };
 
   const updateTabTitle = (toolName: string, tabId: string, title: string) => {
@@ -184,7 +189,7 @@ export default function ToolsPanel({ mode }: Props) {
             ) : (
               (tabsByTool[t.name]||[]).map(pt => (
                 <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
-                  <webview ref={el => handleWebview(el, t.name, pt.id)}
+                  <webview ref={setWvRef(t.name, pt.id)}
                     src={pt.url} className="w-full h-full" style={{height:'100%'}}
                     partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                     onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
