@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import OnboardingGuide, { useOnboarding } from './OnboardingGuide';
 
 type ToolCategory = 'image'|'video';
@@ -49,17 +49,6 @@ export default function ToolsPanel({ mode }: Props) {
   const currentTabs = activeTool ? (tabsByTool[activeTool.name] || []) : [];
   const currentActiveId = activeTool ? (activeTabByTool[activeTool.name] || currentTabs[0]?.id) : '';
 
-  const updateTabTitle = useCallback((toolName: string, tabId: string, title: string) => {
-    setTabsByTool(prev => ({...prev, [toolName]: (prev[toolName]||[]).map(t => t.id===tabId?{...t,title}:t)}));
-  }, []);
-
-  const openNewTab = useCallback((toolName: string, url: string) => {
-    if (!url || url === 'about:blank') return;
-    const tab: PageTab = { id: tid(), url, title: url };
-    setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
-    setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
-  }, []);
-
   const closeTab = (toolName: string, tabId: string) => {
     setTabsByTool(prev => {
       const remaining = (prev[toolName]||[]).filter(t => t.id !== tabId);
@@ -74,32 +63,6 @@ export default function ToolsPanel({ mode }: Props) {
       return prev;
     });
   };
-
-  // IPC from main process
-  const [wvPreloadPath, setWvPreloadPath] = useState('');
-  const api = (window as any).electronAPI;
-  useEffect(() => {
-    if (api?.getWebviewPreloadPath) {
-      api.getWebviewPreloadPath().then((p: string) => setWvPreloadPath(p));
-    }
-  }, []);
-  useEffect(() => {
-    if (!api || !activeTool) return;
-    return api.onToolOpenTab((url: string) => { openNewTab(activeTool.name, url); });
-  }, [activeTool?.name, openNewTab]);
-
-  // ref-based webview event binding (React JSX props DON'T work for webview events)
-  const attachWebview = useCallback((el: any, toolName: string) => {
-    if (!el) return;
-    const onTitle = (e: any) => updateTabTitle(toolName, currentActiveId, e.title || '...');
-    const onIpcMsg = (e: any) => {
-      if (e.channel === 'open-tab' && e.args[0]) {
-        openNewTab(toolName, e.args[0]);
-      }
-    };
-    el.addEventListener('page-title-updated', onTitle);
-    el.addEventListener('ipc-message', onIpcMsg);
-  }, [currentActiveId, updateTabTitle, openNewTab]);
 
   const addTool = () => { if(!nm.trim()||!ur.trim()) return; setCustomTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]); setShowAdd(false); };
   const deleteTool = (t:Tool) => { setCustomTools(p=>p.filter(x=>x!==t)); if(activeIdx>=filtered.length-1) setActiveIdx(Math.max(0,activeIdx-1)); };
@@ -119,12 +82,12 @@ export default function ToolsPanel({ mode }: Props) {
         <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-gold-500" onClick={()=>{setNm('');setUr('');setShowAdd(true);}}>＋ 添加</button>
         <div className="flex-1" />
         <button className="text-xs px-2 py-0.5 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[var(--border2)]"
-          onClick={()=>{ setRefreshing(true); const tName = activeTool?.name; if(tName) setErrors(p=>({...p,[tName]:false})); setTimeout(()=>setRefreshing(false),2000); }}
+          onClick={()=>{ setRefreshing(true); if(activeTool) setErrors(p=>({...p,[activeTool.name]:false})); setTimeout(()=>setRefreshing(false),2000); }}
           disabled={refreshing}>{refreshing?'刷新中...':'刷新当前'}</button>
       </div>
 
       {/* Row 2: Page tabs */}
-      {activeTool && (
+      {activeTool && currentTabs.length > 0 && (
         <div className="bg-[var(--bg2)] flex items-end px-1 overflow-x-auto shrink-0" style={{minHeight:36}}>
           {currentTabs.map(pt => {
             const active = pt.id === currentActiveId;
@@ -160,9 +123,7 @@ export default function ToolsPanel({ mode }: Props) {
             ) : (
               (tabsByTool[t.name]||[]).map(pt => (
                 <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
-                  <webview ref={el => attachWebview(el, t.name)}
-                    src={pt.url} className="w-full h-full" style={{height:'100%'}}
-                    preload={wvPreloadPath}
+                  <webview src={pt.url} className="w-full h-full" style={{height:'100%'}}
                     partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                     onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
                   />
@@ -171,7 +132,7 @@ export default function ToolsPanel({ mode }: Props) {
             )}
           </div>
         ))}
-        {filtered.length===0 && <div className="flex items-center justify-center h-full text-sm text-[var(--muted)]">暂无工具，点击「＋ 添加」</div>}
+        {filtered.length===0 && <div className="flex items-center justify-center h-full text-sm text-[var(--muted)]">暂无工具</div>}
       </div>
 
       {showAdd && (
