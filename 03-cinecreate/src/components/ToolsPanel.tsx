@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import OnboardingGuide, { useOnboarding } from './OnboardingGuide';
 
 type ToolCategory = 'image'|'video';
 interface Tool { name:string; url:string; cat:ToolCategory; }
-interface PageTab { id:string; url:string; title:string; }
 
 const DEF_TOOLS: Tool[] = [
   { name:'GPT Image', url:'https://chatgpt.com/?model=gpt-4o', cat:'image' },
@@ -15,8 +14,6 @@ const DEF_TOOLS: Tool[] = [
   { name:'Happy Horse', url:'https://www.happyhorse.cn/creation/generation', cat:'video' },
 ];
 
-let tid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
-
 interface Props { mode: ToolCategory; }
 
 export default function ToolsPanel({ mode }: Props) {
@@ -25,56 +22,28 @@ export default function ToolsPanel({ mode }: Props) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [errors, setErrors] = useState<Record<string,boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [nm, setNm] = useState(''); const [ur, setUr] = useState('');
   const [showOnboard, dismissOnboard, showGuide] = useOnboarding('onboard-tools');
 
-  const [tabsByTool, setTabsByTool] = useState<Record<string,PageTab[]>>({});
-  const [activeTabByTool, setActiveTabByTool] = useState<Record<string,string>>({});
-
   const filtered = tools.filter(t=>t.cat===mode);
   useEffect(() => { if(activeIdx >= filtered.length) setActiveIdx(0); }, [filtered.length]);
 
-  useEffect(() => {
-    filtered.forEach(t => {
-      if (!tabsByTool[t.name]) {
-        const init = { id: tid(), url: t.url, title: t.name };
-        setTabsByTool(prev => ({...prev, [t.name]: [init]}));
-        setActiveTabByTool(prev => ({...prev, [t.name]: init.id}));
-      }
-    });
-  }, [mode]);
-
-  const activeTool = filtered[activeIdx];
-  const currentTabs = activeTool ? (tabsByTool[activeTool.name] || []) : [];
-  const currentActiveId = activeTool ? (activeTabByTool[activeTool.name] || currentTabs[0]?.id) : '';
-
-  const openTab = useCallback((toolName: string, url: string) => {
-    if (!url) return;
-    const tab: PageTab = { id: tid(), url, title: url };
-    setTabsByTool(prev => ({...prev, [toolName]: [...(prev[toolName]||[]), tab]}));
-    setActiveTabByTool(prev => ({...prev, [toolName]: tab.id}));
-  }, []);
-
-  const closeTab = (toolName: string, tabId: string) => {
-    setTabsByTool(prev => {
-      const r = (prev[toolName]||[]).filter(t => t.id !== tabId);
-      return r.length ? {...prev, [toolName]: r} : prev;
-    });
-    setActiveTabByTool(prev => {
-      if (prev[toolName] !== tabId) return prev;
-      const r = (tabsByTool[toolName]||[]).filter(t => t.id !== tabId);
-      return {...prev, [toolName]: r[0]?.id || ''};
-    });
+  const addTool = () => {
+    if(!nm.trim()||!ur.trim()) return;
+    setCustomTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]);
+    setShowAdd(false);
   };
-
-  const addTool = () => { if(!nm.trim()||!ur.trim()) return; setCustomTools(p=>[...p,{name:nm.trim(),url:ur.trim(),cat:mode}]); setShowAdd(false); };
-  const deleteTool = (t:Tool) => { setCustomTools(p=>p.filter(x=>x!==t)); if(activeIdx>=filtered.length-1) setActiveIdx(Math.max(0,activeIdx-1)); };
+  const deleteTool = (t:Tool) => {
+    setCustomTools(p=>p.filter(x=>x!==t));
+    if(activeIdx>=filtered.length-1) setActiveIdx(Math.max(0,activeIdx-1));
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Row 1: Tool tabs */}
-      <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-0 px-4 py-2">
+      <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-0 px-6 py-2.5">
+        <button className="text-xs w-5 h-5 rounded-full border border-[var(--border2)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--dim)] flex items-center justify-center shrink-0 mr-2" onClick={showGuide} title="查看引导">?</button>
         {filtered.map((t,i)=>(
           <div key={t.name} className="group flex items-center">
             <button className={`text-xs px-3 py-1 rounded transition-colors ${i===activeIdx?'bg-[var(--accent-solid)]/20 text-[var(--text)] font-semibold':'text-[var(--dim)] hover:text-[var(--text2)]'}`}
@@ -84,34 +53,11 @@ export default function ToolsPanel({ mode }: Props) {
         ))}
         <button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-gold-500" onClick={()=>{setNm('');setUr('');setShowAdd(true);}}>＋ 添加</button>
         <div className="flex-1" />
-        <button className="text-xs px-2 py-0.5 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[var(--border2)]"
-          onClick={()=>{ setRefreshing(true); if(activeTool) setErrors(p=>({...p,[activeTool.name]:false})); setTimeout(()=>setRefreshing(false),2000); }}
-          disabled={refreshing}>{refreshing?'刷新中...':'刷新当前'}</button>
+        <button className="text-xs px-2 py-0.5 text-[var(--muted)] hover:text-[var(--text2)] rounded border border-[#333]"
+          onClick={()=>{ const t = filtered[activeIdx]; if(t) { setRefreshing(true); setRefreshKey(k=>k+1); setErrors(p=>({...p,[t.name]:false})); setTimeout(()=>setRefreshing(false), 2000); } }}
+          disabled={refreshing}>{refreshing ? '刷新中...' : '刷新当前'}</button>
       </div>
 
-      {/* Row 2: Page tabs */}
-      {activeTool && (
-        <div className="bg-[var(--bg2)] flex items-end px-1 overflow-x-auto shrink-0" style={{minHeight:36}}>
-          {currentTabs.map(pt => {
-            const active = pt.id === currentActiveId;
-            return (
-              <div key={pt.id} className={`group flex items-center gap-1.5 px-3 h-8 rounded-t-lg cursor-pointer text-[12px] whitespace-nowrap max-w-[160px] select-none shrink-0 transition-colors ${active?'bg-[var(--bg)] text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)] hover:bg-[var(--bg)]/50'}`}
-                onClick={() => setActiveTabByTool(prev=>({...prev,[activeTool.name]:pt.id}))}>
-                <div className="w-3.5 h-3.5 rounded-full bg-[var(--text3)]/20 flex items-center justify-center shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--text3)]/40" />
-                </div>
-                <span className="truncate">{pt.title}</span>
-                {currentTabs.length > 1 && (
-                  <button className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all shrink-0"
-                    onClick={e=>{e.stopPropagation();closeTab(activeTool.name,pt.id)}}>✕</button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Webview area */}
       <div className="flex-1 relative bg-[var(--bg)]">
         {filtered.map((t,i) => (
           <div key={t.name} className="absolute inset-0" style={{display:i===activeIdx?'block':'none'}}>
@@ -120,21 +66,22 @@ export default function ToolsPanel({ mode }: Props) {
                 <div className="text-center space-y-3 max-w-md px-8">
                   <div className="text-3xl opacity-40">🌐</div>
                   <div className="text-sm text-[var(--text3)]">{t.name} 暂时无法加载</div>
+                  <div className="text-xs text-[var(--muted)] space-y-1">可能原因：网络问题、需要特殊网络环境、网站服务异常</div>
                   <button className="px-4 py-1.5 bg-[var(--accent-solid)]/20 hover:bg-[var(--accent-solid)]/30 text-[var(--text)] text-xs rounded-lg" onClick={()=>setErrors(p=>({...p,[t.name]:false}))}>重新加载</button>
+                  {mode==='image' && <button className="px-4 py-1.5 bg-gold-600/15 hover:bg-gold-600/25 text-[#7A8B5A] text-xs rounded-lg" onClick={()=>setActiveIdx(1)}>切换到豆包</button>}
+                  {mode==='video' && <button className="px-4 py-1.5 bg-gold-600/15 hover:bg-gold-600/25 text-[#7A8B5A] text-xs rounded-lg" onClick={()=>setActiveIdx(0)}>切换到即梦</button>}
                 </div>
               </div>
             ) : (
-              (tabsByTool[t.name]||[]).map(pt => (
-                <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
-                  <webview src={pt.url} className="w-full h-full" style={{height:'100%'}}
-                    partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
-                  />
-                </div>
-              ))
+              <webview key={`${t.name}-${refreshKey}`} src={t.url} className="w-full h-full" style={{height:'100%'}}
+                partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
+                onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
+                // @ts-ignore
+                allowpopups="true" />
             )}
           </div>
         ))}
-        {filtered.length===0 && <div className="flex items-center justify-center h-full text-sm text-[var(--muted)]">暂无工具</div>}
+        {filtered.length===0 && <div className="flex items-center justify-center h-full text-sm text-[var(--muted)]">暂无工具，点击「＋ 添加」</div>}
       </div>
 
       {showAdd && (
@@ -149,12 +96,13 @@ export default function ToolsPanel({ mode }: Props) {
       )}
       {showOnboard && (
         <OnboardingGuide title="工具模块" storageKey="onboard-tools" onClose={dismissOnboard}
-          buttons={[{label:'优先打开国内工具',primary:true,onClick:()=>{dismissOnboard();if(mode==='image')setActiveIdx(1);else setActiveIdx(0);}},{label:'开始使用',onClick:dismissOnboard}]}>
+          buttons={[
+            {label:'优先打开国内工具',primary:true,onClick:()=>{dismissOnboard();if(mode==='image')setActiveIdx(1);else setActiveIdx(0);}},
+            {label:'开始使用',onClick:dismissOnboard}]}>
           <p>工具模块用于 AI 生图、AI 视频生成、Prompt 验证、素材制作。</p>
+          <p>部分海外工具可能需要特殊网络环境和海外账号。如果当前环境无法访问海外服务，建议优先使用豆包（生图）、即梦（视频）等国内可直接访问的工具。</p>
         </OnboardingGuide>
       )}
     </div>
   );
 }
-
-/* Individual webview wrapper with event handling */
