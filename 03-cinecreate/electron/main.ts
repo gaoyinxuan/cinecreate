@@ -25,7 +25,6 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(rendererPath);
-    mainWindow.webContents.openDevTools();
   }
 }
 

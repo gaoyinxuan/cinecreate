@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingGuide, { useOnboarding } from './OnboardingGuide';
 
 type ToolCategory = 'image'|'video';
@@ -125,10 +125,11 @@ export default function ToolsPanel({ mode }: Props) {
               </div>
             ) : (
               (tabsByTool[t.name]||[]).map(pt => (
-                <TabWebview key={pt.id} toolName={t.name} tab={pt} active={pt.id===(activeTabByTool[t.name]||'')}
-                  onOpenTab={openTab} onUpdateTitle={(title)=>{
-                    setTabsByTool(prev=>({...prev,[t.name]:(prev[t.name]||[]).map(x=>x.id===pt.id?{...x,title}:x)}));
-                  }}/>
+                <div key={pt.id} className="absolute inset-0" style={{display:pt.id===(activeTabByTool[t.name]||'')?'block':'none'}}>
+                  <webview src={pt.url} className="w-full h-full" style={{height:'100%'}}
+                    partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
+                  />
+                </div>
               ))
             )}
           </div>
@@ -157,38 +158,3 @@ export default function ToolsPanel({ mode }: Props) {
 }
 
 /* Individual webview wrapper with event handling */
-function TabWebview({ toolName, tab, active, onOpenTab, onUpdateTitle }: {
-  toolName: string; tab: PageTab; active: boolean;
-  onOpenTab: (toolName:string, url:string)=>void;
-  onUpdateTitle: (title:string)=>void;
-}) {
-  const ref = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const el = ref.current as any;
-    if (!el) return;
-
-    const onTitle = (e: any) => { onUpdateTitle(e.title || tab.title); };
-    const onNewWin = (e: any) => {
-      console.log('NEW-WINDOW', e.url);
-      e.preventDefault();
-      if (e.url) onOpenTab(toolName, e.url);
-    };
-
-    el.addEventListener('page-title-updated', onTitle);
-    el.addEventListener('new-window', onNewWin);
-
-    return () => {
-      el.removeEventListener('page-title-updated', onTitle);
-      el.removeEventListener('new-window', onNewWin);
-    };
-  }, [toolName, tab.id]);
-
-  return (
-    <div className="absolute inset-0" style={{display:active?'block':'none'}}>
-      <webview ref={ref as any} src={tab.url} className="w-full h-full" style={{height:'100%'}}
-        partition={`persist:tool-${toolName.replace(/[^a-zA-Z0-9]/g,'')}`}
-      />
-    </div>
-  );
-}
