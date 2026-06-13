@@ -98,16 +98,37 @@ export default function ToolsPanel({ mode }: Props) {
     });
   }, [activeTool]);
 
-  // Transform navigations into new tabs
+  // Inject navigation capture into webview
   const setupWebview = (el: any, toolName: string, tabUrl: string) => {
     if (!el) return;
 
-    el.addEventListener('will-navigate', (e: any) => {
-      if (e.url === el.src) return; // initial or same-page
-      e.preventDefault();
-      openPageTab(toolName, e.url, '新页面');
+    el.addEventListener('dom-ready', () => {
+      const js = `
+        (function(){
+          var _host = '${tabUrl}';
+          // Override pushState/replaceState
+          var _ps = history.pushState; var _rs = history.replaceState;
+          history.pushState = function(){ var u = arguments[2]; if(u && u!==location.href){ console.log('__CTAB__'+u); } return _ps.apply(this,arguments); };
+          history.replaceState = function(){ var u = arguments[2]; if(u && u!==location.href){ console.log('__CTAB__'+u); } return _rs.apply(this,arguments); };
+          // Capture link clicks
+          document.addEventListener('click', function(e){ var a=e.target.closest('a'); if(a&&a.href&&!a.href.startsWith('javascript')){ var u=new URL(a.href,location.href).href; if(u!==location.href&&a.target!=='_self'){ e.preventDefault();e.stopPropagation();console.log('__CTAB__'+u);} } },true);
+          // Override window.open
+          window.open = function(u){ if(u){console.log('__CTAB__'+u);} return null; };
+        })();
+      `;
+      el.executeJavaScript(js).catch(()=>{});
     });
 
+    // Listen for console messages from injected JS
+    el.addEventListener('console-message', (e: any) => {
+      const m = e.message || '';
+      if (m.startsWith('__CTAB__')) {
+        const url = m.replace('__CTAB__', '');
+        openPageTab(toolName, url, '新页面');
+      }
+    });
+
+    // Also handle native new-window
     el.addEventListener('new-window', (e: any) => {
       e.preventDefault();
       if (e.url && e.url !== 'about:blank') openPageTab(toolName, e.url, e.frameName || '新页面');
