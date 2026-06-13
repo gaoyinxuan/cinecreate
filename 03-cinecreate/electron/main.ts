@@ -18,6 +18,16 @@ function createWindow() {
     }
   });
 
+  // Intercept all popups from webviews
+  mainWindow.webContents.on('did-attach-webview', (_e, wc) => {
+    wc.setWindowOpenHandler(({ url }) => {
+      if (url && url !== 'about:blank') {
+        mainWindow?.webContents.send('tool:open-tab', url);
+      }
+      return { action: 'deny' };
+    });
+  });
+
   // In dev mode (no built renderer), load from Vite; otherwise load built files
   const rendererPath = path.join(__dirname, '../renderer/index.html');
   if (!fs.existsSync(rendererPath)) {

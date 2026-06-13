@@ -60,6 +60,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getApiKey: (): Promise<string> => ipcRenderer.invoke('app:getApiKey'),
   setApiKey: (key: string) => ipcRenderer.invoke('app:setApiKey', key),
 
+  // Tool tab events
+  onToolOpenTab: (cb: (url: string) => void) => {
+    const h = (_e: any, url: string) => cb(url);
+    ipcRenderer.on('tool:open-tab', h);
+    return () => { ipcRenderer.removeListener('tool:open-tab', h); };
+  },
+
   // Dialogs
   confirm: (message: string, title?: string): Promise<boolean> => ipcRenderer.invoke('dialog:confirm', message, title),
 });

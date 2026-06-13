@@ -78,6 +78,17 @@ export default function ToolsPanel({ mode }: Props) {
     setActiveTabByTool(prev => ({...prev, [toolName]: tabId}));
   };
 
+  // IPC listener: main process sends URLs captured from webviews
+  const api = (window as any).electronAPI;
+  useEffect(() => {
+    if (!api || !activeTool) return;
+    return api.onToolOpenTab((url: string) => {
+      const tab: PageTab = { id: tid(), url, title: '加载中...' };
+      setTabsByTool(prev => ({...prev, [activeTool.name]: [...(prev[activeTool.name]||[]), tab]}));
+      setActiveTabByTool(prev => ({...prev, [activeTool.name]: tab.id}));
+    });
+  }, [activeTool?.name]);
+
   // When webview loads, track URL + title. When user navigates away, create new tab.
   const handleWebview = (el: any, toolName: string, tabId: string) => {
     if (!el) return;
