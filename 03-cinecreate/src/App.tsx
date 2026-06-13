@@ -308,7 +308,7 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <AssetDrawer projectId={activeId} />
+      <AssetDrawer projectId={activeId} onOpenPanel={() => { setSelectedDraftId(null); setToolMode(null); setViewMode('assets'); }} />
       <div className="flex h-screen">
         <ProjectSidebar
           projects={projects} activeId={activeId} activeSeqId={activeSeqId}
