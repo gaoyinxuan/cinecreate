@@ -98,30 +98,21 @@ export default function ToolsPanel({ mode }: Props) {
     });
   }, [activeTool]);
 
-  // Handle webview: transform navigations into new tabs
+  // Transform navigations into new tabs
   const setupWebview = (el: any, toolName: string, tabUrl: string) => {
     if (!el) return;
-    let initialLoad = true;
 
-    el.addEventListener('did-finish-load', () => { initialLoad = false; });
-    el.addEventListener('did-navigate', () => { initialLoad = false; });
-
-    // User clicks a link → open as new tab instead of navigating away
     el.addEventListener('will-navigate', (e: any) => {
-      if (initialLoad || e.url === tabUrl || e.url === el.src) return;
+      if (e.url === el.src) return; // initial or same-page
       e.preventDefault();
       openPageTab(toolName, e.url, '新页面');
     });
 
-    // window.open / target=_blank → new tab
     el.addEventListener('new-window', (e: any) => {
       e.preventDefault();
-      if (e.url && e.url !== 'about:blank') {
-        openPageTab(toolName, e.url, e.frameName || '新页面');
-      }
+      if (e.url && e.url !== 'about:blank') openPageTab(toolName, e.url, e.frameName || '新页面');
     });
 
-    // Track page title
     el.addEventListener('page-title-updated', (e: any) => {
       setPageTabs(prev => {
         const cur = prev[toolName] || [];
