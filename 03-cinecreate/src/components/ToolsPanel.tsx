@@ -163,38 +163,24 @@ function TabWebview({ toolName, tab, active, onOpenTab, onUpdateTitle }: {
   onUpdateTitle: (title:string)=>void;
 }) {
   const ref = useRef<HTMLElement>(null);
-  const loadedRef = useRef(false);
 
   useEffect(() => {
     const el = ref.current as any;
     if (!el) return;
 
-    const onDomReady = () => { loadedRef.current = true; };
     const onTitle = (e: any) => { onUpdateTitle(e.title || tab.title); };
-
-    // window.open → new tab
     const onNewWin = (e: any) => {
+      console.log('NEW-WINDOW', e.url);
       e.preventDefault();
       if (e.url) onOpenTab(toolName, e.url);
     };
 
-    // same-page navigation to new URL → new tab
-    const onWillNav = (e: any) => {
-      if (!loadedRef.current || e.url === el.src) return;
-      e.preventDefault();
-      onOpenTab(toolName, e.url);
-    };
-
-    el.addEventListener('dom-ready', onDomReady);
     el.addEventListener('page-title-updated', onTitle);
     el.addEventListener('new-window', onNewWin);
-    el.addEventListener('will-navigate', onWillNav);
 
     return () => {
-      el.removeEventListener('dom-ready', onDomReady);
       el.removeEventListener('page-title-updated', onTitle);
       el.removeEventListener('new-window', onNewWin);
-      el.removeEventListener('will-navigate', onWillNav);
     };
   }, [toolName, tab.id]);
 
