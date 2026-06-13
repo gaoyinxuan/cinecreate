@@ -160,8 +160,6 @@ export default function ToolsPanel({ mode }: Props) {
               </div>
             );
           })}
-          <button className="h-8 w-8 flex items-center justify-center text-[var(--text3)] hover:text-[var(--text)] hover:bg-[var(--bg)]/50 rounded-t-lg text-sm shrink-0 mb-0"
-            onClick={() => addTab(activeTool.name)} title="新建标签页">+</button>
         </div>
       )}
 
