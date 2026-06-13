@@ -94,8 +94,9 @@ export default function ToolsPanel({ mode }: Props) {
     const tabId = activePageId;
     webviewRefs.current[`${toolName}-${tabId}`] = el;
 
-    // Only intercept new-window (target=_blank, window.open with new-window disposition)
+    // Intercept all popup/new-window attempts
     el.addEventListener('new-window', (e: any) => {
+      e.preventDefault();
       if (e.url && e.url !== 'about:blank') {
         openPageTab(toolName, e.url, e.frameName || '新页面');
       }
@@ -168,11 +169,7 @@ export default function ToolsPanel({ mode }: Props) {
                     <webview ref={el => { if(el && pt.id===activePages[t.name]) setupWebview(el, t.name); }}
                       src={pt.url} className="w-full h-full" style={{height:'100%'}}
                       partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
-                      onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
-
-                      // @ts-ignore
-                      allowpopups="false" />
-                  </div>
+                      onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}                  </div>
                 ))}
               </div>
             )}
