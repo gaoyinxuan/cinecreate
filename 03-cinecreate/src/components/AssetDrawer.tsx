@@ -8,7 +8,7 @@ interface StationItem { id: string; name: string; category: string; blobId: stri
 
 // Clean SVG icons — bolder, more recognizable
 const Icons = {
-  station: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M9 21V9"/><circle cx="7" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="6" r="1" fill="currentColor" stroke="none"/></svg>,
+  station: <svg width="20" height="20" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="4" fill="#333"/><rect x="6" y="7" width="12" height="3" rx="1.5" fill="#fff" opacity=".9"/><rect x="6" y="12" width="8" height="3" rx="1.5" fill="#fff" opacity=".5"/></svg>,
   import: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v14"/><polyline points="6 11 12 17 18 11"/><path d="M3 21h18"/></svg>,
   clear: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16"/><path d="M7 7V5a2 2 0 012-2h6a2 2 0 012 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12"/></svg>,
   close: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
@@ -92,9 +92,9 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
         </button>
       )}
 
-      {/* Expanded */}
+      {/* Expanded — floating panel, not full-height */}
       {expanded && (
-        <div className="fixed right-0 top-0 bottom-0 z-[100] w-56 bg-white border-l border-[#e8e5e0] shadow-lg flex flex-col">
+        <div className="fixed right-3 top-20 z-[100] w-56 max-h-[60vh] bg-white border border-[#e8e5e0] shadow-xl rounded-2xl flex flex-col overflow-hidden">
           {/* Header bar */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-[#eee]">
             <div className="flex gap-1.5">
@@ -128,7 +128,7 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {filtered.map(item => (
-                  <div key={item.id} className="group relative aspect-square rounded-lg overflow-hidden bg-[#f0ede8] cursor-grab hover:ring-2 hover:ring-[#ccc] transition-all"
+                  <div key={item.id} className="group relative aspect-square rounded-lg overflow-hidden cursor-grab ring-1 ring-black/5 hover:ring-2 hover:ring-[#ccc] transition-all"
                     draggable onDragStart={e => { e.dataTransfer.setData('text/plain', item.url); }}>
                     <img src={item.url} alt="" className="w-full h-full object-cover pointer-events-none" />
                     <button className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/40 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-all"

@@ -25,11 +25,11 @@ export default function VideoOutputPanel({ sequence, onUpdate }: Props) {
         <div className="flex-1" />
         <input ref={fileRef} type="file" accept="video/mp4,video/webm" multiple className="hidden"
           onChange={e => { if (e.target.files?.length) { addSegment(Array.from(e.target.files)); e.target.value = ''; } }} />
-        <button className="text-xs px-2 py-1 text-[var(--text3)] hover:text-gold-500 hover:bg-white/[0.04] rounded" onClick={()=>fileRef.current?.click()}>+ 添加片段</button>
+        <button className="text-xs px-2 py-1 text-[var(--text3)] hover:text-accent-500 hover:bg-white/[0.04] rounded" onClick={()=>fileRef.current?.click()}>+ 添加片段</button>
         <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs" onClick={()=>setCollapsed(!collapsed)}>{collapsed?'展开 ▼':'收起 ▲'}</button>
       </div>
       {!collapsed && segments.length === 0 && (
-        <div className="border-2 border-dashed border-[var(--border2)] hover:border-gold-400/50 rounded-xl p-8 text-center cursor-pointer"
+        <div className="border-2 border-dashed border-[var(--border2)] hover:border-accent-400/50 rounded-xl p-8 text-center cursor-pointer"
           onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();addSegment(Array.from(e.dataTransfer.files));}} onClick={()=>fileRef.current?.click()}>
           <div className="text-3xl mb-2 opacity-40">🎥</div>
           <div className="text-sm text-[var(--text3)]">导入视频片段</div>
@@ -51,9 +51,9 @@ export default function VideoOutputPanel({ sequence, onUpdate }: Props) {
               <div className="flex gap-4 mt-2">
                 <div className="shrink-0 w-[200px]">{url && <video src={url} controls className="w-full rounded-lg bg-black" onLoadedMetadata={e=>{const d=Math.round((e.target as HTMLVideoElement).duration);if(d&&!seg.duration){const mm=Math.floor(d/60);const ss=d%60;onUpdate({...sequence,videoSegments:segments.map(x=>x.id===seg.id?{...x,duration:`${mm}:${String(ss).padStart(2,'0')}`}:x)});}}} />}</div>
                 <div className="flex-1 flex flex-col gap-2 text-xs">
-                  <div className="flex items-center gap-2"><span className="text-[var(--dim)] w-12">名称</span><input className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded px-2 py-1 text-[var(--text)] outline-none focus:border-gold-400" value={seg.name} onChange={e=>onUpdate({...sequence,videoSegments:segments.map(x=>x.id===seg.id?{...x,name:e.target.value}:x)})} /></div>
+                  <div className="flex items-center gap-2"><span className="text-[var(--dim)] w-12">名称</span><input className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded px-2 py-1 text-[var(--text)] outline-none focus:border-accent-400" value={seg.name} onChange={e=>onUpdate({...sequence,videoSegments:segments.map(x=>x.id===seg.id?{...x,name:e.target.value}:x)})} /></div>
                   <div className="flex items-center gap-2"><span className="text-[var(--dim)] w-12">格式</span><span className="text-[var(--text3)]">{seg.format||'--'}</span><span className="text-[var(--dim)] ml-4 w-12">时长</span><span className="text-[var(--text3)]">{seg.duration||'--'}</span></div>
-                  <div className="flex items-start gap-2"><span className="text-[var(--dim)] w-12 shrink-0 pt-1">备注</span><textarea className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded px-2 py-1 text-[var(--text)] outline-none focus:border-gold-400 resize-none h-10" placeholder="版本备注..." value={seg.versionNote} onChange={e=>onUpdate({...sequence,videoSegments:segments.map(x=>x.id===seg.id?{...x,versionNote:e.target.value}:x)})} /></div>
+                  <div className="flex items-start gap-2"><span className="text-[var(--dim)] w-12 shrink-0 pt-1">备注</span><textarea className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded px-2 py-1 text-[var(--text)] outline-none focus:border-accent-400 resize-none h-10" placeholder="版本备注..." value={seg.versionNote} onChange={e=>onUpdate({...sequence,videoSegments:segments.map(x=>x.id===seg.id?{...x,versionNote:e.target.value}:x)})} /></div>
                   <span className="text-xs text-[var(--muted)]">{seg.exportDate?new Date(seg.exportDate).toLocaleString('zh-CN'):''}</span>
                 </div>
               </div>

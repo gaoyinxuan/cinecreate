@@ -10,7 +10,7 @@ export default function InlinePrompt({ title, defaultValue, onConfirm, onCancel 
     <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50" onClick={onCancel}>
       <div className="bg-[var(--card)] border border-[var(--border2)] rounded-xl p-6 w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="text-sm text-[var(--text)] mb-3">{title}</div>
-        <input ref={ref} className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-gold-400 mb-4"
+        <input ref={ref} className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-accent-400 mb-4"
           value={value} onChange={e => setValue(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onCancel(); }} />
         <div className="flex justify-end gap-2">

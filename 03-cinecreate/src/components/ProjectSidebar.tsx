@@ -73,17 +73,14 @@ export default function ProjectSidebar(props: Props) {
 
   return (
     <div className="w-56 bg-[var(--bg2)] border-r border-[var(--border)] flex flex-col h-full shrink-0">
-      {/* Logo */}
-      <div className="px-4 py-3 border-b border-[var(--border)]">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 256 256" fill="none" className="shrink-0 text-[var(--accent-solid)]"><circle cx="128" cy="128" r="72" stroke="currentColor" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="currentColor"/></svg>
-            <div className="text-[15px] font-bold text-[var(--text)] leading-tight">CineCreate</div>
-          </div>
-          <button className="text-[11px] text-[var(--muted)] hover:text-[var(--text2)]" onClick={() => { toggleTheme(); window.dispatchEvent(new Event('themechange')); }} title="切换主题">
-            {theme==='dark'?'☀️':'🌙'}
-          </button>
-        </div>
+      {/* Logo — exact same structure as right-side headers */}
+      <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-3 px-6 py-2.5">
+        <svg width="18" height="18" viewBox="0 0 256 256" fill="none" className="shrink-0 text-[var(--accent-solid)]"><circle cx="128" cy="128" r="72" stroke="currentColor" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="currentColor"/></svg>
+        <span className="text-base font-bold text-[var(--text)]">CineCreate</span>
+        <div className="flex-1" />
+        <button className="text-xs text-[var(--muted)] hover:text-[var(--text2)]" onClick={() => { toggleTheme(); window.dispatchEvent(new Event('themechange')); }} title="切换主题">
+          {theme==='dark'?'☀️':'🌙'}
+        </button>
       </div>
 
       {/* Content */}
@@ -92,7 +89,7 @@ export default function ProjectSidebar(props: Props) {
         {onShowWelcome && (
           <div className={`flex items-center gap-2 h-7 px-2 rounded cursor-pointer mb-1 text-[12px] ${!activeId?'bg-black/5 text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text)] hover:bg-black/3'}`}
             onClick={onShowWelcome}>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0 opacity-50"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><circle cx="5" cy="3.5" r="0.5" fill="currentColor"/><path d="M4.5 5v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0 opacity-50"><path d="M1 2.5C2.5 2 3.8 2.2 5 3M5 3c1.2-.8 2.5-1 4-.5M1 2.5v5.5C2.5 7.5 3.8 7.7 5 8M5 3v5c1.2-.3 2.5-.5 4 0V2.5" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>新手引导</span>
           </div>
         )}
@@ -186,7 +183,7 @@ export default function ProjectSidebar(props: Props) {
                   <div className={`${rowBase} px-1 text-[var(--text3)] hover:text-[var(--text2)]`}
                     onClick={()=>setShowTool({[prj.id]:!showTool[prj.id]})}>
                     <span className="w-3.5 flex items-center justify-center shrink-0">
-                      {showTool[prj.id] ? chevron(true) : <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50"><circle cx="5" cy="5" r="1.5" stroke="currentColor" stroke-width="1"/><circle cx="5" cy="5" r="0.5" fill="currentColor"/><g stroke="currentColor" stroke-width="0.8" stroke-linecap="round"><line x1="5" y1="2.5" x2="5" y2="1"/><line x1="7.16" y1="3.54" x2="8.06" y2="3.06"/><line x1="7.5" y1="5" x2="8.5" y2="5"/><line x1="3.54" y1="7.16" x2="3.06" y2="8.06"/></g></svg>}
+                      {showTool[prj.id] ? chevron(true) : <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50"><circle cx="3.5" cy="3.5" r="2" stroke="currentColor" stroke-width="1"/><path d="M5 5l3.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>}
                     </span>
                     <span className="text-[11px] flex-1">工具</span>
                   </div>

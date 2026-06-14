@@ -73,9 +73,10 @@ export default function Timeline({ shots, sequences, activeSeqId, scrollContaine
 
   return (
     <div className="w-48 bg-[var(--bg2)] border-l border-[var(--border)] flex flex-col h-full shrink-0 overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border)]">
-        <span className="text-xs text-[var(--dim)] font-semibold">时间轴</span>
-        <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs" onClick={()=>setCollapsed(true)}>◀</button>
+      <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-3 px-6 py-2.5">
+        <span className="text-base font-bold text-[var(--text)]">时间轴</span>
+        <div className="flex-1" />
+        <button className="text-xs text-[var(--muted)] hover:text-[var(--text2)]" onClick={()=>setCollapsed(true)}>◀</button>
       </div>
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         {(groups||[]).map(group => {
@@ -95,7 +96,7 @@ export default function Timeline({ shots, sequences, activeSeqId, scrollContaine
               const isOver = s.id === dragOverId;
               return (
                 <div key={s.id}
-                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all duration-200 ${isActive?'bg-[var(--accent-solid)]/15 border border-gold-400/20':'hover:bg-white/[0.04] border border-transparent'} ${isDragging?'tl-dragging':''} ${landedId===s.id?'tl-landed':''}`}
+                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all duration-200 ${isActive?'bg-[var(--accent-solid)]/15 border border-accent-400/20':'hover:bg-white/[0.04] border border-transparent'} ${isDragging?'tl-dragging':''} ${landedId===s.id?'tl-landed':''}`}
                   style={{cursor:isDragging?'grabbing':'pointer'}}
                   draggable onDragStart={e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',s.id);setDragShotId(s.id);setDragOverId(null);}}
                   onDragOver={e=>{e.preventDefault();if(s.id!==dragShotId){setInsertPos(e.clientY<(e.currentTarget as HTMLElement).getBoundingClientRect().top+(e.currentTarget as HTMLElement).getBoundingClientRect().height/2?'before':'after');setDragOverId(s.id);}}}

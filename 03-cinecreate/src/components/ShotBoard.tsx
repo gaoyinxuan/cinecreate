@@ -38,7 +38,7 @@ export default function ShotBoard({ project, shots, shotGlobalNum, onChangeShot,
   }
 
   const dropZone = (msg: string) => (
-    <div className="border-2 border-dashed border-[var(--border2)] hover:border-gold-400/50 rounded-xl p-12 text-center cursor-pointer"
+    <div className="border-2 border-dashed border-[var(--border2)] hover:border-accent-400/50 rounded-xl p-12 text-center cursor-pointer"
       onMouseEnter={() => { pasteTargetRef.current = { type: 'new-shot' }; }}
       onMouseLeave={() => { pasteTargetRef.current = null; }}
       onDragOver={e => { e.preventDefault(); }}
