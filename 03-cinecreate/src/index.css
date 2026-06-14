@@ -6,20 +6,20 @@
 
 /* Theme variables */
 :root,[data-theme="dark"]{
-  --bg:#0f0f0f;--bg2:#141414;--card:#1a1a1a;--card2:#111111;--input:#111111;
-  --text:#e8e8f0;--text2:#aaa;--text3:#888;--muted:#555;--dim:#666;
-  --border:#1e1e1e;--border2:#2a2a2a;--hover:rgba(255,255,255,0.03);
-  --accent-bg:rgba(214,179,106,0.12);--accent-text:#D6B36A;
-  --accent-solid:#D6B36A;--accent-hover:#C49A3C;
-  --scrollbar-thumb:#2a2a2a;--scrollbar-hover:#3a3a3a;
-  --surface:#0a0a0a;
+  --bg:#08090A;--bg2:#0E1013;--card:#121418;--card2:#0E1013;--input:#0E1013;
+  --text:#F3F4F6;--text2:#B4B8C2;--text3:#7A7F89;--muted:#5A5F69;--dim:#6A6F79;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.10);--hover:rgba(255,255,255,0.04);
+  --accent-bg:rgba(111,120,246,0.12);--accent-text:#6F78F6;
+  --accent-solid:#6F78F6;--accent-hover:#7D86FF;
+  --scrollbar-thumb:#1D222B;--scrollbar-hover:#23262D;
+  --surface:#0A0C10;
 }
 [data-theme="light"]{
   --bg:#ffffff;--bg2:#f9f9fb;--card:#ffffff;--card2:#f5f5f7;--input:#ffffff;
   --text:#0a0a0a;--text2:#1a1a1a;--text3:#2a2a2a;--muted:#666666;--dim:#888888;
   --border:#e8e8ea;--border2:#dddde0;--hover:rgba(0,0,0,0.04);
-  --accent-bg:rgba(0,0,0,0.04);--accent-text:#2d2d2d;
-  --accent-solid:#2d2d2d;--accent-hover:#404040;
+  --accent-bg:rgba(0,0,0,0.04);--accent-text:#1a1a1a;
+  --accent-solid:#1a1a1a;--accent-hover:#333;
   --scrollbar-thumb:#d0d0d4;--scrollbar-hover:#b0b0b4;
   --surface:#f4f4f6;
 }
