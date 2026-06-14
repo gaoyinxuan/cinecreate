@@ -2,9 +2,17 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../services/dbService';
 
 let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
-const CATS = ['人物','场景','道具','参考','Prompt'];
+const CATS = ['人物','场景','道具','参考'];
 
 interface StationItem { id: string; name: string; category: string; blobId: string; url: string; }
+
+// Simple SVG line icons for consistency
+const Icons = {
+  station: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
+  import: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  clear: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+  close: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+};
 
 export default function AssetDrawer({ projectId }: { projectId: string | null; onOpenPanel?: () => void }) {
   const [items, setItems] = useState<StationItem[]>([]);
@@ -34,11 +42,6 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
     setItems(prev => {
       const next = [...prev, item].slice(-20);
       db.meta.set(`station_${projectId}`, next.map(({url,...r})=>r));
-      db.meta.get(`assetlib_${projectId}`).then(meta => {
-        const list = Array.isArray(meta) ? meta : [];
-        list.push({ id: item.id, name: item.name, category: filter, blobId, createdAt: new Date().toISOString() });
-        db.meta.set(`assetlib_${projectId}`, list);
-      });
       return next;
     });
     setExpanded(true);
@@ -53,6 +56,12 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
       return next;
     });
   }, [projectId]);
+
+  const clearAll = useCallback(() => {
+    items.forEach(i => URL.revokeObjectURL(i.url));
+    setItems([]);
+    db.meta.set(`station_${projectId}`, []);
+  }, [items, projectId]);
 
   useEffect(() => {
     const h = async (e: ClipboardEvent) => {
@@ -74,53 +83,55 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
 
   return (
     <>
-      {/* Collapsed — just an icon on the right edge */}
+      {/* Collapsed — slim icon tab on right edge */}
       {!expanded && (
-        <button className="fixed right-0 top-1/2 -translate-y-1/2 z-[100] w-8 h-20 bg-white border border-[#e8e5e0] shadow-sm rounded-l-xl flex flex-col items-center justify-center gap-1 hover:shadow-md transition-all"
+        <button className="fixed right-0 top-1/2 -translate-y-1/2 z-[100] w-7 h-16 bg-white border border-[#e8e5e0] shadow-sm rounded-l-lg flex flex-col items-center justify-center gap-0.5 hover:shadow-md hover:w-8 transition-all text-[#888] hover:text-[#333]"
           onClick={() => setExpanded(true)}>
-          <span className="text-base">📦</span>
-          {items.length > 0 && <span className="text-[10px] text-[#888] font-medium">{items.length}</span>}
+          {Icons.station}
+          {items.length > 0 && <span className="text-[9px] font-medium">{items.length}</span>}
         </button>
       )}
 
-      {/* Expanded panel */}
+      {/* Expanded */}
       {expanded && (
-        <div className="fixed right-0 top-0 bottom-0 z-[100] w-56 bg-white border-l border-[#e8e5e0] shadow-xl flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#eee]">
-            <div className="flex gap-1">
+        <div className="fixed right-0 top-0 bottom-0 z-[100] w-56 bg-white border-l border-[#e8e5e0] shadow-lg flex flex-col">
+          {/* Header bar */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#eee]">
+            <div className="flex gap-1.5">
               <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden"
                 onChange={async e => {
                   if (e.target.files?.length) { for (const f of Array.from(e.target.files)) await addItem(f); e.target.value = ''; }
                 }} />
-              <button className="w-7 h-7 rounded-lg hover:bg-[#f5f3ef] flex items-center justify-center text-sm transition-colors"
-                onClick={() => fileRef.current?.click()} title="导入">📷</button>
-              <button className="w-7 h-7 rounded-lg hover:bg-[#f5f3ef] flex items-center justify-center text-sm transition-colors"
-                onClick={() => { setItems([]); items.forEach(i => URL.revokeObjectURL(i.url)); db.meta.set(`station_${projectId}`, []); }} title="清空">🗑</button>
+              <button className="w-7 h-7 rounded-md hover:bg-[#f5f3ef] flex items-center justify-center text-[#888] hover:text-[#333] transition-colors"
+                onClick={() => fileRef.current?.click()} title="导入">{Icons.import}</button>
+              {items.length > 0 && (
+                <button className="w-7 h-7 rounded-md hover:bg-[#f5f3ef] flex items-center justify-center text-[#888] hover:text-red-500 transition-colors"
+                  onClick={clearAll} title="清空">{Icons.clear}</button>
+              )}
             </div>
-            <button className="w-7 h-7 rounded-lg hover:bg-[#f5f3ef] flex items-center justify-center text-sm text-[#aaa] transition-colors"
-              onClick={() => setExpanded(false)}>✕</button>
+            <button className="w-7 h-7 rounded-md hover:bg-[#f5f3ef] flex items-center justify-center text-[#aaa] hover:text-[#333] transition-colors"
+              onClick={() => setExpanded(false)} title="关闭">{Icons.close}</button>
           </div>
 
           {/* Category pills */}
-          <div className="flex gap-1 px-3 py-2 border-b border-[#eee] flex-wrap">
+          <div className="flex gap-1 px-3 py-2 border-b border-[#eee]">
             {CATS.map(c => (
-              <button key={c} className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${filter===c?'bg-[#333] text-white':'text-[#888] hover:bg-[#f5f3ef]'}`}
+              <button key={c} className={`text-[10px] px-2.5 py-1 rounded-full transition-colors ${filter===c?'bg-[#333] text-white':'text-[#888] hover:bg-[#f5f3ef]'}`}
                 onClick={() => setFilter(c)}>{c}</button>
             ))}
           </div>
 
-          {/* Thumbnail grid */}
+          {/* Grid */}
           <div className="flex-1 overflow-y-auto p-2">
             {filtered.length === 0 ? (
-              <div className="text-center py-8 text-[10px] text-[#bbb]">拖拽 / Ctrl+V / 📷</div>
+              <div className="text-center py-10 text-[10px] text-[#bbb]">拖拽 / Ctrl+V / 导入</div>
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {filtered.map(item => (
-                  <div key={item.id} className="group relative aspect-square rounded-lg overflow-hidden bg-[#f0ede8] cursor-grab hover:ring-2 hover:ring-[#d4c8b0] transition-all"
+                  <div key={item.id} className="group relative aspect-square rounded-lg overflow-hidden bg-[#f0ede8] cursor-grab hover:ring-2 hover:ring-[#ccc] transition-all"
                     draggable onDragStart={e => { e.dataTransfer.setData('text/plain', item.url); }}>
                     <img src={item.url} alt="" className="w-full h-full object-cover pointer-events-none" />
-                    <button className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-all"
+                    <button className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/40 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-all"
                       onClick={e => { e.stopPropagation(); removeItem(item); }}>✕</button>
                   </div>
                 ))}
