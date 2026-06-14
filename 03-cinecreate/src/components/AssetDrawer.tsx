@@ -70,33 +70,43 @@ export default function AssetDrawer({ projectId, onOpenPanel }: { projectId: str
     return () => window.removeEventListener('paste', h);
   }, [addItem]);
 
-  if (!projectId || items.length === 0) return null;
+  if (!projectId) return null;
 
   return (
     <>
-      {/* Collapsed pill */}
+      {/* Collapsed trigger — always visible */}
       {!expanded && (
         <button className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[100] bg-white border border-[#e8e5e0] shadow-lg rounded-full px-4 py-2 flex items-center gap-2 text-[12px] text-[#555] hover:shadow-xl transition-all"
           onClick={() => setExpanded(true)}>
           <span>📦</span>
-          <span className="font-medium">{items.length} 项素材</span>
+          {items.length > 0 ? (
+            <span className="font-medium">{items.length} 项</span>
+          ) : (
+            <span className="text-[#aaa]">中转站</span>
+          )}
         </button>
       )}
 
       {/* Expanded strip */}
       {expanded && (
         <div className="fixed bottom-3 left-4 right-4 z-[100] bg-white/95 backdrop-blur border border-[#e8e5e0] shadow-xl rounded-2xl p-3 flex items-center gap-2">
-          {/* Thumbnails */}
-          <div className="flex gap-2 overflow-x-auto flex-1 pb-1">
-            {items.map(item => (
-              <div key={item.id} className="group relative shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-[#f0ede8] border border-[#eee] cursor-grab hover:shadow-md transition-all"
-                draggable
-                onDragStart={e => { e.dataTransfer.setData('text/plain', item.url); }}>
-                <img src={item.url} alt={item.name} className="w-full h-full object-cover pointer-events-none" />
-                <button className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-all"
-                  onClick={e => { e.stopPropagation(); removeItem(item); }}>✕</button>
+          {/* Thumbnails or empty prompt */}
+          <div className="flex gap-2 overflow-x-auto flex-1 pb-1 min-h-[56px] items-center">
+            {items.length === 0 ? (
+              <div className="text-[12px] text-[#bbb] text-center w-full">
+                拖拽文件到此处 · Ctrl+V 粘贴 · 点击下方 📷 导入
               </div>
-            ))}
+            ) : (
+              items.map(item => (
+                <div key={item.id} className="group relative shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-[#f0ede8] border border-[#eee] cursor-grab hover:shadow-md transition-all"
+                  draggable
+                  onDragStart={e => { e.dataTransfer.setData('text/plain', item.url); }}>
+                  <img src={item.url} alt={item.name} className="w-full h-full object-cover pointer-events-none" />
+                  <button className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-all"
+                    onClick={e => { e.stopPropagation(); removeItem(item); }}>✕</button>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Actions */}
@@ -112,8 +122,10 @@ export default function AssetDrawer({ projectId, onOpenPanel }: { projectId: str
               onClick={() => fileRef.current?.click()} title="导入">📷</button>
             <button className="w-8 h-8 rounded-lg hover:bg-[#f5f3ef] flex items-center justify-center text-sm text-[#888] transition-colors"
               onClick={onOpenPanel} title="素材库">🗂</button>
-            <button className="w-8 h-8 rounded-lg hover:bg-[#f5f3ef] flex items-center justify-center text-sm text-[#888] transition-colors"
-              onClick={() => { setItems([]); db.meta.set(`station_${projectId}`, []); }} title="清空">🗑</button>
+            {items.length > 0 && (
+              <button className="w-8 h-8 rounded-lg hover:bg-[#f5f3ef] flex items-center justify-center text-sm text-[#888] transition-colors"
+                onClick={() => { setItems([]); db.meta.set(`station_${projectId}`, []); }} title="清空">🗑</button>
+            )}
             <button className="w-8 h-8 rounded-lg hover:bg-[#f5f3ef] flex items-center justify-center text-[10px] text-[#aaa] transition-colors"
               onClick={() => setExpanded(false)} title="收起">▲</button>
           </div>
