@@ -81,7 +81,7 @@ export default function DocumentsPanel({ projectId, onImportToStoryboard }: { pr
           {isFolder && <span className="text-xs w-3">{expanded ? '▼' : '▶'}</span>}
           <span className="shrink-0">{isFolder ? (expanded ? '📂' : '📁') : '📄'}</span>
           {renaming ? (
-            <input className="flex-1 bg-[var(--card)] border border-accent-400 rounded px-1 text-xs text-[var(--text)] outline-none"
+            <input className="flex-1 bg-[var(--card)] border border-gold-400 rounded px-1 text-xs text-[var(--text)] outline-none"
               value={name} onChange={e => setName(e.target.value)}
               onBlur={() => { setRenaming(false); if(name.trim()) handleRename(doc.id, name.trim()); }}
               onKeyDown={e => { if(e.key==='Enter'){setRenaming(false);if(name.trim())handleRename(doc.id,name.trim());}if(e.key==='Escape')setRenaming(false); }}
@@ -124,11 +124,11 @@ export default function DocumentsPanel({ projectId, onImportToStoryboard }: { pr
         {selected ? (
           <>
             <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg)]">
-              <input className="bg-transparent text-sm font-semibold text-[var(--text)] outline-none border-b border-transparent hover:border-[#333] focus:border-accent-400 flex-1"
+              <input className="bg-transparent text-sm font-semibold text-[var(--text)] outline-none border-b border-transparent hover:border-[#333] focus:border-gold-400 flex-1"
                 value={editTitle} onChange={e => { setEditTitle(e.target.value); setDirty(true); }} />
               <span className={`text-xs ${dirty ? 'text-yellow-400' : 'text-[var(--muted)]'}`}>{dirty ? '● 未保存' : '✓ 已保存'}</span>
               {onImportToStoryboard && (
-                <button className="text-xs px-2 py-1 bg-accent-600/20 hover:bg-accent-600/30 text-[#7A8B5A] rounded border border-accent-600/20"
+                <button className="text-xs px-2 py-1 bg-gold-600/20 hover:bg-gold-600/30 text-[#7A8B5A] rounded border border-gold-600/20"
                   onClick={() => onImportToStoryboard(selected)}>→ 导入分镜</button>
               )}
             </div>

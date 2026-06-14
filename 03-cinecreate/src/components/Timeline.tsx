@@ -96,7 +96,7 @@ export default function Timeline({ shots, sequences, activeSeqId, scrollContaine
               const isOver = s.id === dragOverId;
               return (
                 <div key={s.id}
-                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all duration-200 ${isActive?'bg-[var(--accent-solid)]/15 border border-accent-400/20':'hover:bg-white/[0.04] border border-transparent'} ${isDragging?'tl-dragging':''} ${landedId===s.id?'tl-landed':''}`}
+                  className={`relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all duration-200 ${isActive?'bg-[var(--accent-solid)]/15 border border-gold-400/20':'hover:bg-white/[0.04] border border-transparent'} ${isDragging?'tl-dragging':''} ${landedId===s.id?'tl-landed':''}`}
                   style={{cursor:isDragging?'grabbing':'pointer'}}
                   draggable onDragStart={e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',s.id);setDragShotId(s.id);setDragOverId(null);}}
                   onDragOver={e=>{e.preventDefault();if(s.id!==dragShotId){setInsertPos(e.clientY<(e.currentTarget as HTMLElement).getBoundingClientRect().top+(e.currentTarget as HTMLElement).getBoundingClientRect().height/2?'before':'after');setDragOverId(s.id);}}}

@@ -49,7 +49,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
   const imgUrl = (blob?: Blob) => blob ? URL.createObjectURL(blob) : null;
 
   return (
-    <div className={`space-y-3 ${dragOver ? 'ring-2 ring-accent-400 rounded-lg' : ''}`}
+    <div className={`space-y-3 ${dragOver ? 'ring-2 ring-gold-400 rounded-lg' : ''}`}
       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) addVariant(Array.from(e.dataTransfer.files)); }}>
@@ -78,7 +78,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
         {(variants||[]).map((v, i) => {
           const isP = v.isPrimary;
           return (
-            <div key={v.id} className={`relative shrink-0 w-24 rounded-lg overflow-hidden border-2 transition-colors group/var ${isP ? 'border-accent-500' : 'border-transparent hover:border-[var(--border2)]'}`}>
+            <div key={v.id} className={`relative shrink-0 w-24 rounded-lg overflow-hidden border-2 transition-colors group/var ${isP ? 'border-gold-500' : 'border-transparent hover:border-[var(--border2)]'}`}>
               <div className="aspect-video bg-[var(--card2)] cursor-pointer" onClick={() => onLightbox(v.imageBlob!, v.label)}>
                 {v.imageBlob && <img src={imgUrl(v.imageBlob)!} className="w-full h-full object-cover" alt="" />}
               </div>
@@ -93,7 +93,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
             </div>
           );
         })}
-        <label className="shrink-0 w-24 aspect-video rounded-lg border-2 border-dashed border-[var(--border2)] hover:border-accent-400/50 flex flex-col items-center justify-center cursor-pointer group/add"
+        <label className="shrink-0 w-24 aspect-video rounded-lg border-2 border-dashed border-[var(--border2)] hover:border-gold-400/50 flex flex-col items-center justify-center cursor-pointer group/add"
           onMouseEnter={() => { pasteTargetRef.current = { type: 'variant', shotId }; }}
           onMouseLeave={() => { pasteTargetRef.current = null; }}>
           <span className="text-2xl text-[var(--dim)] group-hover/add:text-[var(--dim)]">+</span>

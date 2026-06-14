@@ -13,7 +13,7 @@ export default function PresetTags({ tags, onChange }: Props) {
   const count = tags.length;
   return (
     <div className="relative" onMouseLeave={() => setOpen(false)}>
-      <button className={`text-xs px-2 py-1 rounded flex items-center gap-1 max-w-[200px] ${count ? 'bg-[var(--accent-solid)]/15 text-[var(--text)] border border-accent-400/20' : 'text-[var(--muted)] hover:text-[var(--text3)] border border-transparent hover:border-[var(--border2)]'}`}
+      <button className={`text-xs px-2 py-1 rounded flex items-center gap-1 max-w-[200px] ${count ? 'bg-[var(--accent-solid)]/15 text-[var(--text)] border border-gold-400/20' : 'text-[var(--muted)] hover:text-[var(--text3)] border border-transparent hover:border-[var(--border2)]'}`}
         onClick={() => setOpen(!open)}>
         <span>🏷</span>
         {count > 0 ? <span className="text-xs truncate">{tags.join(', ')}</span> : <span className="text-xs opacity-50">标签</span>}

@@ -45,7 +45,7 @@ export default function DocEditor({ projectId, docId, onDocUpdated }: Props) {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-3 bg-[var(--bg2)] border-b border-[var(--border)]">
-        <input className="bg-transparent text-base font-bold text-[var(--text)] outline-none border-b border-transparent hover:border-[#333] focus:border-accent-400 flex-1"
+        <input className="bg-transparent text-base font-bold text-[var(--text)] outline-none border-b border-transparent hover:border-[#333] focus:border-gold-400 flex-1"
           value={title} onChange={e => handleChange(e.target.value, content)} />
         <span className={`text-xs ${dirty ? 'text-yellow-400' : 'text-[var(--muted)]'}`}>{dirty ? '● 未保存' : '✓ 已保存'}</span>
       </div>
