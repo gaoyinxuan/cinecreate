@@ -83,12 +83,12 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
 
   return (
     <>
-      {/* Collapsed — slim icon tab on right edge */}
+      {/* Collapsed — distinctive floating tab */}
       {!expanded && (
-        <button className="fixed right-0 top-1/2 -translate-y-1/2 z-[100] w-7 h-16 bg-white border border-[#e8e5e0] shadow-sm rounded-l-lg flex flex-col items-center justify-center gap-0.5 hover:shadow-md hover:w-8 transition-all text-[#888] hover:text-[#333]"
+        <button className="fixed right-0 top-1/2 -translate-y-1/2 z-[100] w-8 h-14 bg-white border border-[#ddd] shadow-md rounded-l-xl flex flex-col items-center justify-center gap-0.5 hover:shadow-lg hover:border-[#ccc] hover:-translate-x-0.5 transition-all text-[#666] hover:text-[#111]"
           onClick={() => setExpanded(true)}>
           {Icons.station}
-          {items.length > 0 && <span className="text-[9px] font-medium">{items.length}</span>}
+          {items.length > 0 && <span className="text-[10px] font-semibold text-[#555]">{items.length}</span>}
         </button>
       )}
 
