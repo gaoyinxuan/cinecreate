@@ -18,8 +18,8 @@
   --bg:#ffffff;--bg2:#f9f9fb;--card:#ffffff;--card2:#f5f5f7;--input:#ffffff;
   --text:#0a0a0a;--text2:#1a1a1a;--text3:#2a2a2a;--muted:#666666;--dim:#888888;
   --border:#e8e8ea;--border2:#dddde0;--hover:rgba(0,0,0,0.04);
-  --accent-bg:rgba(0,0,0,0.04);--accent-text:#1a1a1a;
-  --accent-solid:#1a1a1a;--accent-hover:#333;
+  --accent-bg:rgba(0,0,0,0.04);--accent-text:#2d2d2d;
+  --accent-solid:#2d2d2d;--accent-hover:#404040;
   --scrollbar-thumb:#d0d0d4;--scrollbar-hover:#b0b0b4;
   --surface:#f4f4f6;
 }
