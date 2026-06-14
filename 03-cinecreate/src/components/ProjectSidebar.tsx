@@ -11,13 +11,12 @@ interface Props {
   onSelectDraft: (draftId: string) => void; selectedDraftId: string | null;
   onSelectStoryboard: () => void;
   onSelectImageTools: () => void; onSelectVideoTools: () => void;
-  onSelectAssets: () => void;
   activeMode: string | null;
   onShowWelcome?: () => void;
 }
 
 export default function ProjectSidebar(props: Props) {
-  const { projects, activeId, onSelect, onCreate, onRename, onDelete, onSelectDraft, selectedDraftId, onSelectStoryboard, onSelectImageTools, onSelectVideoTools, onSelectAssets, activeMode, onShowWelcome } = props;
+  const { projects, activeId, onSelect, onCreate, onRename, onDelete, onSelectDraft, selectedDraftId, onSelectStoryboard, onSelectImageTools, onSelectVideoTools, activeMode, onShowWelcome } = props;
 
   const [editId, setEditId] = useState<string|null>(null);
   const [editName, setEditName] = useState('');
@@ -180,15 +179,6 @@ export default function ProjectSidebar(props: Props) {
                       </div>
                     ))}
                   </div>}
-                </div>
-
-                {/* 素材 */}
-                <div className={`${rowBase} px-1 ${activeMode==='assets'?'bg-black/5 text-[var(--text)] font-medium':'text-[var(--text3)] hover:text-[var(--text2)]'}`}
-                  onClick={()=>onSelectAssets()}>
-                  <span className="w-3.5 flex items-center justify-center shrink-0">
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="opacity-50"><rect x="0.5" y="0.5" width="4" height="4" rx="0.5" stroke="currentColor" stroke-width="1"/><rect x="5.5" y="0.5" width="4" height="4" rx="0.5" stroke="currentColor" stroke-width="1"/><rect x="0.5" y="5.5" width="4" height="4" rx="0.5" stroke="currentColor" stroke-width="1"/><rect x="5.5" y="5.5" width="4" height="4" rx="0.5" stroke="currentColor" stroke-width="1"/></svg>
-                  </span>
-                  <span className="text-[11px]">素材</span>
                 </div>
 
                 {/* 工具 */}
