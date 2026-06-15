@@ -27,17 +27,20 @@ export default function ToolsPanel({ mode }: Props) {
   const [nm, setNm] = useState(''); const [ur, setUr] = useState('');
   const [showOnboard, dismissOnboard, showGuide] = useOnboarding('onboard-tools');
 
+  // Track real mount/unmount
+  useEffect(() => { console.log('[ToolsPanel] ✅ REAL MOUNT mode='+mode); return () => { console.log('[ToolsPanel] ❌ REAL UNMOUNT'); }; }, []);
   const filtered = tools.filter(t=>t.cat===mode);
+  console.log('[ToolsPanel] 🔄 RENDER mode='+mode+' filtered='+filtered.length);
   useEffect(() => { if(activeIdx >= filtered.length) setActiveIdx(0); }, [filtered.length]);
 
-  // Stable ref to prevent React from re-mounting webview on every render
   const wvRefs = useRef<Record<string,any>>({});
   const makeWvRef = useCallback((name: string) => (el: any) => {
-    if (!el) return; // never called with null due to useCallback stability
-    if (wvRefs.current[name] === el) return; // same element, skip
+    if (!el) return;
+    if (wvRefs.current[name] === el) return;
     wvRefs.current[name] = el;
-    console.log(`[WV:${name}] ▲ mounted (stable ref)`);
-    el.addEventListener('did-start-loading', ()=>console.log(`[WV:${name}] ▶ did-start-loading`));
+    console.log(`[WV:${name}] ▲ REAL MOUNT`);
+    el.addEventListener('dom-ready', ()=>console.log(`[WV:${name}] ● dom-ready wcId=${el.getWebContentsId()}`));
+    el.addEventListener('did-start-loading', ()=>console.log(`[WV:${name}] ▶ did-start-loading src=${el.src}`));
     el.addEventListener('destroyed', ()=>console.log(`[WV:${name}] ⚠ DESTROYED`));
   }, []);
 
