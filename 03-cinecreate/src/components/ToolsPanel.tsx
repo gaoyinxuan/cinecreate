@@ -74,10 +74,16 @@ export default function ToolsPanel({ mode }: Props) {
               </div>
             ) : (
               <webview key={`${t.name}-${refreshKey}`} src={t.url} className="w-full h-full" style={{height:'100%'}}
+                ref={el=>{if(el){(window as any)._wvInstance=((window as any)._wvInstance||0)+1;console.log(`[WV:${t.name}] mounted #${(window as any)._wvInstance}`);}}}
                 partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
-                onDidStartLoading={()=>console.log(`[WV:${t.name}] did-start-loading`)}
+                onDidStartLoading={()=>{const e=(window as any)._wvInstance||'?';console.log(`[WV:${t.name} #${e}] did-start-loading`,t.url)}}
+                onDidStopLoading={()=>console.log(`[WV:${t.name}] did-stop-loading`)}
                 onDidFinishLoad={()=>console.log(`[WV:${t.name}] did-finish-load`)}
+                onDidNavigate={(ev:any)=>console.log(`[WV:${t.name}] did-navigate`,ev.url)}
+                onDidNavigateInPage={(ev:any)=>console.log(`[WV:${t.name}] did-navigate-in-page`,ev.url)}
+                onDomReady={()=>console.log(`[WV:${t.name}] dom-ready`)}
                 onDidFailLoad={()=>{console.log(`[WV:${t.name}] did-fail-load`);setErrors(p=>({...p,[t.name]:true}))}}
+                onDestroyed={()=>console.log(`[WV:${t.name}] ⚠ DESTROYED`)}
                 // @ts-ignore
                 allowpopups="true" />
             )}
