@@ -131,7 +131,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const save = useCallback(async (messages: Message[]) => { msgsRef.current = messages; if (!draft?.id) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => db.dts.update(draft.id, { conversation: messages }).catch(()=>{}), 500); }, [draft]);
   useEffect(() => () => { clearTimeout(saveTimer.current); if (draft?.id && msgsRef.current.length > 0) db.dts.update(draft.id, { conversation: msgsRef.current }).catch(() => {}); }, [draft]);
 
-  const addMsg = (role:'user'|'assistant', text:string) => { if (role === 'user') setSavedIdx(null); setMsgs(prev => { const next = [...prev, {role,content:text,timestamp:new Date().toISOString()}]; save(next); return next; }); };
+  const addMsg = (role:'user'|'assistant', text:string) => { if (role === 'user') setSavedIdx(null); setMsgs(prev => { const next = [...prev, {role,content:text,timestamp:new Date().toISOString()}]; save(next); if (draft?.id) db.dts.update(draft.id, { conversation: next }).catch(()=>{}); return next; }); };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return; const key = getApiKey(); if (!key) { setShowKey(true); return; }
@@ -144,12 +144,36 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); } finally { setLoading(false); }
   };
 
+  /** Parse duration string to seconds */
+  const toSec = (s: string): number => {
+    if (!s) return 0;
+    const n = parseFloat(s);
+    if (s.includes('分') || s.includes('m')) return n * 60;
+    if (s.includes('秒') || s.includes('s')) return n;
+    return n; // assume seconds
+  };
+
   const confirmAsset = async (msgIdx: number) => {
     if (!draft?.id) return; const msg = msgs[msgIdx]; if (!msg || msg.role !== 'assistant') return;
     const json = extractJSON(msg.content); const assets = parseAssets(draft?.confirmedAssets);
     if (step === 1 && json) { const vt = json.visualTone||{}; assets.story = { title: json.title||'', duration: json.duration||'', visualTone: { medium: vt.medium||'', reference: vt.reference||(vt.references||[])[0]||'' }, worldBuilding: json.worldBuilding||'', summary: json.summary||'' }; }
     else if (step === 2 && json) { const chars: any[] = (Array.isArray(json) ? json : [json]).map((c:any) => ({ id: c.name||Date.now().toString(36), name: c.name||'', role: c.role||'配角', shortDesc: c.shortDesc||'', prompt: c.prompt||c.promptCN||'' })); const existing: any[] = Array.isArray(assets.characters) ? [...assets.characters] : []; for (const nc of chars) { const ei = existing.findIndex((c:any) => c.name === nc.name); if (ei >= 0) existing[ei] = nc; else existing.push(nc); } assets.characters = existing; }
-    else if (step === 3 && json) { if (json.scenes) assets.scenes = json.scenes.map((s:any,i:number) => ({ id: 'sc'+i, name: s.name||'', description: s.description||'' })); if (json.sequences) assets.sequences = json.sequences.map((g:any) => ({ sceneIndex: g.sceneIndex||0, shots: (g.shots||[]).map((sh:any) => ({ shotNumber: sh.shotNumber||0, duration: sh.duration||'5s', shotType: sh.shotType||'中景', purpose: sh.purpose||'', transition: sh.transition||'' })) })); }
+    else if (step === 3 && json) {
+      if (json.scenes) assets.scenes = json.scenes.map((s:any,i:number) => ({ id: 'sc'+i, name: s.name||'', description: s.description||'' }));
+      if (json.sequences) {
+        const seqs = json.sequences.map((g:any) => ({ sceneIndex: g.sceneIndex||0, shots: (g.shots||[]).map((sh:any) => ({ shotNumber: sh.shotNumber||0, duration: sh.duration||'5s', shotType: sh.shotType||'中景', purpose: sh.purpose||'', transition: sh.transition||'' })) }));
+        // Validate: scene shot durations ≈ story total
+        const storyDur = toSec(assets.story?.duration || '0');
+        if (storyDur > 0) {
+          const totalShotSec = seqs.reduce((sum:number, g:any) => sum + (g.shots||[]).reduce((s:number, sh:any) => s + toSec(sh.duration), 0), 0);
+          if (Math.abs(totalShotSec - storyDur) > 5) {
+            addMsg('assistant', `⚠️ 场景总时长 ${totalShotSec}秒 与故事设定 ${storyDur}秒 不一致（误差>5秒），请调整后重新确认。`);
+            return;
+          }
+        }
+        assets.sequences = seqs;
+      }
+    }
     else if (step === 4 && json) { const s = json; const shot = { id: 'shot'+Date.now(), sceneName: s.sceneName||'', shotNumber: s.shotNumber||((assets.shots?.length||0)+1), duration: s.duration||'5s', shotType: s.shotType||'中景', atmosphere: s.atmosphere||'', composition: s.composition||'', cameraMovement: s.cameraMovement||'', visualContent: s.visualContent||'', dialogue: s.dialogue||'', narration: s.narration||'', generationMode: s.generationMode==='start_end_frame'?'start_end_frame':'single_frame', imagePrompts: (s.imagePrompts||[]).map((ip:any) => ({ label: ip.label||'首帧', prompt: ip.prompt||ip.promptCN||'' })), videoPrompt: s.videoPrompt||s.videoPromptCN||'' }; const existing = Array.isArray(assets.shots) ? [...assets.shots] : []; const ei = existing.findIndex((x:any) => x.sceneName === shot.sceneName && x.shotNumber === shot.shotNumber); if (ei >= 0) existing[ei] = shot; else existing.push(shot); assets.shots = existing; }
     const updated = { ...draft, confirmedAssets: assets }; setDraft(updated); await db.dts.update(draft.id, { confirmedAssets: assets }).catch(()=>{}); setSavedIdx(msgIdx); if (step === 4) { const nextNum = (assets.shots?.length||0)+1; addMsg('assistant', '✅ 已保存Shot#'+(nextNum-1)+'。请继续生成Shot#'+nextNum+'，或告诉我需要调整的内容。'); }
   };
