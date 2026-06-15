@@ -397,15 +397,18 @@ function renderMsgContent(msg: Message): string {
     html += '</div>';
     return html;
   }
-  // Characters — render full markdown content + asset summary
+  // Characters — structured cards, matching story card style
   if (Array.isArray(json) && json[0]?.name) {
-    let html = renderMd(text);
-    html += '<div class="mt-3 pt-3 border-t border-[var(--border)] flex flex-wrap gap-2 text-xs text-[var(--text3)]">';
-    json.forEach((c:any) => {
-      html += '<span class="px-2 py-1 bg-[var(--surface)] rounded-lg"><span class="text-[var(--text)] font-medium">'+esc(c.name)+'</span> <span class="text-[var(--accent-text)]">'+esc(c.role||'')+'</span></span>';
+    let html = '<div class="space-y-4">';
+    json.forEach((c:any,i) => {
+      html += '<div class="'+(i>0?'pt-4 border-t border-[var(--border)]':'')+'">';
+      html += '<div class="text-lg font-bold text-[var(--text)]">'+esc(c.name||'')+'</div>';
+      html += '<span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full mt-1 inline-block">'+esc(c.role||'')+'</span>';
+      if (c.shortDesc) html += '<div class="mt-3"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">角色简介</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(c.shortDesc)+'</div></div>';
+      if (c.prompt) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">定妆Prompt</div><div class="text-sm text-[var(--text2)] leading-relaxed whitespace-pre-wrap">'+esc(c.prompt.slice(0,300))+(c.prompt.length>300?'...':'')+'</div></div>';
+      html += '</div>';
     });
     html += '</div>';
-    html += '<div class="text-xs text-[var(--muted)] mt-1">定妆Prompt 已保存至资产库</div>';
     return html;
   }
   let html = renderMd(text);
