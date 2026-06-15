@@ -144,19 +144,6 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); } finally { setLoading(false); }
   };
 
-  const extractJSON = (text: string): any => {
-    // <json>...</json>
-    let m = text.match(/<json>([\s\S]*?)<\/json>/i);
-    if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
-    // ```json...```
-    m = text.match(/```json\s*([\s\S]*?)```/i);
-    if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
-    // Bare JSON array/object at end of message
-    const bare = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})\s*$/);
-    if (bare) { try { return JSON.parse(bare[1].trim()); } catch {} }
-    return null;
-  };
-
   const confirmAsset = async (msgIdx: number) => {
     if (!draft?.id) return; const msg = msgs[msgIdx]; if (!msg || msg.role !== 'assistant') return;
     const json = extractJSON(msg.content); const assets = parseAssets(draft?.confirmedAssets);
@@ -268,6 +255,16 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
       {showOnboard && (<OnboardingGuide title="欢迎使用 AI 导演" storageKey="onboard-drafts" onClose={dismissOnboard} buttons={[{label:'前往配置 API',primary:true,onClick:()=>{dismissOnboard();setShowKey(true);}},{label:'稍后配置',onClick:dismissOnboard}]}><p>文稿模块用于故事大纲创作、角色设定设计、场景规划设计、镜头 Prompt 生成。</p><p>开始使用前，请先配置 AI 模型 API。</p></OnboardingGuide>)}
     </div>
   );
+}
+
+function extractJSON(text: string): any {
+  let m = text.match(/<json>([\s\S]*?)<\/json>/i);
+  if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
+  m = text.match(/```json\s*([\s\S]*?)```/i);
+  if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
+  const bare = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})\s*$/);
+  if (bare) { try { return JSON.parse(bare[1].trim()); } catch {} }
+  return null;
 }
 
 function renderMsgContent(msg: Message): string {
