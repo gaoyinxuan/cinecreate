@@ -53,9 +53,10 @@ const SYSTEM_PROMPTS: Record<number,string> = {
 
 ---
 
-多个角色用---分隔。禁止JSON直接显示、禁止表格、禁止Emoji、禁止列表符号。
-最后用<json>[{"name":"","role":"","shortDesc":"","prompt":""}]</json>输出资产数据。
-主角的prompt字段必须包含三视图(正面/侧面/背面)+穿搭+风格+配饰+气质。配角prompt包含外貌+穿搭+气质。`,  3: `你是AI场景规划师。当前阶段：场景规划。
+多个角色用---分隔。禁止JSON直接显示、禁止表格、禁止Emoji。
+最后用<json>[{"name":"","role":"","shortDesc":"","appearance":"","costume":"","style":"","accessory":"","temperament":"","prompt":""}]</json>输出资产数据。
+主角prompt必须是完整三视图提示词(正面/侧面/背面)+穿搭+风格+配饰+气质。配角prompt=外貌+穿搭+气质。
+聊天区不要显示定妆Prompt。`, 3: `你是AI场景规划师。当前阶段：场景规划。
 
 【重要】聊天区用清晰的结构化格式展示完整规划，禁止JSON/代码块。资产数据放<json>标签。
 
@@ -179,7 +180,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     if (!draft?.id) return; const msg = msgs[msgIdx]; if (!msg || msg.role !== 'assistant') return;
     const json = extractJSON(msg.content); const assets = parseAssets(draft?.confirmedAssets);
     if (step === 1 && json) { const vt = json.visualTone||{}; let dur = json.duration||videoDuration; const sec = toSec(dur); if (sec > 300) { dur = '5分钟'; } else if (sec < 30 && sec > 0) { dur = '30秒'; } assets.story = { title: json.title||'', duration: dur, visualTone: { medium: vt.medium||'', reference: vt.reference||(vt.references||[])[0]||'' }, worldBuilding: json.worldBuilding||'', summary: json.summary||'' }; }
-    else if (step === 2 && json) { const chars: any[] = (Array.isArray(json) ? json : [json]).map((c:any) => ({ id: c.name||Date.now().toString(36), name: c.name||'', role: c.role||'配角', shortDesc: c.shortDesc||'', prompt: c.prompt||c.promptCN||'' })); const existing: any[] = Array.isArray(assets.characters) ? [...assets.characters] : []; for (const nc of chars) { const ei = existing.findIndex((c:any) => c.name === nc.name); if (ei >= 0) existing[ei] = nc; else existing.push(nc); } assets.characters = existing; }
+    else if (step === 2 && json) { const chars: any[] = (Array.isArray(json) ? json : [json]).map((c:any) => ({ id: c.name||Date.now().toString(36), name: c.name||'', role: c.role||'配角', shortDesc: c.shortDesc||'', prompt: c.prompt||[c.appearance,c.costume,c.style,c.temperament].filter(Boolean).join('；')||c.promptCN||'' })); const existing: any[] = Array.isArray(assets.characters) ? [...assets.characters] : []; for (const nc of chars) { const ei = existing.findIndex((c:any) => c.name === nc.name); if (ei >= 0) existing[ei] = nc; else existing.push(nc); } assets.characters = existing; }
     else if (step === 3 && json) {
       if (json.scenes) assets.scenes = json.scenes.map((s:any,i:number) => ({ id: 'sc'+i, name: s.name||'', description: s.description||'' }));
       if (json.sequences) {
@@ -397,7 +398,7 @@ function renderMsgContent(msg: Message): string {
     html += '</div>';
     return html;
   }
-  // Characters — structured cards, matching story card style
+  // Characters — structured cards with full detail, no prompt in chat
   if (Array.isArray(json) && json[0]?.name) {
     let html = '<div class="space-y-4">';
     json.forEach((c:any,i) => {
@@ -405,7 +406,11 @@ function renderMsgContent(msg: Message): string {
       html += '<div class="text-lg font-bold text-[var(--text)]">'+esc(c.name||'')+'</div>';
       html += '<span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full mt-1 inline-block">'+esc(c.role||'')+'</span>';
       if (c.shortDesc) html += '<div class="mt-3"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">角色简介</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(c.shortDesc)+'</div></div>';
-      if (c.prompt) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">定妆Prompt</div><div class="text-sm text-[var(--text2)] leading-relaxed whitespace-pre-wrap">'+esc(c.prompt.slice(0,300))+(c.prompt.length>300?'...':'')+'</div></div>';
+      if (c.appearance) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">外貌特征</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(c.appearance)+'</div></div>';
+      if (c.costume) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">穿搭</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(c.costume)+'</div></div>';
+      if (c.style) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">风格</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(c.style)+'</div></div>';
+      if (c.temperament) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">气质</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(c.temperament)+'</div></div>';
+      html += '<div class="text-xs text-[var(--muted)] mt-2">定妆Prompt 将在保存时生成</div>';
       html += '</div>';
     });
     html += '</div>';
