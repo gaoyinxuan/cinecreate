@@ -351,7 +351,7 @@ export default function App() {
                 scrollContainerRef={navigatorRef} onReorderShots={reorderShots} shotGlobalNum={shotGlobalNum} />
             )}
           </>
-        ) : activeId ? (
+        ) : activeId && !toolMode ? (
           <PreviewPanel projectId={activeId} projectName={activeProject?.name || ''} />
         ) : null}
       </div>
