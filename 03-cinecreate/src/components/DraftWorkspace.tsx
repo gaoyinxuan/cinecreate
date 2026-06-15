@@ -323,7 +323,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
               )}
             </div>
             {/* Messages */}
-            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)] max-w-2xl'}`}><div dangerouslySetInnerHTML={{__html: renderMsgContent(m)}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (
+            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-center'}`}><div className={`rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'max-w-[85%] bg-[var(--accent-solid)] text-white':'max-w-2xl bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMsgContent(m)}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (
   savedIdx === i
     ? (step === 4
       ? <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-2">
