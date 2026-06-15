@@ -320,10 +320,10 @@ export default function App() {
           onSelectVideoTools={() => { setSelectedDraftId(null); setToolMode('video'); }}
           activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : viewMode}
           onShowWelcome={() => { setActiveId(null); setSelectedDraftId(null); setToolMode(null); }} />
-        {/* ToolsPanel — always mounted, visibility-hidden preserves webview surface */}
-        {activeId && <div style={toolMode?{flex:1}:{position:'absolute',visibility:'hidden',pointerEvents:'none',width:1,height:1,overflow:'hidden'}}><ToolsPanel mode={toolMode||'image'} /></div>}
+        {/* ToolsPanel — hidden offscreen, full size preserved */}
+        {activeId && <div style={toolMode?{flex:1}:{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}}><ToolsPanel mode={toolMode||'image'} /></div>}
         {/* All other views */}
-        <div style={toolMode?{position:'absolute',visibility:'hidden',pointerEvents:'none',width:1,height:1,overflow:'hidden'}:{flex:1,display:'flex',flexDirection:'column'}}>
+        <div style={toolMode?{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}:{flex:1,display:'flex',flexDirection:'column'}}>
         {!activeId && !selectedDraftId ? (
           <WelcomePage onCreateProject={() => { const n = `项目 ${String(projects.length + 1).padStart(2,'0')}`; createProject(n); }} />
         ) : selectedDraftId && activeId ? (

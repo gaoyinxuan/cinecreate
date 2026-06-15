@@ -75,7 +75,9 @@ export default function ToolsPanel({ mode }: Props) {
             ) : (
               <webview key={`${t.name}-${refreshKey}`} src={t.url} className="w-full h-full" style={{height:'100%'}}
                 partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
-                onDidFailLoad={()=>setErrors(p=>({...p,[t.name]:true}))}
+                onDidStartLoading={()=>console.log(`[WV:${t.name}] did-start-loading`)}
+                onDidFinishLoad={()=>console.log(`[WV:${t.name}] did-finish-load`)}
+                onDidFailLoad={()=>{console.log(`[WV:${t.name}] did-fail-load`);setErrors(p=>({...p,[t.name]:true}))}}
                 // @ts-ignore
                 allowpopups="true" />
             )}
