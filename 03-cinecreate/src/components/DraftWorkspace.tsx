@@ -397,18 +397,15 @@ function renderMsgContent(msg: Message): string {
     html += '</div>';
     return html;
   }
-  // Characters — structured list items, matching story card hierarchy
+  // Characters — render full markdown content + asset summary
   if (Array.isArray(json) && json[0]?.name) {
-    let html = '<div class="space-y-4">';
-    json.forEach((c:any,i) => {
-      html += '<div class="'+(i>0?'pt-4 border-t border-[var(--border)]':'')+'">';
-      html += '<div class="text-lg font-bold text-[var(--text)] mb-1">'+esc(c.name||'')+'</div>';
-      html += '<span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full">'+esc(c.role||'')+'</span>';
-      html += '<div class="text-sm text-[var(--text2)] mt-2 leading-relaxed">'+esc(c.shortDesc||'')+'</div>';
-      html += '<div class="text-xs text-[var(--muted)] mt-1">定妆Prompt 已保存至资产库</div>';
-      html += '</div>';
+    let html = renderMd(text);
+    html += '<div class="mt-3 pt-3 border-t border-[var(--border)] flex flex-wrap gap-2 text-xs text-[var(--text3)]">';
+    json.forEach((c:any) => {
+      html += '<span class="px-2 py-1 bg-[var(--surface)] rounded-lg"><span class="text-[var(--text)] font-medium">'+esc(c.name)+'</span> <span class="text-[var(--accent-text)]">'+esc(c.role||'')+'</span></span>';
     });
     html += '</div>';
+    html += '<div class="text-xs text-[var(--muted)] mt-1">定妆Prompt 已保存至资产库</div>';
     return html;
   }
   let html = renderMd(text);
