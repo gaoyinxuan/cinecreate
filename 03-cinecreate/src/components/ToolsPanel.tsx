@@ -74,7 +74,7 @@ export default function ToolsPanel({ mode }: Props) {
               </div>
             ) : (
               <webview key={`${t.name}-${refreshKey}`} src={t.url} className="w-full h-full" style={{height:'100%'}}
-                ref={el=>{if(!el)return;const tn=t.name;el.addEventListener('did-start-loading',()=>console.log(`[WV:${tn}] ▶ did-start-loading`));el.addEventListener('did-stop-loading',()=>console.log(`[WV:${tn}] ■ did-stop-loading`));el.addEventListener('did-finish-load',()=>console.log(`[WV:${tn}] ✓ did-finish-load`));el.addEventListener('dom-ready',()=>console.log(`[WV:${tn}] ● dom-ready`));el.addEventListener('destroyed',()=>console.log(`[WV:${tn}] ⚠ DESTROYED`));console.log(`[WV:${tn}] ▲ mounted`);}}
+                ref={el=>{const tn=t.name;if(!el){console.log(`[WV:${tn}] ▼ UNMOUNTED`);return;}el.addEventListener('did-start-loading',()=>console.log(`[WV:${tn}] ▶ did-start-loading`));el.addEventListener('destroyed',()=>console.log(`[WV:${tn}] ⚠ DESTROYED`));console.log(`[WV:${tn}] ▲ mounted`);}}
                 partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                 onDidFailLoad={()=>{console.log(`[WV:${t.name}] ✕ did-fail-load`);setErrors(p=>({...p,[t.name]:true}))}}
                 // @ts-ignore
