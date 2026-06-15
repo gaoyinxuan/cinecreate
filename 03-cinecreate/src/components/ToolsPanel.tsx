@@ -19,7 +19,10 @@ interface Props { mode: ToolCategory; }
 export default function ToolsPanel({ mode }: Props) {
   const [customTools, setCustomTools] = useState<Tool[]>([]);
   const tools = [...DEF_TOOLS, ...customTools];
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [imageIdx, setImageIdx] = useState(0);
+  const [videoIdx, setVideoIdx] = useState(0);
+  const activeIdx = mode==='video' ? videoIdx : imageIdx;
+  const setActiveIdx = mode==='video' ? setVideoIdx : setImageIdx;
   const [errors, setErrors] = useState<Record<string,boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -73,9 +76,9 @@ export default function ToolsPanel({ mode }: Props) {
       </div>
 
       <div className="flex-1 relative bg-[var(--bg)]">
-        {/* Render ALL tools — never destroy webviews on mode switch */}
+        {/* Render ALL tools — separate indices per mode */}
         {tools.map((t,i) => (
-          <div key={t.name} className="absolute inset-0" style={t.cat===mode&&i===activeIdx?{}:{visibility:'hidden',opacity:0,pointerEvents:'none'}}>
+          <div key={t.name} className="absolute inset-0" style={t.cat===mode&&i===activeIdx?{inset:0}:{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none'}}>
             {errors[t.name] ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-3 max-w-md px-8">
