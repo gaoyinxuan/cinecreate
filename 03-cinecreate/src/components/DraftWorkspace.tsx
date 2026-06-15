@@ -185,6 +185,33 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     const updated = { ...draft, confirmedAssets: assets }; setDraft(updated); await db.dts.update(draft.id, { confirmedAssets: assets }).catch(()=>{}); setSavedIdx(msgIdx); if (step === 4) { const nextNum = (assets.shots?.length||0)+1; addMsg('assistant', '✅ 已保存Shot#'+(nextNum-1)+'。请继续生成Shot#'+nextNum+'，或告诉我需要调整的内容。'); }
   };
 
+  const generateNextShot = async () => {
+    if (!draft?.id || loading) return; const key = getApiKey(); if (!key) { setShowKey(true); return; }
+    const assets = parseAssets(draft?.confirmedAssets);
+    const nextNum = (assets.shots?.length||0) + 1;
+    addMsg('user', `生成镜头${nextNum}`);
+    setLoading(true);
+    try {
+      const ctxParts: string[] = [];
+      if (assets.story?.title) ctxParts.push(`【故事】${assets.story.title}\n时长：${assets.story.duration||''}\n视觉基调：${JSON.stringify(assets.story.visualTone||{})}\n世界观：${assets.story.worldBuilding||''}\n简介：${assets.story.summary||''}`);
+      if (assets.characters?.length) ctxParts.push(`【角色】\n${assets.characters.map((c:any)=>`${c.name}(${c.role})：${c.shortDesc||''}\n定妆Prompt：${c.prompt?.slice(0,200)}`).join('\n\n')}`);
+      if (assets.scenes?.length) {
+        const seqs = assets.sequences || [];
+        const sceneIdx = Math.floor((nextNum-1) / Math.max(1, seqs.flatMap((g:any)=>g.shots||[]).length / Math.max(1, assets.scenes.length)));
+        const scene = assets.scenes[Math.min(sceneIdx, assets.scenes.length-1)];
+        if (scene) ctxParts.push(`【当前场景】${scene.name}\n${scene.description||''}`);
+      }
+      if (assets.shots?.length) {
+        const done = assets.shots.map((s:any)=>`Shot${s.shotNumber}(${s.shotType||''},${s.duration||''})`).join(', ');
+        ctxParts.push(`【已完成镜头】${done}`);
+      }
+      const ctx = ctxParts.join('\n\n');
+      const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`}, body: JSON.stringify({ model:'deepseek-chat', messages: [{ role:'system', content: SYSTEM_PROMPTS[4]+'\n【已有资产】\n'+ctx }, { role:'user', content: `请生成Shot${nextNum}的镜头内容。` }], temperature:0.8, max_tokens: 8192 }) });
+      const data = await res.json(); addMsg('assistant', data.choices?.[0]?.message?.content || '');
+    } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); }
+    finally { setLoading(false); }
+  };
+
   const advancePhase = async () => {
     if (!draft?.id || step >= 4 || loading) return; setSavedIdx(null); const nextStep = step + 1; const updated = { ...draft, currentStep: nextStep }; setDraft(updated); await db.dts.update(draft.id, { currentStep: nextStep }).catch(()=>{}); const key = getApiKey(); if (!key) { setShowKey(true); return; }
     const guides: Record<number,string> = { 2:'故事设定已经完成。根据当前故事内容，我为你设计了核心角色。下面是第一版角色方案，你可以确认保存或调整：', 3:'角色设定已经完成。接下来规划场景和分镜。下面是场景规划方案：', 4:'场景规划已经完成。现在开始镜头Prompt生成，我将按顺序逐个生成：' };
@@ -282,7 +309,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
           <div className="text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div>
           <div className="flex justify-center gap-2">
             <button className="px-3 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors"
-              onClick={() => { setSavedIdx(null); setInput('生成下一个镜头'); handleSend(); }}>生成下一个镜头</button>
+              onClick={() => { setSavedIdx(null); generateNextShot(); }}>生成下一个镜头</button>
             <button className="px-3 py-1.5 bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] text-xs rounded-lg transition-colors"
               onClick={() => setSavedIdx(null)}>编辑</button>
           </div>
