@@ -94,7 +94,7 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
 
       {/* Expanded — floating panel, not full-height */}
       {expanded && (
-        <div className="fixed right-3 top-20 z-[100] w-56 max-h-[60vh] bg-white border border-[#e8e5e0] shadow-xl rounded-2xl flex flex-col overflow-hidden">
+        <div className="fixed right-3 top-20 z-[100] w-56 bg-white border border-[#e8e5e0] shadow-xl rounded-2xl flex flex-col overflow-hidden" style={{minHeight:400,maxHeight:'70vh'}}>
           {/* Header bar */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-[#eee]">
             <div className="flex gap-1.5">
@@ -124,7 +124,15 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
           {/* Grid */}
           <div className="flex-1 overflow-y-auto p-2">
             {filtered.length === 0 ? (
-              <div className="text-center py-10 text-[10px] text-[#bbb]">拖拽 / Ctrl+V / 导入</div>
+              <div className="text-center py-10">
+                <div className="text-2xl mb-2 opacity-20">📦</div>
+                <div className="text-[11px] text-[#999] font-medium">暂无素材</div>
+                <div className="text-[10px] text-[#bbb] mt-2 space-y-0.5">
+                  <div>· Ctrl+V 粘贴图片</div>
+                  <div>· 拖拽文件到此处</div>
+                  <div>· 点击 📷 导入</div>
+                </div>
+              </div>
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {filtered.map(item => (
