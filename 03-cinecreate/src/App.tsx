@@ -321,7 +321,7 @@ export default function App() {
           activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : viewMode}
           onShowWelcome={() => { setActiveId(null); setSelectedDraftId(null); setToolMode(null); }} />
         {/* ToolsPanel — hidden offscreen, full size preserved */}
-        {activeId && <div style={toolMode?{flex:1}:{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}}><ToolsPanel mode={toolMode||'image'} /></div>}
+        {activeId && <div style={toolMode?{flex:1,display:'flex',flexDirection:'column'}:{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}}><ToolsPanel mode={toolMode||'image'} /></div>}
         {/* All other views */}
         <div style={toolMode?{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}:{flex:1,display:'flex',flexDirection:'column'}}>
         {!activeId && !selectedDraftId ? (
