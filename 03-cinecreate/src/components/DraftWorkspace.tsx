@@ -17,7 +17,7 @@ const ASSET_KEYS = ['story','characters','scenes','shots','sequences'];
 
 const SYSTEM_PROMPTS: Record<number,string> = {
   1: `你是AI导演/编剧。当前阶段：故事设定。
-
+【重要】聊天区只显示自然语言，禁止JSON/代码块。资产数据放<json>标签。
 【重要】聊天区只显示自然语言，禁止JSON/代码块。资产数据放<json>标签。
 
 视觉基调仅包含：视觉媒介（超写实电影/真人电影/影视级CG/日漫/美漫/二次元动画/吉卜力风格/新海诚风格/厚涂插画/游戏CG）、参考作品（1部）。
@@ -365,15 +365,19 @@ function renderMsgContent(msg: Message): string {
   const text = stripJSON(msg.content);
   const json = extractJSON(msg.content);
   if (!json) return renderMd(text);
+  // Story — consistent structured card
+  if (json.title && !Array.isArray(json) && json.visualTone) {
+    let html = '<div class="space-y-4">';
+    html += '<div class="text-lg font-bold text-[var(--text)]">'+esc(json.title)+'</div>';
+    html += '<div class="flex items-center gap-3"><span class="text-xs text-[var(--muted)]">时长</span><span class="text-sm text-[var(--text2)] font-medium">'+esc(json.duration||'')+'</span></div>';
+    html += '<div class="flex items-center gap-3"><span class="text-xs text-[var(--muted)]">视觉基调</span><span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full">'+esc(json.visualTone?.medium||'')+'</span><span class="text-xs text-[var(--text3)]">参考 '+esc(json.visualTone?.reference||'')+'</span></div>';
+    html += '<div><div class="text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wide">世界观设定</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(json.worldBuilding||'')+'</div></div>';
+    html += '<div><div class="text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wide">故事简介</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(json.summary||'')+'</div></div>';
+    html += '</div>';
+    return html;
+  }
   let html = renderMd(text);
-  html += '<div class="mt-3 p-3 bg-[var(--surface)] border border-[var(--accent-text)]/10 rounded-lg text-xs">';
-  if (json.title && !Array.isArray(json)) {
-    // Story
-    if (json.title) html += '<div class="text-[var(--text)] font-semibold mb-1">📖 '+esc(json.title)+'</div>';
-    if (json.duration) html += '<div class="text-[var(--text3)]">时长：'+esc(json.duration)+'</div>';
-    if (json.visualTone?.medium) html += '<div class="text-[var(--text3)]">风格：'+esc(json.visualTone.medium)+'</div>';
-    if (json.summary) html += '<div class="text-[var(--text2)] mt-1 leading-relaxed">'+esc(json.summary.slice(0,200))+'</div>';
-  } else if (Array.isArray(json) && json[0]?.name) {
+  if (Array.isArray(json) && json[0]?.name) {
     // Characters
     html += '<div class="text-[var(--text)] font-semibold mb-1">👤 '+json.length+' 个角色</div>';
     json.slice(0,5).forEach((c:any) => {
