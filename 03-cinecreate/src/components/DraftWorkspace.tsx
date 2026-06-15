@@ -262,16 +262,31 @@ function extractJSON(text: string): any {
   if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
   m = text.match(/```json\s*([\s\S]*?)```/i);
   if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
-  const bare = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})\s*$/);
-  if (bare) { try { return JSON.parse(bare[1].trim()); } catch {} }
+  // Try bare JSON at end — use non-greedy from last [ or {
+  const lastBrace = Math.max(text.lastIndexOf('['), text.lastIndexOf('{'));
+  if (lastBrace >= 0) {
+    const candidate = text.slice(lastBrace);
+    try { const p = JSON.parse(candidate); if (p && typeof p === 'object') return p; } catch {}
+  }
   return null;
 }
 
+/** Strip ALL JSON (tagged + bare) from display text, using extractJSON to locate */
+function stripJSON(text: string): string {
+  let t = text.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '');
+  // Remove bare JSON at end if extractJSON would find it
+  const lastBrace = Math.max(t.lastIndexOf('['), t.lastIndexOf('{'));
+  if (lastBrace >= 0) {
+    const candidate = t.slice(lastBrace);
+    try { JSON.parse(candidate); t = t.slice(0, lastBrace); } catch {}
+  }
+  return t.trim();
+}
+
 function renderMsgContent(msg: Message): string {
-  const text = msg.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').trim();
+  const text = stripJSON(msg.content);
   const json = extractJSON(msg.content);
   if (!json) return renderMd(text);
-  // Render natural language + structured asset card
   let html = renderMd(text);
   html += '<div class="mt-3 p-3 bg-[var(--surface)] border border-[var(--accent-text)]/10 rounded-lg text-xs">';
   if (json.title && !Array.isArray(json)) {
