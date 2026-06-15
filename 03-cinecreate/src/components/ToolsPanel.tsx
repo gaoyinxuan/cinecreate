@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import OnboardingGuide, { useOnboarding } from './OnboardingGuide';
 
 type ToolCategory = 'image'|'video';
@@ -29,6 +29,17 @@ export default function ToolsPanel({ mode }: Props) {
 
   const filtered = tools.filter(t=>t.cat===mode);
   useEffect(() => { if(activeIdx >= filtered.length) setActiveIdx(0); }, [filtered.length]);
+
+  // Stable ref to prevent React from re-mounting webview on every render
+  const wvRefs = useRef<Record<string,any>>({});
+  const makeWvRef = useCallback((name: string) => (el: any) => {
+    if (!el) return; // never called with null due to useCallback stability
+    if (wvRefs.current[name] === el) return; // same element, skip
+    wvRefs.current[name] = el;
+    console.log(`[WV:${name}] ▲ mounted (stable ref)`);
+    el.addEventListener('did-start-loading', ()=>console.log(`[WV:${name}] ▶ did-start-loading`));
+    el.addEventListener('destroyed', ()=>console.log(`[WV:${name}] ⚠ DESTROYED`));
+  }, []);
 
   const addTool = () => {
     if(!nm.trim()||!ur.trim()) return;
@@ -74,7 +85,7 @@ export default function ToolsPanel({ mode }: Props) {
               </div>
             ) : (
               <webview key={`${t.name}-${refreshKey}`} src={t.url} className="w-full h-full" style={{height:'100%'}}
-                ref={el=>{const tn=t.name;if(!el){console.log(`[WV:${tn}] ▼ UNMOUNTED`);return;}el.addEventListener('did-start-loading',()=>console.log(`[WV:${tn}] ▶ did-start-loading`));el.addEventListener('destroyed',()=>console.log(`[WV:${tn}] ⚠ DESTROYED`));console.log(`[WV:${tn}] ▲ mounted`);}}
+                ref={makeWvRef(t.name)}
                 partition={`persist:tool-${t.name.replace(/[^a-zA-Z0-9]/g,'')}`}
                 onDidFailLoad={()=>{console.log(`[WV:${t.name}] ✕ did-fail-load`);setErrors(p=>({...p,[t.name]:true}))}}
                 // @ts-ignore
