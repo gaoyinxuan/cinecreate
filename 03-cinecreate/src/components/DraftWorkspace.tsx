@@ -51,13 +51,11 @@ const SYSTEM_PROMPTS: Record<number,string> = {
 **气质**
 详细描述
 
-**定妆 Prompt**
-完整中文定妆 Prompt
-
 ---
 
-多个角色用---分隔。禁止JSON直接显示、禁止表格、禁止Emoji、禁止列表符号。最后用<json>[{"name":"","role":"","shortDesc":"","prompt":""}]</json>输出资产数据。`,
-  3: `你是AI场景规划师。当前阶段：场景规划。
+多个角色用---分隔。禁止JSON直接显示、禁止表格、禁止Emoji、禁止列表符号。
+最后用<json>[{"name":"","role":"","shortDesc":"","prompt":""}]</json>输出资产数据。
+主角的prompt字段必须包含三视图(正面/侧面/背面)+穿搭+风格+配饰+气质。配角prompt包含外貌+穿搭+气质。`,  3: `你是AI场景规划师。当前阶段：场景规划。
 
 【重要】聊天区用清晰的结构化格式展示完整规划，禁止JSON/代码块。资产数据放<json>标签。
 
@@ -399,15 +397,22 @@ function renderMsgContent(msg: Message): string {
     html += '</div>';
     return html;
   }
-  let html = renderMd(text);
+  // Characters — structured list items, matching story card hierarchy
   if (Array.isArray(json) && json[0]?.name) {
-    // Characters
-    html += '<div class="text-[var(--text)] font-semibold mb-1">👤 '+json.length+' 个角色</div>';
-    json.slice(0,5).forEach((c:any) => {
-      html += '<div class="text-[var(--text2)]">· '+esc(c.name)+' <span class="text-[var(--text3)]">'+esc(c.role||'')+'</span></div>';
+    let html = '<div class="space-y-4">';
+    json.forEach((c:any,i) => {
+      html += '<div class="'+(i>0?'pt-4 border-t border-[var(--border)]':'')+'">';
+      html += '<div class="text-lg font-bold text-[var(--text)] mb-1">'+esc(c.name||'')+'</div>';
+      html += '<span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full">'+esc(c.role||'')+'</span>';
+      html += '<div class="text-sm text-[var(--text2)] mt-2 leading-relaxed">'+esc(c.shortDesc||'')+'</div>';
+      html += '<div class="text-xs text-[var(--muted)] mt-1">定妆Prompt 已保存至资产库</div>';
+      html += '</div>';
     });
-    if (json.length > 5) html += '<div class="text-[var(--text3)]">...等 '+json.length+' 个角色</div>';
-  } else if (json.scenes) {
+    html += '</div>';
+    return html;
+  }
+  let html = renderMd(text);
+  if (json.scenes) {
     // Scenes
     html += '<div class="text-[var(--text)] font-semibold mb-1">🎬 '+json.scenes.length+' 个场景</div>';
     json.scenes.slice(0,3).forEach((s:any) => {
