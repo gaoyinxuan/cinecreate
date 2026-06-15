@@ -370,7 +370,7 @@ function renderMsgContent(msg: Message): string {
     let html = '<div class="space-y-4">';
     html += '<div class="text-lg font-bold text-[var(--text)]">'+esc(json.title)+'</div>';
     html += '<div class="flex items-center gap-3"><span class="text-xs text-[var(--muted)]">时长</span><span class="text-sm text-[var(--text2)] font-medium">'+esc(json.duration||'')+'</span></div>';
-    html += '<div class="flex items-center gap-3"><span class="text-xs text-[var(--muted)]">视觉基调</span><span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full">'+esc(json.visualTone?.medium||'')+'</span><span class="text-xs text-[var(--text3)]">参考 '+esc(json.visualTone?.reference||'')+'</span></div>';
+    html += '<div><div class="flex items-center gap-3"><span class="text-xs text-[var(--muted)] shrink-0">视觉基调</span><span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full shrink-0">'+esc(json.visualTone?.medium||'')+'</span></div><div class="text-xs text-[var(--text3)] mt-1 ml-1">参考 '+esc(json.visualTone?.reference||'')+'</div></div>';
     html += '<div><div class="text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wide">世界观设定</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(json.worldBuilding||'')+'</div></div>';
     html += '<div><div class="text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wide">故事简介</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(json.summary||'')+'</div></div>';
     html += '</div>';
