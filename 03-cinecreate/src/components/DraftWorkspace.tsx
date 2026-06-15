@@ -144,7 +144,18 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); } finally { setLoading(false); }
   };
 
-  const extractJSON = (text: string): any => { let m = text.match(/<json>([\s\S]*?)<\/json>/i); if (m) { try { return JSON.parse(m[1].trim()); } catch {} } m = text.match(/```json\s*([\s\S]*?)```/i); if (m) { try { return JSON.parse(m[1].trim()); } catch {} } try { const p = JSON.parse(text.trim()); if (p && typeof p === 'object') return p; } catch {} return null; };
+  const extractJSON = (text: string): any => {
+    // <json>...</json>
+    let m = text.match(/<json>([\s\S]*?)<\/json>/i);
+    if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
+    // ```json...```
+    m = text.match(/```json\s*([\s\S]*?)```/i);
+    if (m) { try { return JSON.parse(m[1].trim()); } catch {} }
+    // Bare JSON array/object at end of message
+    const bare = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})\s*$/);
+    if (bare) { try { return JSON.parse(bare[1].trim()); } catch {} }
+    return null;
+  };
 
   const confirmAsset = async (msgIdx: number) => {
     if (!draft?.id) return; const msg = msgs[msgIdx]; if (!msg || msg.role !== 'assistant') return;
@@ -236,7 +247,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
               )}
             </div>
             {/* Messages */}
-            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(m.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').trim())}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))}
+            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(m.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').replace(/\s*(\[[\s\S]*\]|\{[\s\S]*\})\s*$/g, '').trim())}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))}
             {loading && <div className="text-center text-xs text-[var(--muted)] animate-pulse">AI 思考中...</div>}<div ref={chatEnd} />
           </div>
           {step < 4 && !loading && msgs.length > 1 && (<div className="px-4 py-2 flex justify-center"><button className="px-4 py-1.5 text-xs text-[var(--accent-text)] hover:text-white hover:bg-[var(--accent-solid)] rounded-lg border-2 border-[var(--accent-text)]/30 transition-colors" onClick={advancePhase}>进入下一阶段：{PHASES[step]} →</button></div>)}
