@@ -73,8 +73,9 @@ export default function ToolsPanel({ mode }: Props) {
       </div>
 
       <div className="flex-1 relative bg-[var(--bg)]">
-        {filtered.map((t,i) => (
-          <div key={t.name} className="absolute inset-0" style={i===activeIdx?{}:{visibility:'hidden',opacity:0,pointerEvents:'none'}}>
+        {/* Render ALL tools — never destroy webviews on mode switch */}
+        {tools.map((t,i) => (
+          <div key={t.name} className="absolute inset-0" style={t.cat===mode&&i===activeIdx?{}:{visibility:'hidden',opacity:0,pointerEvents:'none'}}>
             {errors[t.name] ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-3 max-w-md px-8">
