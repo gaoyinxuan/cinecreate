@@ -82,6 +82,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const [keySet, setKeySet] = useState(false);
   const [savedIdx, setSavedIdx] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<Record<string,string>>({});
+  const [videoDuration, setVideoDuration] = useState('1分钟');
   const chatEnd = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<any>(null);
   const msgsRef = useRef<Message[]>([]);
@@ -138,7 +139,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     const userText = input.trim(); setInput(''); addMsg('user', userText); setLoading(true);
     try {
       const step = draft?.currentStep || 1; const assets = parseAssets(draft?.confirmedAssets);
-      let ctx = ''; if (step > 1) { const parts: string[] = []; if (assets.story?.title) parts.push(`【故事】${assets.story.title}，${assets.story.duration||''}，${assets.story.visualTone?.medium||''}`); if (assets.characters?.length) parts.push(`【角色】${assets.characters.map((c:any)=>c.name+'('+c.role+')').join('、')}`); ctx = parts.join('\n'); }
+      let ctx = `【项目时长约束】视频总时长必须为${videoDuration}以内，所有内容必须适配此长度。\n`; if (step > 1) { const parts: string[] = []; if (assets.story?.title) parts.push(`【故事】${assets.story.title}，${assets.story.duration||''}，${assets.story.visualTone?.medium||''}`); if (assets.characters?.length) parts.push(`【角色】${assets.characters.map((c:any)=>c.name+'('+c.role+')').join('、')}`); ctx += parts.join('\n'); }
       const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`}, body: JSON.stringify({ model:'deepseek-chat', messages: [{ role:'system', content: SYSTEM_PROMPTS[step]+'\n'+ctx }, ...msgs.slice(-8).map(m=>({role:m.role,content:m.content})), { role:'user', content: userText }], temperature:0.8, max_tokens: 8192 }) });
       const data = await res.json(); addMsg('assistant', data.choices?.[0]?.message?.content || '');
     } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); } finally { setLoading(false); }
@@ -156,19 +157,25 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const confirmAsset = async (msgIdx: number) => {
     if (!draft?.id) return; const msg = msgs[msgIdx]; if (!msg || msg.role !== 'assistant') return;
     const json = extractJSON(msg.content); const assets = parseAssets(draft?.confirmedAssets);
-    if (step === 1 && json) { const vt = json.visualTone||{}; assets.story = { title: json.title||'', duration: json.duration||'', visualTone: { medium: vt.medium||'', reference: vt.reference||(vt.references||[])[0]||'' }, worldBuilding: json.worldBuilding||'', summary: json.summary||'' }; }
+    if (step === 1 && json) { const vt = json.visualTone||{}; let dur = json.duration||videoDuration; const sec = toSec(dur); if (sec > 300) { dur = '5分钟'; } else if (sec < 30 && sec > 0) { dur = '30秒'; } assets.story = { title: json.title||'', duration: dur, visualTone: { medium: vt.medium||'', reference: vt.reference||(vt.references||[])[0]||'' }, worldBuilding: json.worldBuilding||'', summary: json.summary||'' }; }
     else if (step === 2 && json) { const chars: any[] = (Array.isArray(json) ? json : [json]).map((c:any) => ({ id: c.name||Date.now().toString(36), name: c.name||'', role: c.role||'配角', shortDesc: c.shortDesc||'', prompt: c.prompt||c.promptCN||'' })); const existing: any[] = Array.isArray(assets.characters) ? [...assets.characters] : []; for (const nc of chars) { const ei = existing.findIndex((c:any) => c.name === nc.name); if (ei >= 0) existing[ei] = nc; else existing.push(nc); } assets.characters = existing; }
     else if (step === 3 && json) {
       if (json.scenes) assets.scenes = json.scenes.map((s:any,i:number) => ({ id: 'sc'+i, name: s.name||'', description: s.description||'' }));
       if (json.sequences) {
-        const seqs = json.sequences.map((g:any) => ({ sceneIndex: g.sceneIndex||0, shots: (g.shots||[]).map((sh:any) => ({ shotNumber: sh.shotNumber||0, duration: sh.duration||'5s', shotType: sh.shotType||'中景', purpose: sh.purpose||'', transition: sh.transition||'' })) }));
-        // Validate: scene shot durations ≈ story total
-        const storyDur = toSec(assets.story?.duration || '0');
+        let seqs = json.sequences.map((g:any) => ({ sceneIndex: g.sceneIndex||0, shots: (g.shots||[]).map((sh:any) => ({ shotNumber: sh.shotNumber||0, duration: sh.duration||'5s', shotType: sh.shotType||'中景', purpose: sh.purpose||'', transition: sh.transition||'' })) }));
+        // Auto-correct: normalize scene shot durations to match story total
+        const storyDur = toSec(assets.story?.duration || videoDuration);
         if (storyDur > 0) {
           const totalShotSec = seqs.reduce((sum:number, g:any) => sum + (g.shots||[]).reduce((s:number, sh:any) => s + toSec(sh.duration), 0), 0);
-          if (Math.abs(totalShotSec - storyDur) > 5) {
-            addMsg('assistant', `⚠️ 场景总时长 ${totalShotSec}秒 与故事设定 ${storyDur}秒 不一致（误差>5秒），请调整后重新确认。`);
-            return;
+          if (totalShotSec > 0 && Math.abs(totalShotSec - storyDur) > 3) {
+            // Auto-normalize: scale all shot durations proportionally
+            const scale = storyDur / totalShotSec;
+            seqs = seqs.map((g:any) => ({
+              ...g, shots: (g.shots||[]).map((sh:any) => ({
+                ...sh, duration: Math.round(toSec(sh.duration) * scale) + 's'
+              }))
+            }));
+            addMsg('assistant', `ℹ️ 已自动调整场景时长以匹配故事总时长（${storyDur}秒）`);
           }
         }
         assets.sequences = seqs;
@@ -234,6 +241,16 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
                   <div>· 镜头制作（图片 Prompt 与视频 Prompt）</div>
                 </div>
                 <div className="text-xs text-[var(--muted)] mt-3">所有内容都将自动沉淀至资产库，支持编辑、优化与复用。</div>
+              </div>
+              {/* Duration selector */}
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 mb-6">
+                <div className="text-sm text-[var(--text2)] font-semibold mb-2">视频时长</div>
+                <div className="flex gap-2 flex-wrap">
+                  {['30秒','1分钟','3分钟','5分钟'].map(d => (
+                    <button key={d} className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${videoDuration===d?'bg-[var(--accent-solid)] text-white':'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)]'}`}
+                      onClick={() => setVideoDuration(d)}>{d}</button>
+                  ))}
+                </div>
               </div>
               {/* Inspiration — only when no messages */}
               {msgs.length === 0 && (
