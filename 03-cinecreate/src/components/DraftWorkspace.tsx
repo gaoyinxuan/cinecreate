@@ -247,7 +247,11 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
               )}
             </div>
             {/* Messages */}
-            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(m.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').trim())}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))}
+            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMsgContent(m)}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (
+  savedIdx === i
+    ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div>
+    : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>
+)}</div></div>))}
             {loading && <div className="text-center text-xs text-[var(--muted)] animate-pulse">AI 思考中...</div>}<div ref={chatEnd} />
           </div>
           {step < 4 && !loading && msgs.length > 1 && (<div className="px-4 py-2 flex justify-center"><button className="px-4 py-1.5 text-xs text-[var(--accent-text)] hover:text-white hover:bg-[var(--accent-solid)] rounded-lg border-2 border-[var(--accent-text)]/30 transition-colors" onClick={advancePhase}>进入下一阶段：{PHASES[step]} →</button></div>)}
@@ -265,6 +269,46 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
     </div>
   );
 }
+
+function renderMsgContent(msg: Message): string {
+  const text = msg.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').trim();
+  const json = extractJSON(msg.content);
+  if (!json) return renderMd(text);
+  // Render natural language + structured asset card
+  let html = renderMd(text);
+  html += '<div class="mt-3 p-3 bg-[var(--surface)] border border-[var(--accent-text)]/10 rounded-lg text-xs">';
+  if (json.title && !Array.isArray(json)) {
+    // Story
+    if (json.title) html += '<div class="text-[var(--text)] font-semibold mb-1">📖 '+esc(json.title)+'</div>';
+    if (json.duration) html += '<div class="text-[var(--text3)]">时长：'+esc(json.duration)+'</div>';
+    if (json.visualTone?.medium) html += '<div class="text-[var(--text3)]">风格：'+esc(json.visualTone.medium)+'</div>';
+    if (json.summary) html += '<div class="text-[var(--text2)] mt-1 leading-relaxed">'+esc(json.summary.slice(0,200))+'</div>';
+  } else if (Array.isArray(json) && json[0]?.name) {
+    // Characters
+    html += '<div class="text-[var(--text)] font-semibold mb-1">👤 '+json.length+' 个角色</div>';
+    json.slice(0,5).forEach((c:any) => {
+      html += '<div class="text-[var(--text2)]">· '+esc(c.name)+' <span class="text-[var(--text3)]">'+esc(c.role||'')+'</span></div>';
+    });
+    if (json.length > 5) html += '<div class="text-[var(--text3)]">...等 '+json.length+' 个角色</div>';
+  } else if (json.scenes) {
+    // Scenes
+    html += '<div class="text-[var(--text)] font-semibold mb-1">🎬 '+json.scenes.length+' 个场景</div>';
+    json.scenes.slice(0,3).forEach((s:any) => {
+      html += '<div class="text-[var(--text2)]">· '+esc(s.name||'')+'</div>';
+    });
+  } else if (Array.isArray(json) && json[0]?.shotNumber !== undefined) {
+    // Shots
+    html += '<div class="text-[var(--text)] font-semibold mb-1">🎥 '+json.length+' 个镜头</div>';
+    json.slice(0,5).forEach((s:any) => {
+      html += '<div class="text-[var(--text2)]">· Shot'+s.shotNumber+' '+esc(s.sceneName||'')+' '+esc(s.shotType||'')+'</div>';
+    });
+  } else {
+    html += '<div class="text-[var(--accent-text)]/60">✓ 已识别资产数据</div>';
+  }
+  html += '</div>';
+  return html;
+}
+function esc(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function renderMd(text: string) { return text.replace(/^### (.+)$/gm, '<div class="text-sm text-[var(--text)] font-semibold mt-3 mb-1">$1</div>').replace(/^## (.+)$/gm, '<div class="text-base text-[var(--text)] font-bold mt-4 mb-2 border-b border-[var(--border2)] pb-1">$1</div>').replace(/^# (.+)$/gm, '<div class="text-lg text-[var(--text)] font-bold mt-4 mb-2">$1</div>').replace(/\*\*(.+?)\*\*/g, '<strong class="text-[var(--text)]">$1</strong>').replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>').replace(/^---$/gm, '<hr class="border-[var(--border2)] my-3"/>').replace(/^- (.+)$/gm, '<div class="ml-2 text-[var(--text2)]">• $1</div>'); }
 
