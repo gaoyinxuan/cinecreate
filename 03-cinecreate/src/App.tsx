@@ -320,7 +320,9 @@ export default function App() {
           onSelectVideoTools={() => { setSelectedDraftId(null); setToolMode('video'); }}
           activeMode={selectedDraftId ? 'drafts' : toolMode ? `tools-${toolMode}` : viewMode}
           onShowWelcome={() => { setActiveId(null); setSelectedDraftId(null); setToolMode(null); }} />
-        {!activeId && !toolMode && !selectedDraftId ? (
+        {/* ToolsPanel — always mounted, display:none when not active */}
+        {activeId && <div style={{display:toolMode?'flex':'none',flex:1,flexDirection:'column' as any}}><ToolsPanel mode={toolMode||'image'} /></div>}
+        {!toolMode && !activeId && !selectedDraftId ? (
           <WelcomePage onCreateProject={() => { const n = `项目 ${String(projects.length + 1).padStart(2,'0')}`; createProject(n); }} />
         ) : selectedDraftId && activeId ? (
           <DraftWorkspace projectId={activeId} draftId={selectedDraftId} onDraftCreated={(id)=>setSelectedDraftId(id)} />
