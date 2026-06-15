@@ -236,7 +236,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
               )}
             </div>
             {/* Messages */}
-            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(cleanContent(m.content))}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))}
+            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'bg-[var(--accent-solid)] text-white':'bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMd(m.content.replace(/<json>[\s\S]*?<\/json>/gi, '').replace(/```json[\s\S]*?```/gi, '').trim())}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (savedIdx === i ? <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div> : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>)}</div></div>))}
             {loading && <div className="text-center text-xs text-[var(--muted)] animate-pulse">AI 思考中...</div>}<div ref={chatEnd} />
           </div>
           {step < 4 && !loading && msgs.length > 1 && (<div className="px-4 py-2 flex justify-center"><button className="px-4 py-1.5 text-xs text-[var(--accent-text)] hover:text-white hover:bg-[var(--accent-solid)] rounded-lg border-2 border-[var(--accent-text)]/30 transition-colors" onClick={advancePhase}>进入下一阶段：{PHASES[step]} →</button></div>)}
@@ -253,20 +253,6 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
       {showOnboard && (<OnboardingGuide title="欢迎使用 AI 导演" storageKey="onboard-drafts" onClose={dismissOnboard} buttons={[{label:'前往配置 API',primary:true,onClick:()=>{dismissOnboard();setShowKey(true);}},{label:'稍后配置',onClick:dismissOnboard}]}><p>文稿模块用于故事大纲创作、角色设定设计、场景规划设计、镜头 Prompt 生成。</p><p>开始使用前，请先配置 AI 模型 API。</p></OnboardingGuide>)}
     </div>
   );
-}
-
-/** Strip JSON from display content — handles tagged and raw JSON */
-function cleanContent(text: string): string {
-  let t = text;
-  // Remove <json>...</json> blocks
-  t = t.replace(/<json>[\s\S]*?<\/json>/gi, '');
-  // Remove ```json...``` blocks
-  t = t.replace(/```json[\s\S]*?```/gi, '');
-  // Remove ```...``` blocks (code blocks)
-  t = t.replace(/```[\s\S]*?```/g, '');
-  // Remove raw JSON objects/arrays at end of message
-  t = t.replace(/\s*(?:\[[\s\S]*\]|\{[\s\S]*\})\s*$/g, '');
-  return t.trim();
 }
 
 function renderMd(text: string) { return text.replace(/^### (.+)$/gm, '<div class="text-sm text-[var(--text)] font-semibold mt-3 mb-1">$1</div>').replace(/^## (.+)$/gm, '<div class="text-base text-[var(--text)] font-bold mt-4 mb-2 border-b border-[var(--border2)] pb-1">$1</div>').replace(/^# (.+)$/gm, '<div class="text-lg text-[var(--text)] font-bold mt-4 mb-2">$1</div>').replace(/\*\*(.+?)\*\*/g, '<strong class="text-[var(--text)]">$1</strong>').replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>').replace(/^---$/gm, '<hr class="border-[var(--border2)] my-3"/>').replace(/^- (.+)$/gm, '<div class="ml-2 text-[var(--text2)]">• $1</div>'); }
