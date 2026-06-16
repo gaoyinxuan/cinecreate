@@ -61,52 +61,22 @@ nav .hamburger{display:none;background:none;border:none;color:var(--text);font-s
 .btn-outline:hover{border-color:var(--gold);transform:translateY(-1px)}
 .btn-outline:active{transform:translateY(0)}
 
-/* ── Features ── */
-.features .head{text-align:center;margin-bottom:64px}
-.features .head h2{font-size:2.2rem;font-weight:800;margin-bottom:12px;letter-spacing:-.02em}
-.features .head p{color:var(--text2);font-size:1rem}
-.features .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:900px;margin:0 auto}
-.feature-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:32px;transition:all .2s}
-.feature-card:hover{border-color:#ccc;transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.04)}
-.feature-card .icon{font-size:1.5rem;margin-bottom:16px;display:block}
-.feature-card h4{font-size:.95rem;font-weight:700;margin-bottom:6px}
-.feature-card p{font-size:.82rem;color:var(--text2);line-height:1.6}
+/* ── Sections ── */
+.sec{padding:120px 0}
+.sec-row{display:flex;align-items:center;gap:64px;max-width:960px;margin:0 auto}
+.sec-row.reverse{flex-direction:row-reverse}
+.sec-img{flex:0 0 56%;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 20px rgba(0,0,0,.03);cursor:pointer;transition:box-shadow .2s}
+.sec-img:hover{box-shadow:0 4px 28px rgba(0,0,0,.06)}
+.sec-img img{width:100%;display:block}
+.sec-text{flex:1;min-width:0}
+.sec-text h2{font-size:2rem;font-weight:800;margin-bottom:12px;letter-spacing:-.02em}
+.sec-text p{font-size:.92rem;color:var(--text2);line-height:1.7;max-width:340px}
 
-/* ── Workflow ── */
-.workflow{background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-.workflow .head{text-align:center;margin-bottom:48px}
-.workflow .head h2{font-size:2.2rem;font-weight:800;letter-spacing:-.02em}
-.flow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;max-width:900px;margin:0 auto}
-.flow-step{text-align:center;padding:20px 24px;background:var(--bg);border:1px solid var(--border);border-radius:12px;min-width:100px}
-.flow-step .num{font-size:.7rem;color:var(--gold);font-weight:700;margin-bottom:4px;letter-spacing:.04em}
-.flow-step .name{font-size:.82rem;font-weight:600}
-.flow-arrow{font-size:1.1rem;color:var(--text3);padding:0 10px;flex-shrink:0}
-
-/* ── Screenshots ── */
-.screenshots .head{text-align:center;margin-bottom:64px}
-.screenshots .head h2{font-size:2.2rem;font-weight:800;letter-spacing:-.02em}
-.preview-list{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
-.preview-row{display:flex;align-items:center;gap:48px;cursor:pointer;transition:opacity .2s}
-.preview-row:hover{opacity:.9}
-.preview-img{flex:0 0 62%;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 24px rgba(0,0,0,.04);transition:box-shadow .2s}
-.preview-row:hover .preview-img{box-shadow:0 4px 32px rgba(0,0,0,.08)}
-.preview-img img{width:100%;display:block}
-.preview-text{flex:1;min-width:0}
-.preview-text h3{font-size:1.25rem;font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
-.preview-text p{font-size:.88rem;color:var(--text2);line-height:1.7;max-width:320px}
-
-/* ── Download ── */
-.download .head{text-align:center;margin-bottom:48px}
-.download .head h2{font-size:2.2rem;font-weight:800;letter-spacing:-.02em}
-.download .head p{color:var(--text2);font-size:1rem;margin-top:8px}
-.download .cards{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
-.dl-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:36px 28px;width:300px;text-align:center;transition:all .2s;position:relative}
-.dl-card:hover{border-color:#ccc;transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.04)}
-.dl-card.featured{border:2px solid var(--gold)}
-.dl-card .badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:#fff;font-size:.7rem;font-weight:700;padding:3px 12px;border-radius:10px}
-.dl-card .icon{font-size:2rem;margin-bottom:12px}
-.dl-card .title{font-weight:700;font-size:1rem;margin-bottom:4px}
-.dl-card .size{font-size:.8rem;color:var(--text3);margin-bottom:20px}
+/* ── Download CTA ── */
+.dl-cta{text-align:center;padding:140px 0 120px}
+.dl-cta h2{font-size:2rem;font-weight:800;margin-bottom:10px;letter-spacing:-.02em}
+.dl-cta p{font-size:.92rem;color:var(--text2);margin-bottom:28px}
+.dl-cta .btn{font-size:1rem;padding:16px 36px;border-radius:12px}
 
 /* ── Footer ── */
 footer{padding:40px 0;text-align:center;font-size:.78rem;color:var(--text3);border-top:1px solid var(--border)}
@@ -151,17 +121,11 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
   .hero{padding:120px 0 72px}
   .hero h1{font-size:1.8rem}
   .hero p{font-size:.95rem}
-  .section{padding:64px 0}
-  .features .grid{grid-template-columns:1fr}
-  .features .head h2,.workflow .head h2,.screenshots .head h2,.download .head h2{font-size:1.6rem}
-  .shots-grid{grid-template-columns:1fr}
-  .preview-row{flex-direction:column;gap:20px}
-  .preview-img{flex:0 0 auto;width:100%}
-  .preview-text p{max-width:100%}
-  .preview-list{gap:40px}
-  .flow{flex-direction:column;gap:0}
-  .flow-arrow{transform:rotate(90deg);padding:2px 0}
-  .dl-card{width:100%}
+  .section,.sec,.dl-cta{padding:80px 0}
+  .sec-row{flex-direction:column;gap:28px}
+  .sec-row.reverse{flex-direction:column}
+  .sec-img{flex:0 0 auto;width:100%}
+  .sec-text p{max-width:100%}
 }
 @media(max-width:480px){
   .cta{flex-direction:column;align-items:center}
@@ -178,9 +142,6 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
       <span class="logo-en">CineCreate</span>
     </a>
     <div class="links">
-      <a href="#features" class="zh">功能</a><a href="#features" class="en">Features</a>
-      <a href="#workflow" class="zh">流程</a><a href="#workflow" class="en">Workflow</a>
-      <a href="#screenshots" class="zh">预览</a><a href="#screenshots" class="en">Preview</a>
       <a href="#download-section" class="zh">下载</a><a href="#download-section" class="en">Download</a>
       <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener">GitHub</a>
     </div>
@@ -193,9 +154,6 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
 
 <div class="mobile-nav" id="mobileNav">
   <button class="close-btn" onclick="toggleMenu()">✕</button>
-  <a href="#features" class="zh" onclick="toggleMenu()">功能</a><a href="#features" class="en" onclick="toggleMenu()">Features</a>
-  <a href="#workflow" class="zh" onclick="toggleMenu()">流程</a><a href="#workflow" class="en" onclick="toggleMenu()">Workflow</a>
-  <a href="#screenshots" class="zh" onclick="toggleMenu()">预览</a><a href="#screenshots" class="en" onclick="toggleMenu()">Preview</a>
   <a href="#download-section" class="zh" onclick="toggleMenu()">下载</a><a href="#download-section" class="en" onclick="toggleMenu()">Download</a>
   <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener">GitHub</a>
 </div>
@@ -221,112 +179,60 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
   </div>
 </section>
 
-<section id="features" class="features section">
+<!-- ── 文稿 ── -->
+<section class="sec">
   <div class="container">
-    <div class="head reveal">
-      <h2><span class="zh">完整的创作链路</span><span class="en">One creative pipeline</span></h2>
-      <p><span class="zh">四个阶段产出结构化资产，环环相扣，驱动生图与生视频</span><span class="en">Four stages of structured assets, cascading into image and video generation</span></p>
-    </div>
-    <div class="grid">
-      <div class="feature-card reveal reveal-d1">
-        <span class="icon">📝</span>
-        <h4 class="zh">文稿创作</h4><h4 class="en">Story Design</h4>
-        <p class="zh">AI 辅助四阶段流程：故事设定 → 角色设计 → 场景规划 → 镜头制作。对话式交互，资产一键保存。</p>
-        <p class="en">AI-assisted workflow: Story → Characters → Scenes → Shots. Conversational UI with one-click asset save.</p>
+    <div class="sec-row reveal">
+      <div class="sec-text">
+        <h2><span class="zh">文稿</span><span class="en">Draft</span></h2>
+        <p class="zh">从一个创意开始。<br>通过故事设定、角色设定、场景规划和镜头制作，逐步构建完整的视频创作方案。</p>
+        <p class="en">Start with an idea.<br>Build a complete video plan through story, characters, scenes, and shot prompts.</p>
       </div>
-      <div class="feature-card reveal reveal-d2">
-        <span class="icon">🔧</span>
-        <h4 class="zh">工具面板</h4><h4 class="en">Tool Panel</h4>
-        <p class="zh">内嵌 WebView 集成 GPT Image、豆包、Gemini、可灵 Kling 等 AI 工具。一键切换，生图生视频随心用。</p>
-        <p class="en">Built-in WebView with GPT Image, Seedream, Gemini, Kling AI &amp; more. One-click tool switching.</p>
-      </div>
-      <div class="feature-card reveal reveal-d3">
-        <span class="icon">🎬</span>
-        <h4 class="zh">分镜管理</h4><h4 class="en">Storyboard</h4>
-        <p class="zh">素材拖拽导入、多方案变体对比、Lightbox 预览、时间码自动计算。专业的视频分镜管理体验。</p>
-        <p class="en">Drag-drop import, multi-variant comparison, lightbox preview, auto timecode. Professional storyboard management.</p>
-      </div>
-      <div class="feature-card reveal reveal-d4">
-        <span class="icon">📦</span>
-        <h4 class="zh">素材中转站</h4><h4 class="en">Transfer Station</h4>
-        <p class="zh">右侧浮动面板，Ctrl+V 粘贴截图、分类筛选、拖拽到分镜。素材在工具和分镜之间快速中转。</p>
-        <p class="en">Floating right panel. Ctrl+V paste, category filtering, drag to storyboard. Quick transfer between tools and shots.</p>
+      <div class="sec-img" onclick="openLightbox('screenshots/01.png')">
+        <img src="screenshots/01.png?v=c3a144c3" alt="文稿" loading="lazy">
       </div>
     </div>
   </div>
 </section>
 
-<section id="workflow" class="workflow section">
+<!-- ── 工具 ── -->
+<section class="sec">
   <div class="container">
-    <div class="head reveal">
-      <h2><span class="zh">从灵感到交付</span><span class="en">From Inspiration to Delivery</span></h2>
-    </div>
-    <div class="flow reveal reveal-d1">
-      <div class="flow-step"><div class="num">01</div><div class="name zh">故事设定</div><div class="name en">Story</div></div><span class="flow-arrow">→</span>
-      <div class="flow-step"><div class="num">02</div><div class="name zh">角色设计</div><div class="name en">Characters</div></div><span class="flow-arrow">→</span>
-      <div class="flow-step"><div class="num">03</div><div class="name zh">场景规划</div><div class="name en">Scenes</div></div><span class="flow-arrow">→</span>
-      <div class="flow-step"><div class="num">04</div><div class="name zh">镜头制作</div><div class="name en">Shots</div></div><span class="flow-arrow">→</span>
-      <div class="flow-step"><div class="num">05</div><div class="name zh">AI 生图</div><div class="name en">Image</div></div><span class="flow-arrow">→</span>
-      <div class="flow-step"><div class="num">06</div><div class="name zh">AI 视频</div><div class="name en">Video</div></div>
-    </div>
-  </div>
-</section>
-
-<section id="screenshots" class="screenshots section">
-  <div class="container">
-    <div class="head reveal">
-      <h2><span class="zh">界面预览</span><span class="en">Preview</span></h2>
-    </div>
-    <div class="preview-list">
-      <div class="preview-row reveal reveal-d1" onclick="openLightbox('screenshots/01.png')">
-        <div class="preview-img"><img src="screenshots/01.png?v=c3a144c3" alt="文稿创作" loading="lazy"></div>
-        <div class="preview-text">
-          <h3 class="zh">文稿创作</h3><h3 class="en">Draft Workspace</h3>
-          <p class="zh">AI 驱动的四阶段对话式创作流程。从故事设定、角色设计、场景规划到镜头 Prompt 生成，结构化资产一键保存。</p>
-          <p class="en">AI-powered four-stage conversational workflow. Story, characters, scenes, and shot prompts — save structured assets in one click.</p>
-        </div>
+    <div class="sec-row reverse reveal">
+      <div class="sec-text">
+        <h2><span class="zh">工具</span><span class="en">Tools</span></h2>
+        <p class="zh">统一使用主流 AI 生图与生视频工具。<br>无需频繁切换网页，让创作过程更加专注。</p>
+        <p class="en">Access AI image and video generation tools in one place.<br>Stay focused without switching tabs.</p>
       </div>
-      <div class="preview-row reveal reveal-d2" onclick="openLightbox('screenshots/02.png')">
-        <div class="preview-img"><img src="screenshots/02.png?v=c3a144c3" alt="工具面板" loading="lazy"></div>
-        <div class="preview-text">
-          <h3 class="zh">工具面板</h3><h3 class="en">Tool Panel</h3>
-          <p class="zh">内嵌 WebView 集成主流 AI 平台。GPT Image、Seedream、Gemini、Kling 一键切换，WebView 持久化不重载。</p>
-          <p class="en">Built-in WebView with persistent sessions. One-click switching between GPT Image, Seedream, Gemini, Kling and more.</p>
-        </div>
-      </div>
-      <div class="preview-row reveal reveal-d3" onclick="openLightbox('screenshots/03.png')">
-        <div class="preview-img"><img src="screenshots/03.png?v=c3a144c3" alt="分镜管理" loading="lazy"></div>
-        <div class="preview-text">
-          <h3 class="zh">分镜管理</h3><h3 class="en">Storyboard</h3>
-          <p class="zh">视频优先三栏布局。方案对比、首尾帧管理、Prompt 折叠、时间轴导航。文稿导入一键同步镜头结构。</p>
-          <p class="en">Video-first three-column layout. Variant switching, frame management, collapsible prompts, timeline navigation. Import drafts in one click.</p>
-        </div>
+      <div class="sec-img" onclick="openLightbox('screenshots/02.png')">
+        <img src="screenshots/02.png?v=c3a144c3" alt="工具" loading="lazy">
       </div>
     </div>
   </div>
 </section>
 
-<section id="download-section" class="download section">
+<!-- ── 分镜 ── -->
+<section class="sec">
   <div class="container">
-    <div class="head reveal">
-      <h2><span class="zh">下载</span><span class="en">Download</span></h2>
-      <p><span class="zh">Windows 10+ · 64 位 · 免费开源</span><span class="en">Windows 10+ · 64-bit · Free &amp; Open Source</span></p>
-    </div>
-    <div class="cards">
-      <div class="dl-card featured reveal reveal-d1">
-        <div class="badge"><span class="zh">推荐</span><span class="en">Recommended</span></div>
-        <div class="icon">📦</div>
-        <div class="title">Portable 1.3.0</div>
-        <div class="size">85 MB · <span class="zh">免安装</span><span class="en">No install</span></div>
-        <a href="https://github.com/gaoyinxuan/project_001/releases/latest/download/CineCreate-1.3.0.exe" class="btn btn-primary" style="width:100%;justify-content:center">下载</a>
+    <div class="sec-row reveal">
+      <div class="sec-text">
+        <h2><span class="zh">分镜</span><span class="en">Storyboard</span></h2>
+        <p class="zh">将镜头规划转化为实际的视频资产。<br>统一管理视频、首尾帧和提示词，让创作过程保持清晰。</p>
+        <p class="en">Turn shot plans into real video assets.<br>Manage videos, frames, and prompts in one clear view.</p>
       </div>
-      <div class="dl-card reveal reveal-d2">
-        <div class="icon">💿</div>
-        <div class="title">Setup 1.3.0</div>
-        <div class="size">85 MB · <span class="zh">安装版</span><span class="en">Installer</span></div>
-        <a href="https://github.com/gaoyinxuan/project_001/releases/latest/download/CineCreate-Setup-1.3.0.exe" class="btn btn-outline" style="width:100%;justify-content:center">下载</a>
+      <div class="sec-img" onclick="openLightbox('screenshots/03.png')">
+        <img src="screenshots/03.png?v=c3a144c3" alt="分镜" loading="lazy">
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ── Download ── -->
+<section id="download-section" class="dl-cta">
+  <div class="container">
+    <h2 class="reveal"><span class="zh">开始使用 CineCreate</span><span class="en">Get CineCreate</span></h2>
+    <p class="reveal reveal-d1"><span class="zh">下载客户端，开启你的 AI 影视创作流程。</span><span class="en">Download the app and start creating.</span></p>
+    <a href="https://github.com/gaoyinxuan/project_001/releases/latest/download/CineCreate-1.3.0.exe" class="btn btn-primary reveal reveal-d2"><span class="zh">Windows 下载</span><span class="en">Download for Windows</span></a>
   </div>
 </section>
 
