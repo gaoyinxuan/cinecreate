@@ -4,6 +4,7 @@
  */
 
 import { db } from './dbService';
+import sampleData from '../sample-data/sample-project.json';
 
 const SAMPLE_KEY = 'sample_imported_v1';
 
@@ -46,10 +47,8 @@ export async function restoreSampleProject(): Promise<string | null> {
   }
 }
 
-async function fetchSampleData(): Promise<any> {
-  const resp = await fetch('./sample-data/sample-project.json');
-  if (!resp.ok) throw new Error('Sample data not found');
-  return resp.json();
+function fetchSampleData(): any {
+  return sampleData;
 }
 
 async function createSampleProject(data: any, overrideName?: string) {
@@ -66,7 +65,7 @@ async function createSampleProject(data: any, overrideName?: string) {
     for (const [blobId, base64] of Object.entries(data.blobs)) {
       try {
         const buffer = Uint8Array.from(atob(base64 as string), c => c.charCodeAt(0)).buffer;
-        await (db.blobs as any).save(blobId, buffer);
+        await (db.blobs as any).save(blobId, new Blob([buffer]));
       } catch {}
     }
   }

@@ -94,17 +94,18 @@ export default function App() {
           } catch {}
         }, 1000);
       } catch(e) { console.error('Load failed:', e); }
-      // Import sample project on first launch — must finish before showing UI
-      if (projs.length === 0) {
-        try {
-          const imported = await importSampleProjectIfNeeded();
-          if (imported) {
-            const ps = await db.projects.getAll();
-            setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
-          }
-        } catch {}
-      }
       setLoaded(true);
+      // Import sample project on first launch (async, non-blocking)
+      if (projs.length === 0) {
+        importSampleProjectIfNeeded().then(async imported => {
+          if (imported) {
+            const [ps, sqs, shs] = await Promise.all([db.projects.getAll(), db.sequences.getAll(), db.shots.getAll()]);
+            setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
+            setSequences(sqs.map(normSeq));
+            setShots(shs.map(normShot));
+          }
+        });
+      }
     })();
   }, []);
 
@@ -553,10 +554,11 @@ export default function App() {
           onCreate={createProject} onRename={renameProject} onDelete={deleteProject}
           onSelectDraft={(draftId) => { setSelectedDraftId(draftId); setToolMode(null); }}
           onDraftRenamed={() => setDraftVersion(v => v + 1)}
-          onRefreshProjects={() => {
-            db.projects.getAll().then(ps => {
-              setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
-            });
+          onRefreshProjects={async () => {
+            const [ps, sqs, shs] = await Promise.all([db.projects.getAll(), db.sequences.getAll(), db.shots.getAll()]);
+            setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
+            setSequences(sqs.map(normSeq));
+            setShots(shs.map(normShot));
           }}
           selectedDraftId={selectedDraftId}
           onSelectStoryboard={() => { setSelectedDraftId(null); setToolMode(null); setViewMode('storyboard'); }}
