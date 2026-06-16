@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
-import { initDatabase, getDatabase, persist } from './db';
+import { initDatabase, getDatabase, persist, seedSampleProject } from './db';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -45,7 +45,7 @@ function exec(sql: string, params: any[] = []) {
 }
 
 async function bootstrap() {
-  try { await initDatabase(); console.log('DB initialized:', !!getDatabase()); } catch (e) { console.error('DB init failed:', e); }
+  try { await initDatabase(); console.log('DB initialized:', !!getDatabase()); seedSampleProject(); } catch (e) { console.error('DB init failed:', e); }
   createWindow();
 }
 
@@ -286,4 +286,17 @@ ipcMain.handle('dialog:confirm', async (_e, message: string, title: string) => {
     buttons: ['取消', '确认'], defaultId: 1, cancelId: 0
   });
   return response === 1;
+});
+
+// Restore sample project on demand
+ipcMain.handle('restoreSampleProject', async () => {
+  try {
+    const { restoreSampleProject } = require('./db');
+    const existing = queryAll('SELECT name FROM projects');
+    let name = "案例（默认）";
+    let suffix = 1;
+    while (existing.some((p: any) => p.name === name)) { suffix++; name = "案例（默认） (" + suffix + ")"; }
+    const pid = restoreSampleProject(name);
+    return pid ? { name, id: pid } : null;
+  } catch (e) { return null; }
 });

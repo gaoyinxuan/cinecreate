@@ -6,6 +6,7 @@ import initSqlJs, { Database as SqlJsDB } from 'sql.js';
 import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
+import { v4 as uuidv4 } from 'uuid';
 
 let db: SqlJsDB | null = null;
 
@@ -130,6 +131,89 @@ function autoBackup(dbFile: string, backupFile: string) {
       try { fs.writeFileSync(dbFile, Buffer.from(db.export())); } catch {}
     }
   });
+}
+
+// Seed sample project on first launch
+function run(sql: string, params: any[] = []) { if (db) { db.run(sql, params); } }
+function qAll(sql: string, params: any[] = []): any[] {
+  if (!db) return [];
+  const stmt = db.prepare(sql); stmt.bind(params); const rows: any[] = [];
+  while (stmt.step()) rows.push(stmt.getAsObject()); stmt.free(); return rows;
+}
+
+export function seedSampleProject(forceName?: string) {
+  if (!db) return null;
+  try {
+    if (!forceName) {
+      const r = qAll('SELECT COUNT(*) as c FROM projects');
+      if (r[0]?.c > 0) return null;
+    }
+
+    // Find sample JSON — production: resourcesPath, dev: appPath
+    let jsonPath = path.join(process.resourcesPath || '', 'sample-project.json');
+    if (!fs.existsSync(jsonPath)) {
+      jsonPath = path.join(app.getAppPath(), 'public', 'sample-project.json');
+    }
+    if (!fs.existsSync(jsonPath)) {
+      jsonPath = path.join(app.getAppPath(), '..', 'public', 'sample-project.json');
+    }
+    if (!fs.existsSync(jsonPath)) return null;
+
+    const raw = fs.readFileSync(jsonPath, 'utf-8');
+    const data = JSON.parse(raw);
+    if (!data?.project) return null;
+
+    const now = new Date().toISOString();
+    const pid = uuidv4();
+
+    // Create project
+    run('INSERT INTO projects (id,name,createdAt,updatedAt,aiConfig) VALUES (?,?,?,?,?)',
+      [pid, forceName || '案例（默认）', now, now, '{}']);
+
+    // Import blobs
+    if (data.blobs) {
+      const blobDir = path.join(app.getPath('userData'), 'blobs');
+      if (!fs.existsSync(blobDir)) fs.mkdirSync(blobDir, { recursive: true });
+      for (const [blobId, b64] of Object.entries(data.blobs)) {
+        try {
+          fs.writeFileSync(path.join(blobDir, blobId), Buffer.from(b64 as string, 'base64'));
+        } catch {}
+      }
+    }
+
+    // Import sequences
+    const seqIdMap: Record<string, string> = {};
+    if (data.sequences) {
+      for (const seq of data.sequences) {
+        const sid = uuidv4();
+        run('INSERT INTO sequences (id,projectId,name,description,startTime,endTime,orderIndex,createdAt) VALUES (?,?,?,?,?,?,?,?)',
+          [sid, pid, seq.name, seq.description||'', seq.startTime||'', seq.endTime||'', seq.orderIndex||0, now]);
+        seqIdMap[seq.id] = sid;
+      }
+    }
+
+    // Import shots
+    if (data.shots) {
+      for (const shot of data.shots) {
+        const sid = uuidv4();
+        const meta = typeof shot.metadata === 'string' ? shot.metadata : JSON.stringify(shot.metadata || {});
+        run('INSERT INTO shots (id,projectId,sequenceId,title,description,variants,startTime,endTime,duration,tags,metadata,orderIndex,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+          [sid, pid, seqIdMap[shot.sequenceId]||'', shot.title||'', shot.description||'',
+           typeof shot.variants==='string'?shot.variants:JSON.stringify(shot.variants||[]),
+           shot.startTime||'', shot.endTime||'', shot.duration||'',
+           typeof shot.tags==='string'?shot.tags:JSON.stringify(shot.tags||[]),
+           meta, shot.orderIndex||0, now]);
+      }
+    }
+
+    persist();
+    console.log('Sample project seeded:', pid);
+    return pid;
+  } catch (e) { console.error('Seed failed:', e); return null; }
+}
+
+export function restoreSampleProject(name: string) {
+  return seedSampleProject(name);
 }
 
 // Persist helper — call after writes
