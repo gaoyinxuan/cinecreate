@@ -10,9 +10,10 @@ interface Props {
   onChangeShot: (s: Shot) => void; onDeleteShot: (id: string) => void;
   onAddImages: (files: File[]) => void;
   onAddImagesToShot?: (shotId: string, files: File[]) => void;
+  onCreateEmptyShot?: () => void;
   navigatorRef: any; activeSeqId: string | null;
 }
-export default function ShotBoard({ project, shots, shotGlobalNum, onChangeShot, onDeleteShot, onAddImages, onAddImagesToShot, navigatorRef, activeSeqId }: Props) {
+export default function ShotBoard({ project, shots, shotGlobalNum, onChangeShot, onDeleteShot, onAddImages, onAddImagesToShot, onCreateEmptyShot, navigatorRef, activeSeqId }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (navigatorRef) navigatorRef.current = scrollRef.current; }, [navigatorRef, shots]);
 
@@ -27,7 +28,7 @@ export default function ShotBoard({ project, shots, shotGlobalNum, onChangeShot,
       e.preventDefault();
       const target = pasteTargetRef.current;
       if (target?.type === 'variant' && target.shotId && onAddImagesToShot) onAddImagesToShot(target.shotId, files);
-      else onAddImages(files);
+      // Paste only works for variant targets, NOT for creating new shots
     };
     document.addEventListener('paste', handler);
     return () => document.removeEventListener('paste', handler);
@@ -36,18 +37,6 @@ export default function ShotBoard({ project, shots, shotGlobalNum, onChangeShot,
   if (!project) {
     return <div className="flex-1 flex items-center justify-center"><div className="text-center"><div className="text-5xl mb-4 opacity-30">📂</div><div className="text-lg text-[var(--dim)] mb-1">未选择项目</div><div className="text-sm text-[var(--muted)]">在左侧创建或选择项目</div></div></div>;
   }
-
-  const dropZone = (msg: string) => (
-    <div className="border-2 border-dashed border-[var(--border2)] hover:border-gold-400/50 rounded-xl p-12 text-center cursor-pointer"
-      onMouseEnter={() => { pasteTargetRef.current = { type: 'new-shot' }; }}
-      onMouseLeave={() => { pasteTargetRef.current = null; }}
-      onDragOver={e => { e.preventDefault(); }}
-      onDrop={e => { e.preventDefault(); const imgs = Array.from(e.dataTransfer.files).filter(f => f.type.match(/^image\/(png|jpe?g|webp)$/)); if (imgs.length) onAddImages(imgs); }}>
-      <div className="text-4xl mb-3 opacity-50">🎬</div>
-      <div className="text-sm text-[var(--text3)]">{msg}</div>
-      <div className="text-xs text-[var(--muted)] mt-1.5">支持 PNG / JPG / WebP，也支持 Ctrl+V 粘贴</div>
-    </div>
-  );
 
   return (
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 bg-[var(--bg)]">
@@ -59,10 +48,24 @@ export default function ShotBoard({ project, shots, shotGlobalNum, onChangeShot,
             {(shots||[]).map((s, i) => <ShotCard key={s.id} shot={s} shotNo={shotGlobalNum[s.id] || i + 1} onChange={onChangeShot} onDelete={() => onDeleteShot(s.id)} />)}
           </div>
         )
-      ) : shots.length === 0 ? dropZone('拖拽或粘贴 AI 生成的分镜图片到这里') : (
+      ) : shots.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="text-5xl mb-4 opacity-30">🎬</div>
+          <div className="text-sm text-[var(--text3)] mb-4">暂无分镜</div>
+          {onCreateEmptyShot && (
+            <button className="px-4 py-2 text-xs bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white font-semibold rounded-lg transition-colors"
+              onClick={onCreateEmptyShot}>+ 创建空镜头</button>
+          )}
+        </div>
+      ) : (
         <div className="max-w-4xl mx-auto space-y-4 pb-16">
           {shots.map((s, i) => <ShotCard key={s.id} shot={s} shotNo={shotGlobalNum[s.id]} onChange={onChangeShot} onDelete={() => onDeleteShot(s.id)} />)}
-          {dropZone('继续添加分镜...')}
+          {onCreateEmptyShot && (
+            <div className="text-center pt-2">
+              <button className="px-4 py-2 text-xs bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white font-semibold rounded-lg transition-colors"
+                onClick={onCreateEmptyShot}>+ 创建空镜头</button>
+            </div>
+          )}
         </div>
       )}
     </div>

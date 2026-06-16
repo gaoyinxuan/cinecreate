@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Project, Sequence, Shot } from './types';
 import { db } from './services/dbService';
+import { importSampleProjectIfNeeded } from './services/sampleService';
 import ProjectSidebar from './components/ProjectSidebar';
 import SequenceTabs from './components/SequenceTabs';
 import Toolbar from './components/Toolbar';
@@ -26,6 +27,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeSeqId, setActiveSeqId] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
+  const [draftVersion, setDraftVersion] = useState(0);
   const [toolMode, setToolMode] = useState<'image'|'video'|null>(null);
   const [viewMode, setViewMode] = useState<'preview'|'storyboard'>('preview');
   const [loaded, setLoaded] = useState(false);
@@ -73,6 +75,7 @@ export default function App() {
         setProjects(projs.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
         setSequences(seqs.map(normSeq));
         setShots(shts.map(normShot));
+        try { (window as any).electronAPI.setMeta('_diag_LOAD', { shots: shts.length, blobsLoaded: shts.reduce((c:number,s:any)=>{const m=typeof s.metadata==='string'?JSON.parse(s.metadata||'{}'):(s.metadata||{});return c+(m.sourceAssets||[]).length+(m.videoOutputs||[]).length},0) }).catch(()=>{}); } catch {}
         // Migrate old ai_story/ai_character to documents (one-time)
         setTimeout(async () => {
           try {
@@ -92,6 +95,18 @@ export default function App() {
         }, 1000);
       } catch(e) { console.error('Load failed:', e); }
       setLoaded(true);
+      // Import sample project on first launch
+      if (projs.length === 0) {
+        importSampleProjectIfNeeded().then((imported:any) => {
+          try { (window as any).electronAPI.setMeta('_diag_SAMPLE_IMPORT', { imported: !!imported }).catch(()=>{}); } catch {}
+          if (imported) {
+            // Reload projects to show the sample
+            db.projects.getAll().then(ps => {
+              setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
+            });
+          }
+        });
+      }
     })();
   }, []);
 
@@ -110,7 +125,27 @@ export default function App() {
   }, 600), []);
 
   const toSeqRow = (s: any) => ({...s, videoSegments: JSON.stringify(s.videoSegments||[])});
-  const toShotRow = (s: any) => ({...s, variants: JSON.stringify(s.variants||[]), tags: JSON.stringify(s.tags||[]), metadata: JSON.stringify((s as any).metadata||{})});
+  const toShotRow = (s: any) => {
+    const meta = typeof s.metadata === 'object' ? s.metadata : (typeof s.metadata === 'string' ? JSON.parse(s.metadata||'{}') : {});
+    return {
+      title: s.title, description: s.description,
+      startTime: s.startTime, endTime: s.endTime, duration: s.duration,
+      orderIndex: s.orderIndex, sequenceId: s.sequenceId,
+      variants: s.variants || [],
+      tags: s.tags || [],
+      metadata: {
+        ...meta,
+        sourceAssets: s.sourceAssets || meta.sourceAssets || [],
+        videoOutputs: s.videoOutputs || meta.videoOutputs || [],
+        imagePrompt: s.imagePrompt ?? meta.imagePrompt ?? '',
+        videoPrompt: s.videoPrompt ?? meta.videoPrompt ?? '',
+        shotType: s.shotType ?? meta.shotType ?? '',
+        shotNo: s.shotNo ?? meta.shotNo ?? 0,
+        sceneId: s.sceneId ?? meta.sceneId,
+        purpose: s.purpose ?? meta.purpose ?? '',
+      }
+    };
+  };
 
   useEffect(() => { if (loaded) { saveItems('shots', shots, toShotRow); saveItems('sequences', sequences, toSeqRow); } }, [shots, sequences, loaded]);
   useEffect(() => { if (loaded) saveItems('projects', projects, (p:any)=>({...p,aiConfig:JSON.stringify(p.aiConfig||{})})); }, [projects, loaded]);
@@ -164,7 +199,8 @@ export default function App() {
         setSequences(prev => [...prev, ns]);
         setActiveSeqId(ns.id);
       }
-      const draft = await db.dts.create({ projectId: p.id, name:'草稿V1', currentStep:1, confirmedAssets:{}, conversation:[] });
+      // Auto-create draft and navigate to it
+      const draft = await db.dts.create({ projectId: p.id, name: '草稿V1', currentStep: 1, confirmedAssets: {}, conversation: [] });
       if (draft?.id) setSelectedDraftId(draft.id);
     } catch(e) { console.error('createProject error:', e); }
   }, []);
@@ -437,10 +473,46 @@ export default function App() {
     }));
   }, []);
 
-  const updateShot = useCallback((updated: Shot) => {
+  const _log = (step: string, data: any) => { try { (window as any).electronAPI.setMeta('_diag_'+step, data).catch(()=>{}); } catch {} };
+  const updateShot = (updated: Shot) => {
+    _log('UPLOAD_CALLED', { id: updated.id, sa: updated.sourceAssets?.length ?? 0, vo: updated.videoOutputs?.length ?? 0, title: updated.title });
     setShots(prev => prev.map(s => s.id === updated.id ? updated : s));
-  }, []);
-
+    (async () => {
+      try {
+      if (updated.sourceAssets?.length) {
+        for (const a of updated.sourceAssets) {
+          if (a.blob && !a.blobId) {
+            const blobId = a.id;
+            _log('BLOB_SAVING', { blobId, type: a.type, size: a.blob?.size, isBlob: a.blob instanceof Blob, isFile: a.blob instanceof File, hasArrayBuffer: typeof a.blob?.arrayBuffer }); await db.blobs.save(blobId, a.blob);
+            a.blobId = blobId;
+            _log('BLOB_SAVED', { blobId });
+          }
+        }
+      }
+      if (updated.videoOutputs?.length) {
+        for (const v of updated.videoOutputs) {
+          if (v.blob && !v.blobId) {
+            const blobId = v.id;
+            _log('BLOB_SAVING', { blobId, type: 'video', size: v.blob?.size, isBlob: v.blob instanceof Blob }); await db.blobs.save(blobId, v.blob);
+            v.blobId = blobId;
+            _log('BLOB_SAVED', { blobId });
+          }
+        }
+      }
+      const row = toShotRow(updated);
+      if (row.metadata) {
+        if (row.metadata.sourceAssets) row.metadata.sourceAssets = row.metadata.sourceAssets.map((a: any) => ({ id: a.id, type: a.type, label: a.label, blobId: a.blobId }));
+        if (row.metadata.videoOutputs) row.metadata.videoOutputs = row.metadata.videoOutputs.map((v: any) => ({ id: v.id, label: v.label, letter: v.letter, isPrimary: v.isPrimary, blobId: v.blobId, provider: v.provider, createdAt: v.createdAt }));
+      }
+      const clean = JSON.parse(JSON.stringify(row));
+      _log('DB_SAVING', { id: updated.id, sa: clean.metadata?.sourceAssets?.length ?? 0, vo: clean.metadata?.videoOutputs?.length ?? 0 });
+      await db.shots.update(updated.id, clean);
+      _log('DB_SUCCESS', { id: updated.id });
+      } catch(e: any) {
+        _log('DB_ERROR', { msg: e?.message || String(e) });
+      }
+    })();
+  };
   const deleteShot = useCallback((id: string) => {
     setShots(prev => {
       const target = prev.find(s => s.id === id);
@@ -482,6 +554,12 @@ export default function App() {
           onSelect={(id) => { setActiveId(id); setSelectedDraftId(null); setViewMode('preview'); }}
           onCreate={createProject} onRename={renameProject} onDelete={deleteProject}
           onSelectDraft={(draftId) => { setSelectedDraftId(draftId); setToolMode(null); }}
+          onDraftRenamed={() => setDraftVersion(v => v + 1)}
+          onRefreshProjects={() => {
+            db.projects.getAll().then(ps => {
+              setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
+            });
+          }}
           selectedDraftId={selectedDraftId}
           onSelectStoryboard={() => { setSelectedDraftId(null); setToolMode(null); setViewMode('storyboard'); }}
           onSelectImageTools={() => { setSelectedDraftId(null); setToolMode('image'); }}
@@ -493,9 +571,9 @@ export default function App() {
         {/* All other views */}
         <div style={toolMode?{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}:{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
         {!activeId && !selectedDraftId ? (
-          <WelcomePage onCreateProject={() => { const n = `项目 ${String(projects.length + 1).padStart(2,'0')}`; createProject(n); }} />
+          <WelcomePage onCreateProject={() => { const n = `项目 ${String(projects.filter((p: any) => !p.name.includes('案例')).length + 1).padStart(2, '0')}`; createProject(n); }} />
         ) : selectedDraftId && activeId ? (
-          <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}><DraftWorkspace projectId={activeId} draftId={selectedDraftId} onDraftCreated={(id)=>setSelectedDraftId(id)} onImportToStoryboard={importShotsToStoryboard} /></div>
+          <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}><DraftWorkspace key={`${selectedDraftId}-${draftVersion}`} projectId={activeId} draftId={selectedDraftId} onDraftCreated={(id)=>setSelectedDraftId(id)} onImportToStoryboard={importShotsToStoryboard} /></div>
         ) : activeId && viewMode === 'storyboard' ? (
           <div className="flex-1 flex min-h-0">
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
@@ -510,6 +588,16 @@ export default function App() {
                 project={activeProject} shots={projectShots} shotGlobalNum={shotGlobalNum}
                 onChangeShot={updateShot} onDeleteShot={deleteShot}
                 onAddImages={addImages} onAddImagesToShot={addImagesToShot}
+                onCreateEmptyShot={() => {
+                  if (!activeId || !activeSeqId) return;
+                  const baseIdx = shots.filter(s => s.projectId===activeId && s.sequenceId===activeSeqId).length;
+                  db.shots.create({
+                    projectId: activeId, sequenceId: activeSeqId,
+                    sourceAssets: [], videoOutputs: [],
+                    variants: [], tags: [], metadata: {},
+                    orderIndex: baseIdx
+                  } as any).then((s: any) => { if (s?.id) setShots(prev => [...prev, normShot(s)]); });
+                }}
                 navigatorRef={navigatorRef} activeSeqId={activeSeqId} />
             </div>
             {activeProject && (

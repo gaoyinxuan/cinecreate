@@ -321,8 +321,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated, onI
                   ))}
                 </div>
               </div>
-              {/* Inspiration — only when no messages */}
-              {msgs.length === 0 && (
+              {/* Inspiration — always visible */}
                 <div className="mb-2">
                   <div className="text-sm text-[var(--text2)] font-semibold mb-1">✨ 创作灵感</div>
                   <div className="text-xs text-[var(--muted)] mb-3">没有明确想法？从一个方向开始。</div>
@@ -341,7 +340,6 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated, onI
                     </div>
                   ))}
                 </div>
-              )}
             </div>
             {/* Messages */}
             {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-center'}`}>
@@ -424,7 +422,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated, onI
         }
       }
     });
-  }}><span className="text-xs">{isExpanded ? '▼' : '▶'}</span><span className={`text-xs flex-1 ${isActive ? 'text-[var(--text)] font-semibold' : 'text-[var(--text3)]'}`}>{it.label}</span>{hasData && <span className="text-xs text-[var(--accent-text)]/60">✓</span>}{isActive && <span className="text-xs text-[var(--accent-text)]/60">当前</span>}{it.type !== 'story' && <span className="text-xs text-[var(--muted)]">{it.type === 'storyboard' ? (it.data.scenes||[]).length+'项' : arr.length ? arr.length+'项' : ''}</span>}</div>
+  }}><span className="text-xs">{isExpanded ? '▼' : '▶'}</span><span className={`text-xs flex-1 ${isActive ? 'text-[var(--text)] font-semibold' : 'text-[var(--text3)]'}`}>{it.label}</span>{hasData && <span className="text-xs text-[var(--accent-text)]/60">✓</span>}{isActive && <span className="text-xs text-[var(--accent-text)]/60">当前</span>}{it.type !== 'story' && <span className="text-xs text-[var(--muted)]">{it.type === 'storyboard' ? ((it.data.scenes||[]).length ? (it.data.scenes||[]).length+'项' : '') : arr.length ? arr.length+'项' : ''}</span>}</div>
 {isExpanded && it.key === 'shots' && step === 4 && (assets.shots||[]).length > 0 && onImportToStoryboard && (
   <div className="px-3 pb-2 relative">
     <button className="w-full text-xs py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white font-semibold rounded-lg transition-colors"

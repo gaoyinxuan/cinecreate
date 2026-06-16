@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../services/dbService';
 
 let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
-const CATS = ['人物','场景','道具','参考'];
+const CATS = ['人物','场景','道具','资产'];
 
 interface StationItem { id: string; name: string; category: string; blobId: string; url: string; }
 
@@ -17,7 +17,8 @@ const Icons = {
 export default function AssetDrawer({ projectId }: { projectId: string | null; onOpenPanel?: () => void }) {
   const [items, setItems] = useState<StationItem[]>([]);
   const [expanded, setExpanded] = useState(false);
-  const [filter, setFilter] = useState('参考');
+  const [filter, setFilter] = useState('资产');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,10 +138,22 @@ export default function AssetDrawer({ projectId }: { projectId: string | null; o
               <div className="grid grid-cols-2 gap-1.5">
                 {filtered.map(item => (
                   <div key={item.id} className="group relative aspect-square rounded-lg overflow-hidden cursor-grab ring-1 ring-black/5 hover:ring-2 hover:ring-[#ccc] transition-all"
-                    draggable onDragStart={e => { e.dataTransfer.setData('text/plain', item.url); }}>
+                    draggable onDragStart={e => { e.dataTransfer.setData('text/plain', item.url); e.dataTransfer.setData('cinecreate-blob-id', item.blobId); }}>
                     <img src={item.url} alt="" className="w-full h-full object-cover pointer-events-none" />
                     <button className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/40 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-all"
                       onClick={e => { e.stopPropagation(); removeItem(item); }}>✕</button>
+                    <button className="absolute top-0.5 left-0.5 w-4 h-4 bg-black/40 hover:bg-blue-500 text-white rounded-full flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={async e => {
+                        e.stopPropagation();
+                        try {
+                          const blob = await db.blobs.load(item.blobId);
+                          if (blob) {
+                            await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+                            setCopiedId(item.id);
+                            setTimeout(() => setCopiedId(null), 1500);
+                          }
+                        } catch { /* clipboard may not support images */ }
+                      }} title="复制">{copiedId === item.id ? '✓' : '📋'}</button>
                   </div>
                 ))}
               </div>

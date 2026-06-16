@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Project } from '../types';
 import { db } from '../services/dbService';
+import { restoreSampleProject } from '../services/sampleService';
 import { getTheme, onThemeChange, toggleTheme } from '../services/themeService';
 const api = (window as any).electronAPI;
 
@@ -13,6 +14,8 @@ interface Props {
   onSelectImageTools: () => void; onSelectVideoTools: () => void;
   activeMode: string | null;
   onShowWelcome?: () => void;
+  onDraftRenamed?: () => void;
+  onRefreshProjects?: () => void;
 }
 
 export default function ProjectSidebar(props: Props) {
@@ -97,25 +100,23 @@ export default function ProjectSidebar(props: Props) {
         {/* Section header */}
         <div className="flex items-center justify-between px-2 h-7 mb-0.5">
           <span className="text-[12px] text-[var(--muted)] font-medium">项目</span>
-          <button className="text-[var(--dim)] hover:text-[var(--text2)] text-sm leading-none" onClick={()=>{setCreating(true);setNewName('');}}>+</button>
+          <button className="text-[var(--dim)] hover:text-[var(--text2)] text-sm leading-none" onClick={()=>{
+            const n = String(projects.filter((p: any) => !p.name.includes('案例')).length + 1).padStart(2, '0');
+            onCreate(`项目 ${n}`);
+          }}>+</button>
         </div>
-
-        {/* Inline create project */}
-        {creating && (
-          <div className="mb-1 px-1">
-            <div className="flex items-center gap-1 bg-[var(--card)] border border-[var(--accent-text)]/20 rounded px-2 py-1">
-              <input className="flex-1 bg-transparent text-[11px] text-[var(--text)] outline-none min-w-0" placeholder="项目名称..."
-                value={newName} onChange={e=>setNewName(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter')submitCreate();if(e.key==='Escape'){setCreating(false);setNewName('');}}} autoFocus />
-              <button className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white rounded" onClick={submitCreate}>确定</button>
-              <button className="text-[10px] text-[var(--text3)] hover:text-[var(--text)]" onClick={()=>{setCreating(false);setNewName('');}}>取消</button>
-            </div>
-          </div>
-        )}
 
         {delProjId && (
           <div className="mb-1"><DelBar msg="永久删除此项目？" onConfirm={()=>{onDelete(delProjId);setDelProjId(null);}} onCancel={()=>setDelProjId(null)}/></div>
         )}
+        {/* Restore sample project */}
+        <div className="px-2 mt-1">
+          <button className="text-[11px] text-[var(--muted)] hover:text-[var(--text2)]"
+            onClick={async () => {
+              const name = await restoreSampleProject();
+              if (name) { loadDrafts(); props.onRefreshProjects?.(); }
+            }}>📚 恢复示例项目</button>
+        </div>
 
         {/* Project list */}
         {projects.map(prj => {
@@ -135,6 +136,7 @@ export default function ProjectSidebar(props: Props) {
               ) : (
                 <span className={`flex-1 truncate text-[12px] ${isActive?'font-semibold':'font-medium'}`}>{prj.name}</span>
               )}
+              {prj.name.includes('案例') && <span className="text-[9px] px-1 py-0 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded shrink-0 ml-1">示例</span>}
               <div className="hidden group-hover:flex items-center relative shrink-0" onClick={e=>e.stopPropagation()}>
                 <button className="text-[var(--muted)] hover:text-[var(--text2)] text-xs px-0.5" onClick={()=>setMenuOpen(menuOpen===prj.id?null:prj.id)}>⋯</button>
                 {menuOpen===prj.id && (
@@ -221,9 +223,9 @@ export default function ProjectSidebar(props: Props) {
             <div className="text-[11px] text-[var(--text3)] mb-2">重命名草稿</div>
             <input className="w-full bg-[var(--card2)] border border-[var(--border)] rounded-lg px-3 py-2 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent-text)]/30 mb-3"
               value={editDraftName} onChange={e=>setEditDraftName(e.target.value)}
-              onKeyDown={e=>{if(e.key==='Enter'){if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}if(e.key==='Escape')setEditDraftId(null);}} autoFocus />
+              onKeyDown={e=>{if(e.key==='Enter'){if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));props.onDraftRenamed?.();}setEditDraftId(null);}if(e.key==='Escape')setEditDraftId(null);}} autoFocus />
             <div className="flex gap-2">
-              <button className="flex-1 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-[11px] font-medium rounded-lg" onClick={()=>{if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));}setEditDraftId(null);}}>确定</button>
+              <button className="flex-1 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-[11px] font-medium rounded-lg" onClick={()=>{if(editDraftName.trim()){db.dts.update(editDraftId,{name:editDraftName.trim()}).catch(()=>{});setDrafts(p=>p.map(x=>x.id===editDraftId?{...x,name:editDraftName.trim()}:x));props.onDraftRenamed?.();}setEditDraftId(null);}}>确定</button>
               <button className="flex-1 py-1.5 bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] text-[11px] rounded-lg" onClick={()=>setEditDraftId(null)}>取消</button>
             </div>
           </div>

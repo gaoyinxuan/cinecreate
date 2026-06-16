@@ -90,7 +90,7 @@ export default function ShotCard({ shot, shotNo, onChange, onDelete }: Props) {
             media={primaryFirst?.blob ? (
               <img key={primaryFirst.id} src={imgUrl(primaryFirst.blob)!} className="w-full h-full object-contain bg-black/40 animate-fadeIn" alt="首帧" />
             ) : (
-              <EmptyUploader icon="🖼" label="首帧" onUpload={f => addFrame('firstFrame', f)} accept="image/png,image/jpeg,image/webp" />
+              <EmptyUploader icon="🖼" label="首帧" onUpload={(f: File) => addFrame('firstFrame', f)} accept="image/png,image/jpeg,image/webp" />
             )}
             controls={<VariantRow items={firstFrames} primaryId={primaryFirst?.id} onSelect={setPrimary} onRemove={removeMedia} onAdd={f => addFrame('firstFrame', f)} accept="image/png,image/jpeg,image/webp" />}
           />
@@ -103,7 +103,7 @@ export default function ShotCard({ shot, shotNo, onChange, onDelete }: Props) {
             media={primaryLast?.blob ? (
               <img key={primaryLast.id} src={imgUrl(primaryLast.blob)!} className="w-full h-full object-contain bg-black/40 animate-fadeIn" alt="尾帧" />
             ) : (
-              <EmptyUploader icon="🖼" label="尾帧" onUpload={f => addFrame('lastFrame', f)} accept="image/png,image/jpeg,image/webp" />
+              <EmptyUploader icon="🖼" label="尾帧" onUpload={(f: File) => addFrame('lastFrame', f)} accept="image/png,image/jpeg,image/webp" />
             )}
             controls={<VariantRow items={lastFrames} onSelect={setPrimary} onRemove={removeMedia} onAdd={f => addFrame('lastFrame', f)} accept="image/png,image/jpeg,image/webp" />}
           />
@@ -178,10 +178,35 @@ function EmptyUploader({ icon, label, onUpload, accept, multiple }: {
   icon: string; label: string; onUpload: any; accept: string; multiple?: boolean;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) { onUpload(multiple ? files : files[0]); return; }
+    // Check for transfer station blob ID first
+    const blobId = e.dataTransfer.getData('cinecreate-blob-id');
+    if (blobId) {
+      try {
+        const buf = await (window as any).electronAPI.loadBlob(blobId);
+        if (buf) {
+          const blob = new Blob([buf], { type: 'image/png' });
+          const file = new File([blob], 'asset.png', { type: 'image/png' });
+          onUpload(multiple ? [file] : file);
+          return;
+        }
+      } catch {}
+    }
+    // Fallback: URL drop
+    const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (url && url.match(/^(https?|blob):\/\//)) {
+      try { const resp = await fetch(url); const blob = await resp.blob(); onUpload(multiple ? [new File([blob], 'img.'+(blob.type.split('/')[1]||'png'),{type:blob.type})] : new File([blob], 'img.'+(blob.type.split('/')[1]||'png'),{type:blob.type})); } catch {}
+    }
+  };
   return (
     <>
       <button className="absolute inset-0 flex flex-col items-center justify-center text-[var(--muted)] hover:text-[var(--text)] hover:bg-white/[0.02] transition-colors"
-        onClick={() => ref.current?.click()}>
+        onClick={() => ref.current?.click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={handleDrop}>
         <span className="text-lg mb-0.5 opacity-30">{icon}</span>
         <span className="text-[10px]">{label}</span>
       </button>
