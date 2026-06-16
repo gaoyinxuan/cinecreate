@@ -193,7 +193,7 @@ export default function App() {
       setProjects(prev => [...prev, p]);
       setActiveId(p.id);
       // Show onboarding on first project creation
-      if (projects.length === 0) localStorage.setItem('onboard-first-project', '');
+      if (projects.filter((p: any) => !p.name.includes('案例')).length === 0) localStorage.setItem('onboard-first-project', '');
       const seq = await db.sequences.create({ projectId: p.id, name: 'Sequence 01', orderIndex: 0 });
       if (seq?.id) {
         const ns = normSeq(seq);
