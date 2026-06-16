@@ -8,19 +8,25 @@ import sampleData from '../sample-data/sample-project.json';
 
 const SAMPLE_KEY = 'sample_imported_v1';
 
+async function _log(step: string, data: any) {
+  try { await db.meta.set('_si_' + step, data); } catch {}
+}
+
 export async function importSampleProjectIfNeeded(): Promise<boolean> {
-  // Check if already imported
   const imported = await db.meta.get(SAMPLE_KEY);
+  await _log('check_key', { imported: !!imported });
   if (imported) return false;
 
   try {
-    const data = await fetchSampleData();
-    if (!data?.project) return false;
+    const data = fetchSampleData();
+    await _log('data_loaded', { hasProject: !!data?.project, seqs: data?.sequences?.length, shots: data?.shots?.length, blobs: Object.keys(data?.blobs||{}).length });
+    if (!data?.project) { await _log('no_project', {}); return false; }
     await createSampleProject(data);
     await db.meta.set(SAMPLE_KEY, true);
+    await _log('success', {});
     return true;
-  } catch (e) {
-    console.error('Failed to import sample project:', e);
+  } catch (e: any) {
+    await _log('error', { msg: e?.message || String(e) });
     return false;
   }
 }

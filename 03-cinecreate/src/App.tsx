@@ -97,7 +97,9 @@ export default function App() {
       setLoaded(true);
       // Import sample project on first launch (async, non-blocking)
       if (projs.length === 0) {
+        db.meta.set('_si_app_called', { projCount: projs.length }).catch(() => {});
         importSampleProjectIfNeeded().then(async imported => {
+          await db.meta.set('_si_app_result', { imported: !!imported }).catch(() => {});
           if (imported) {
             const [ps, sqs, shs] = await Promise.all([db.projects.getAll(), db.sequences.getAll(), db.shots.getAll()]);
             setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
