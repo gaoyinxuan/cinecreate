@@ -49,7 +49,7 @@ export default function App() {
       sceneId: s.sceneId ?? meta.sceneId,
       variants: safeArr(s.variants),
       tags: safeArr(s.tags),
-      sourceAssets: safeArr(s.sourceAssets).length > 0 ? safeArr(s.sourceAssets) : [],
+      sourceAssets: safeArr(s.sourceAssets).length > 0 ? safeArr(s.sourceAssets) : safeArr(meta.sourceAssets),
       videoOutputs: safeArr(s.videoOutputs).length > 0 ? safeArr(s.videoOutputs) : safeArr(meta.videoOutputs),
       shotType: s.shotType ?? meta.shotType ?? '',
       imagePrompt: s.imagePrompt ?? meta.imagePrompt ?? '',

@@ -206,6 +206,17 @@ export function seedSampleProject(forceName?: string) {
       }
     }
 
+    // Import drafts
+    if (data.drafts) {
+      for (const draft of data.drafts) {
+        run('INSERT INTO drafts (id,projectId,name,currentStep,confirmedAssets,conversation,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?)',
+          [uuidv4(), pid, draft.name||'草稿V1', draft.currentStep||1,
+           typeof draft.confirmedAssets==='string'?draft.confirmedAssets:JSON.stringify(draft.confirmedAssets||{}),
+           typeof draft.conversation==='string'?draft.conversation:JSON.stringify(draft.conversation||[]),
+           now, now]);
+      }
+    }
+
     persist();
     console.log('Sample project seeded:', pid);
     return pid;
