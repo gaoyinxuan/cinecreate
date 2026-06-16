@@ -94,19 +94,17 @@ export default function App() {
           } catch {}
         }, 1000);
       } catch(e) { console.error('Load failed:', e); }
-      setLoaded(true);
-      // Import sample project on first launch
+      // Import sample project on first launch — must finish before showing UI
       if (projs.length === 0) {
-        importSampleProjectIfNeeded().then((imported:any) => {
-          try { (window as any).electronAPI.setMeta('_diag_SAMPLE_IMPORT', { imported: !!imported }).catch(()=>{}); } catch {}
+        try {
+          const imported = await importSampleProjectIfNeeded();
           if (imported) {
-            // Reload projects to show the sample
-            db.projects.getAll().then(ps => {
-              setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
-            });
+            const ps = await db.projects.getAll();
+            setProjects(ps.map((p:any) => ({aiConfig: typeof p.aiConfig==='string' ? JSON.parse(p.aiConfig||'{}') : (p.aiConfig||{}), ...p})));
           }
-        });
+        } catch {}
       }
+      setLoaded(true);
     })();
   }, []);
 

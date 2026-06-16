@@ -47,7 +47,7 @@ export async function restoreSampleProject(): Promise<string | null> {
 }
 
 async function fetchSampleData(): Promise<any> {
-  const resp = await fetch('/sample-data/sample-project.json');
+  const resp = await fetch('./sample-data/sample-project.json');
   if (!resp.ok) throw new Error('Sample data not found');
   return resp.json();
 }
