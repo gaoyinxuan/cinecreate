@@ -13,7 +13,6 @@ import OnboardingGuide, { useOnboarding } from './components/OnboardingGuide';
 import WelcomePage from './components/WelcomePage';
 import PreviewPanel from './components/PreviewPanel';
 import { getTheme, toggleTheme } from './services/themeService';
-import VideoOutputPanel from './components/VideoOutputPanel';
 import AssetDrawer from './components/AssetDrawer';
 import ToastProvider from './components/ToastProvider';
 
@@ -39,7 +38,23 @@ export default function App() {
   const safeArr = (v: any) => { if (Array.isArray(v)) return v; if (typeof v==='string') { try { const p=JSON.parse(v); return Array.isArray(p)?p:[]; } catch { return []; } } return []; };
   const safeObj = (v: any) => { if (v && typeof v==='object' && !Array.isArray(v)) return v; if (typeof v==='string') { try { const p=JSON.parse(v); return (p && typeof p==='object' && !Array.isArray(p))?p:{}; } catch { return {}; } } return {}; };
   const normSeq = (s: any): Sequence => ({...s, videoSegments: safeArr(s.videoSegments)});
-  const normShot = (s: any): Shot => ({...s, variants: safeArr(s.variants), tags: safeArr(s.tags), metadata: safeObj(s.metadata)});
+  const normShot = (s: any): Shot => {
+    const meta = safeObj((s as any).metadata);
+    return {
+      ...s,
+      title: s.title || meta.purpose || '',
+      shotNo: s.shotNo ?? meta.shotNo ?? 0,
+      sceneId: s.sceneId ?? meta.sceneId,
+      variants: safeArr(s.variants),
+      tags: safeArr(s.tags),
+      sourceAssets: safeArr(s.sourceAssets).length > 0 ? safeArr(s.sourceAssets) : [],
+      videoOutputs: safeArr(s.videoOutputs).length > 0 ? safeArr(s.videoOutputs) : safeArr(meta.videoOutputs),
+      shotType: s.shotType ?? meta.shotType ?? '',
+      imagePrompt: s.imagePrompt ?? meta.imagePrompt ?? '',
+      videoPrompt: s.videoPrompt ?? meta.videoPrompt ?? '',
+      metadata: meta,
+    };
+  };
 
   // Load
   useEffect(() => {
@@ -95,7 +110,7 @@ export default function App() {
   }, 600), []);
 
   const toSeqRow = (s: any) => ({...s, videoSegments: JSON.stringify(s.videoSegments||[])});
-  const toShotRow = (s: any) => ({...s, variants: JSON.stringify(s.variants||[]), tags: JSON.stringify(s.tags||[]), metadata: JSON.stringify(s.metadata||{})});
+  const toShotRow = (s: any) => ({...s, variants: JSON.stringify(s.variants||[]), tags: JSON.stringify(s.tags||[]), metadata: JSON.stringify((s as any).metadata||{})});
 
   useEffect(() => { if (loaded) { saveItems('shots', shots, toShotRow); saveItems('sequences', sequences, toSeqRow); } }, [shots, sequences, loaded]);
   useEffect(() => { if (loaded) saveItems('projects', projects, (p:any)=>({...p,aiConfig:JSON.stringify(p.aiConfig||{})})); }, [projects, loaded]);
@@ -212,7 +227,7 @@ export default function App() {
         projectId: activeId, sequenceId: seq.id,
         title: shots[i].title, description: shots[i].description,
         startTime: shots[i].startTime, endTime: shots[i].endTime, duration: shots[i].duration,
-        tags: shots[i].tags, variants: [], metadata: { sourceDocId: doc.id }, orderIndex: i
+        tags: shots[i].tags, sourceAssets: [], videoOutputs: [], orderIndex: i
       }));
       setShots(prev => [...prev, s]);
     }
@@ -220,6 +235,164 @@ export default function App() {
     setActiveSeqId(seq.id);
     setSelectedDraftId(null);
   }, [activeId, sequences]);
+
+  // ── Draft → Storyboard import (Sync Mode) ──
+  const importShotsToStoryboard = useCallback(async (draftAssets: any) => {
+    if (!activeId) return null;
+    const { scenes, sequences: seqs, shots: draftShots } = draftAssets;
+    if (!scenes?.length) return null;
+
+    // Flatten all planned shots from sequences with global numbering + scene mapping
+    // Build a flat list: [{shotNumber:1, scene:{name,id}, planned:{duration,shotType,purpose,transition}}, ...]
+    const allPlanned: any[] = [];
+    let gNum = 1;
+    for (const g of (seqs || [])) {
+      const scene = scenes[g.sceneIndex];
+      if (!scene) continue;
+      for (const sh of (g.shots || [])) {
+        allPlanned.push({ ...sh, shotNumber: gNum++, scene });
+      }
+    }
+
+    // Only import scenes that have shots
+    const sceneHasShots = new Set<number>();
+    for (const p of allPlanned) sceneHasShots.add(scenes.indexOf(p.scene));
+
+    // Step 1: Sync Sequences — only for scenes with shots, ordered by scene index
+    const sceneToSeqId: Record<string, string> = {};
+    let seqCount = 0;
+    for (let si = 0; si < scenes.length; si++) {
+      if (!sceneHasShots.has(si)) continue; // skip empty scenes
+      const existing = sequences.find(s => s.projectId === activeId && s.name === scenes[si].name);
+      if (existing) {
+        sceneToSeqId[scenes[si].id || String(si)] = existing.id;
+        // Update orderIndex to match scene order
+        if (existing.orderIndex !== si) await db.sequences.update(existing.id, { orderIndex: si });
+      } else {
+        const seq = await db.sequences.create({ projectId: activeId, name: scenes[si].name, orderIndex: si });
+        if (seq?.id) {
+          const ns = normSeq(seq);
+          setSequences(prev => [...prev, ns]);
+          sceneToSeqId[scenes[si].id || String(si)] = ns.id;
+          seqCount++;
+        }
+      }
+    }
+
+    // Step 2: Build draft shot lookup by sceneId + planned shotNumber
+    const draftShotMap = new Map<string, any>();
+    for (const ds of (draftShots || [])) {
+      // Match draft shot to planned shot by finding the planned entry with matching scene+shotNumber
+      for (const p of allPlanned) {
+        if (p.shotNumber === ds.shotNumber && p.scene?.name === ds.sceneName) {
+          draftShotMap.set(`${p.scene?.id}_${p.shotNumber}`, ds);
+          break;
+        }
+      }
+    }
+
+    // Step 3: Sync Shots — match by sceneId + shotNumber
+    const projectShots = shots.filter(s => s.projectId === activeId);
+    let shotCreated = 0, shotUpdated = 0;
+    let preservedVideos = 0, preservedImages = 0;
+
+    for (const planned of allPlanned) {
+      const sceneIdx = scenes.indexOf(planned.scene);
+      const sceneId = planned.scene?.id || String(sceneIdx);
+      const seqId = sceneToSeqId[sceneId];
+      if (!seqId) continue;
+
+      const ds = draftShotMap.get(`${sceneId}_${planned.shotNumber}`);
+      if (!ds) continue; // No draft data for this planned shot
+
+      // Find existing shot by sceneId + shotNumber (stored in metadata)
+      const existing = projectShots.find(s => {
+        const m = safeObj((s as any).metadata);
+        return (m.sceneId === sceneId || m.sceneId === String(sceneIdx)) && (m.shotNo || s.shotNo) === planned.shotNumber;
+      });
+
+      const existingMeta = safeObj((existing || {} as any).metadata);
+      const newMeta = {
+        ...existingMeta,
+        sceneId, shotNo: planned.shotNumber,
+        duration: planned.duration || ds.duration || existingMeta.duration || '',
+        purpose: planned.purpose || existingMeta.purpose || '',
+        shotType: planned.shotType || existingMeta.shotType || '',
+        generationMode: ds.generationMode || existingMeta.generationMode || '',
+        imagePrompt: (ds.imagePrompts?.[0]?.prompt || ds.imagePrompt || existingMeta.imagePrompt || ''),
+        videoPrompt: (ds.videoPrompt || existingMeta.videoPrompt || ''),
+        importedFrom: 'draft', importedAt: new Date().toISOString()
+      };
+
+      if (existing) {
+        // Update metadata/Prompts, PRESERVE media assets
+        const updatedShot = {
+          ...existing,
+          title: '',
+          description: ds.visualContent || existing.description,
+          duration: planned.duration || ds.duration || existing.duration,
+          shotType: planned.shotType || ds.shotType || existing.shotType,
+          atmosphere: ds.atmosphere || existing.atmosphere,
+          composition: ds.composition || existing.composition,
+          cameraMovement: ds.cameraMovement || existing.cameraMovement,
+          sequenceId: seqId,
+          shotNo: planned.shotNumber,
+          metadata: newMeta,
+          // PRESERVE media
+          sourceAssets: existing.sourceAssets || [],
+          videoOutputs: existing.videoOutputs || [],
+        };
+        await db.shots.update(existing.id, updatedShot);
+        setShots(prev => prev.map(s => s.id === existing.id ? updatedShot : s));
+        preservedVideos += (existing.videoOutputs || []).length;
+        preservedImages += (existing.sourceAssets || []).length;
+        shotUpdated++;
+      } else {
+        // Create new shot
+        const newShot = {
+          projectId: activeId, sequenceId: seqId,
+          shotNo: planned.shotNumber,
+          title: '',
+          description: ds.visualContent || '',
+          duration: planned.duration || ds.duration || '5s',
+          shotType: planned.shotType || ds.shotType || '',
+          atmosphere: ds.atmosphere || '',
+          composition: ds.composition || '',
+          cameraMovement: ds.cameraMovement || '',
+          sourceAssets: [], videoOutputs: [],
+          tags: [], metadata: newMeta,
+          orderIndex: planned.shotNumber - 1,
+        };
+        const s = await db.shots.create(newShot);
+        if (s?.id) {
+          setShots(prev => [...prev, normShot(s)]);
+          shotCreated++;
+        }
+      }
+    }
+
+    // Reorder all sequences & shots to match scene order
+    const seqOrder = Object.entries(sceneToSeqId);
+    for (let si = 0; si < seqOrder.length; si++) {
+      const [sId, seqId] = seqOrder[si];
+      await db.sequences.update(seqId, { orderIndex: si });
+      // Reorder shots within this sequence by shotNo
+      const seqShots = shots.filter(s => s.projectId === activeId && s.sequenceId === seqId);
+      seqShots.sort((a, b) => (a.shotNo || 0) - (b.shotNo || 0));
+      for (let shi = 0; shi < seqShots.length; shi++) {
+        if (seqShots[shi].orderIndex !== shi) {
+          await db.shots.update(seqShots[shi].id, { orderIndex: shi } as any);
+        }
+      }
+    }
+    // Refresh state
+    const freshSeqs = (await db.sequences.getAll()).map(normSeq);
+    const freshShots = (await db.shots.getAll()).map(normShot);
+    setSequences(freshSeqs);
+    setShots(freshShots);
+
+    return { sequences: seqCount, shotsCreated: shotCreated, shotsUpdated: shotUpdated, preservedVideos, preservedImages };
+  }, [activeId, sequences, shots]);
 
   const renameSequence = useCallback((id: string, name: string) => {
     setSequences(prev => prev.map(s => s.id===id ? {...s, name} : s));
@@ -230,11 +403,6 @@ export default function App() {
     if (activeSeqId === id) setActiveSeqId(null);
     db.sequences.delete(id).catch(()=>{});
   }, [activeSeqId]);
-  const updateSeqVideo = useCallback((updatedSeq: Sequence) => {
-    setSequences(prev => prev.map(s => s.id === updatedSeq.id ? updatedSeq : s));
-  }, []);
-
-  // Normalize DB row (JSON strings → JS objects)
   // ── Shot CRUD ──
   const addImages = useCallback((files: File[]) => {
     if (!activeId) return;
@@ -248,11 +416,11 @@ export default function App() {
         orderIndex: baseIdx + i
       } as any).then(s => {
         // Store image blob separately
-        const v = s.variants[0];
+        const v = s.variants?.[0];
         if (v) {
           (f as any)._variantId = v.id;
           db.blobs.save(v.id, f).then(() => {
-            setShots(prev => prev.map(x => x.id===s.id ? {...x, variants: x.variants.map((v2:any) => v2.id===v.id ? {...v2, imageBlob: f} : v2)} : x));
+            setShots(prev => prev.map(x => x.id===s.id ? {...x, variants: (x.variants||[]).map((v2:any) => v2.id===v.id ? {...v2, imageBlob: f} : v2)} : x));
           });
         }
         setShots(prev => [...prev, normShot(s)]);
@@ -323,25 +491,21 @@ export default function App() {
         {/* ToolsPanel — always mounted, never unmount */}
         <div style={toolMode&&activeId?{flex:1,display:'flex',flexDirection:'column'}:{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}}><ToolsPanel key="tools-panel" mode={toolMode||'image'} /></div>
         {/* All other views */}
-        <div style={toolMode?{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}:{flex:1,display:'flex',flexDirection:'column'}}>
+        <div style={toolMode?{position:'absolute',inset:0,visibility:'hidden',opacity:0,pointerEvents:'none',overflow:'hidden'}:{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
         {!activeId && !selectedDraftId ? (
           <WelcomePage onCreateProject={() => { const n = `项目 ${String(projects.length + 1).padStart(2,'0')}`; createProject(n); }} />
         ) : selectedDraftId && activeId ? (
-          <DraftWorkspace projectId={activeId} draftId={selectedDraftId} onDraftCreated={(id)=>setSelectedDraftId(id)} />
+          <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}><DraftWorkspace projectId={activeId} draftId={selectedDraftId} onDraftCreated={(id)=>setSelectedDraftId(id)} onImportToStoryboard={importShotsToStoryboard} /></div>
         ) : activeId && viewMode === 'storyboard' ? (
-          <>
-            <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex min-h-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0">
+              <Toolbar project={activeProject} onUpload={addImages} shotCount={projectShots.length} activeSeqId={activeSeqId} onShowGuide={showStoryGuide} />
               {activeProject && (
                 <SequenceTabs
                   sequences={projectSequences} activeSeqId={activeSeqId} onSelect={setActiveSeqId}
                   onCreate={createSequence} onRename={renameSequence} onDelete={deleteSequence}
                   shotsBySeq={shotsBySeq} />
               )}
-              {activeSeqId && (() => {
-                const as = projectSequences.find(s => s.id === activeSeqId);
-                return as ? <VideoOutputPanel sequence={as} onUpdate={updateSeqVideo} /> : null;
-              })()}
-              <Toolbar project={activeProject} onUpload={addImages} shotCount={projectShots.length} activeSeqId={activeSeqId} onShowGuide={showStoryGuide} />
               <ShotBoard
                 project={activeProject} shots={projectShots} shotGlobalNum={shotGlobalNum}
                 onChangeShot={updateShot} onDeleteShot={deleteShot}
@@ -352,7 +516,7 @@ export default function App() {
               <Timeline shots={projectShots} sequences={projectSequences} activeSeqId={activeSeqId}
                 scrollContainerRef={navigatorRef} onReorderShots={reorderShots} shotGlobalNum={shotGlobalNum} />
             )}
-          </>
+          </div>
         ) : toolMode && activeId ? (
           <ToolsPanel mode={toolMode} />
         ) : activeId ? (

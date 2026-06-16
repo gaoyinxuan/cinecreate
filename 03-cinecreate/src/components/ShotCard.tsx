@@ -1,70 +1,192 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { Shot } from '../types';
-import VariantGallery from './VariantGallery';
-import TimecodeInput from './TimecodeInput';
-import PresetTags from './PresetTags';
-import Lightbox from './Lightbox';
 
-interface Props { shot: Shot; globalNum: number; onChange: (s: Shot) => void; onDelete: () => void; }
-export default function ShotCard({ shot, globalNum, onChange, onDelete }: Props) {
-  const [lightbox, setLightbox] = useState<{ blob: Blob; title: string } | null>(null);
-  const [compare, setCompare] = useState<{ altId: string } | null>(null);
-  const variants = shot.variants || [];
+let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
 
-  const durationSec = useMemo(() => {
-    const parse = (s: string) => { const m = s.match(/^(\d+):(\d{2})$/); return m ? parseInt(m[1])*60+parseInt(m[2]) : null; };
-    const a = parse(shot.startTime), b = parse(shot.endTime);
-    if (a===null||b===null||b<a) return null;
-    return b-a;
-  }, [shot.startTime, shot.endTime]);
+interface Props { shot: Shot; shotNo: number; onChange: (s: Shot) => void; onDelete: () => void; }
+export default function ShotCard({ shot, shotNo, onChange, onDelete }: Props) {
+  const videos = shot.videoOutputs || [];
+  const assets = shot.sourceAssets || [];
+  const primaryVideo = videos.find(v => v.isPrimary) || videos[0];
 
-  const endErr = useMemo(() => {
-    const parse = (s: string) => { const m = s.match(/^(\d+):(\d{2})$/); return m ? parseInt(m[1])*60+parseInt(m[2]) : null; };
-    const a = parse(shot.startTime), b = parse(shot.endTime);
-    return a!==null && b!==null && b<a;
-  }, [shot.startTime, shot.endTime]);
+  const firstFrames = assets.filter(a => a.type === 'firstFrame');
+  const lastFrames = assets.filter(a => a.type === 'lastFrame');
+  const primaryFirst = firstFrames[0];
+  const primaryLast = lastFrames[0];
 
-  const field = (k: keyof Shot) => (v: any) => onChange({ ...shot, [k]: v });
-  const updateTime = (k: 'startTime'|'endTime') => (v: string) => {
-    const u = { ...shot, [k]: v };
-    const parse = (s: string) => { const m = s.match(/^(\d+):(\d{2})$/); return m ? parseInt(m[1])*60+parseInt(m[2]) : null; };
-    const d = parse(u.startTime)!=null && parse(u.endTime)!=null ? (parse(u.endTime)! - parse(u.startTime)!) : null;
-    if (d !== null && d >= 0) { const mm = Math.floor(d/60); const ss = d%60; u.duration = `${mm}m ${ss}s`; }
-    onChange(u);
+  const addVideo = (files: File[]) => {
+    const vids = files.filter(f => f.type.match(/^video\/(mp4|webm)$/));
+    if (!vids.length) return;
+    const news = vids.map((v, i) => ({
+      id: uid(), label: `方案 ${String.fromCharCode(65 + videos.length + i)}`,
+      letter: String.fromCharCode(65 + videos.length + i), isPrimary: videos.length === 0 && i === 0,
+      blob: v, createdAt: new Date().toISOString()
+    }));
+    onChange({ ...shot, videoOutputs: [...videos, ...news] });
   };
 
+  const addFrame = (type: 'firstFrame' | 'lastFrame', file: File) => {
+    const frames = assets.filter(a => a.type === type);
+    const letter = String.fromCharCode(65 + frames.length);
+    const item = { id: uid(), type, label: `${type === 'firstFrame' ? '首帧' : '尾帧'} ${letter}`, blob: file };
+    onChange({ ...shot, sourceAssets: [...assets, item] });
+  };
+
+  const removeMedia = (id: string) => {
+    const restVids = videos.filter(v => v.id !== id);
+    if (restVids.length !== videos.length) {
+      if (restVids.length > 0 && videos.find(v => v.id === id)?.isPrimary) restVids[0].isPrimary = true;
+      return onChange({ ...shot, videoOutputs: restVids });
+    }
+    onChange({ ...shot, sourceAssets: assets.filter(a => a.id !== id) });
+  };
+
+  const setPrimary = (id: string) => {
+    // Check videos
+    const vidIdx = videos.findIndex(v => v.id === id);
+    if (vidIdx >= 0) {
+      return onChange({ ...shot, videoOutputs: videos.map(v => ({ ...v, isPrimary: v.id === id })) });
+    }
+    // For frames, reorder: move selected to front
+    const asset = assets.find(a => a.id === id);
+    if (!asset) return;
+    const sameType = assets.filter(a => a.type === asset.type && a.id !== id);
+    const others = assets.filter(a => a.type !== asset.type);
+    onChange({ ...shot, sourceAssets: [...others, asset, ...sameType] });
+  };
+
+  const imgUrl = (blob?: Blob) => blob ? URL.createObjectURL(blob) : null;
+
   return (
-    <div id={`shot-${shot.id}`} className="bg-[var(--card)] border border-[var(--border2)] rounded-xl overflow-hidden hover:border-[var(--border2)] transition-colors group">
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-white/5">
-        <span className="bg-[var(--accent-solid)] text-white text-xs font-bold px-2.5 py-1 rounded-full">Shot {globalNum || '?'}</span>
-        {durationSec !== null && <span className="text-xs text-gold-500 font-mono ml-1">⏱ {Math.floor(durationSec/60)}m {durationSec%60}s</span>}
-        <span className="text-xs text-[var(--muted)] ml-auto">{shot.startTime || '--:--'} → {shot.endTime || '--:--'}</span>
-        <span className="text-xs text-[var(--text2)]">{variants.length > 1 ? `${variants.length} 方案` : ''}</span>
-        <button className="text-[var(--muted)] hover:text-red-400 text-sm px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100" onClick={onDelete}>✕</button>
+    <div className="bg-[var(--card)] border border-[var(--border2)] rounded-xl overflow-hidden hover:border-[var(--border)] transition-colors">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[var(--border)]">
+        <span className="bg-[var(--accent-solid)] text-white text-xs font-bold px-2.5 py-1 rounded-full shrink-0">Shot {shotNo}</span>
+        <input className="bg-transparent text-xs font-normal text-[var(--text2)] outline-none flex-1 min-w-0"
+          placeholder="镜头标题" value={shot.title} onChange={e => onChange({ ...shot, title: e.target.value })} />
+        <span className="text-xs text-[var(--muted)] shrink-0">{shot.duration || '--'}</span>
+        <button className="text-[var(--muted)] hover:text-red-400 text-sm px-1 py-0.5 rounded opacity-0 hover:opacity-100 shrink-0"
+          onClick={onDelete}>✕</button>
       </div>
-      <div className="flex gap-4 p-4">
-        <div className="shrink-0 w-[260px]">
-          <VariantGallery variants={variants} onUpdate={v => field('variants')(v)}
-            onLightbox={(b,l) => setLightbox({ blob: b, title: l })}
-            onCompare={(altId) => setCompare({ altId })}
-            shotId={shot.id} />
+
+      {/* Three-column grid */}
+      <div className="grid grid-cols-3 gap-3 p-4">
+        {/* ── Video Column ── */}
+        <div className="flex flex-col">
+          <MediaColumn label="视频" hasContent={!!primaryVideo?.blob}
+            media={primaryVideo?.blob ? (
+              <video key={primaryVideo.id} src={imgUrl(primaryVideo.blob)!} className="w-full h-full object-contain bg-black animate-fadeIn" controls preload="metadata" />
+            ) : (
+              <EmptyUploader icon="🎬" label="视频" onUpload={addVideo} accept="video/mp4,video/webm" multiple />
+            )}
+            controls={<VariantRow items={videos} primaryId={primaryVideo?.id} onSelect={setPrimary} onRemove={removeMedia} onAdd={addVideo} accept="video/mp4,video/webm" multiple />}
+          />
+          <PromptBlock label="视频 Prompt" text={shot.videoPrompt} />
         </div>
-        <div className="flex-1 flex flex-col gap-3 min-w-0">
-          <input className="bg-transparent text-base font-semibold text-[var(--text)] outline-none border-b border-transparent focus:border-gold-400 pb-1" placeholder="分镜标题" value={shot.title} onChange={e => field('title')(e.target.value)} />
-          <textarea className="flex-1 bg-[var(--card2)] border border-[var(--border2)] rounded-lg p-3 text-sm text-[var(--text)] outline-none resize-none focus:border-gold-400 min-h-[80px]" placeholder="分镜描述、旁白文案、镜头说明..." value={shot.description} onChange={e => field('description')(e.target.value)} />
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-xs text-[var(--text3)] w-8">开始</span>
-            <TimecodeInput value={shot.startTime} onChange={updateTime('startTime')} />
-            <span className="text-[var(--text2)] text-xs">→</span>
-            <span className="text-xs text-[var(--text3)] w-8">结束</span>
-            <TimecodeInput value={shot.endTime} onChange={updateTime('endTime')} hasError={endErr} />
-            {durationSec !== null && <span className="text-xs text-gold-500 font-mono font-semibold">{Math.floor(durationSec/60)}m {durationSec%60}s</span>}
-            {endErr && <span className="text-xs text-red-400">结束时间不能小于开始时间</span>}
-          </div>
-          <PresetTags tags={shot.tags || []} onChange={t => field('tags')(t)} />
+
+        {/* ── First Frame Column ── */}
+        <div className="flex flex-col">
+          <MediaColumn label="首帧" hasContent={!!primaryFirst?.blob}
+            media={primaryFirst?.blob ? (
+              <img key={primaryFirst.id} src={imgUrl(primaryFirst.blob)!} className="w-full h-full object-contain bg-black/40 animate-fadeIn" alt="首帧" />
+            ) : (
+              <EmptyUploader icon="🖼" label="首帧" onUpload={f => addFrame('firstFrame', f)} accept="image/png,image/jpeg,image/webp" />
+            )}
+            controls={<VariantRow items={firstFrames} primaryId={primaryFirst?.id} onSelect={setPrimary} onRemove={removeMedia} onAdd={f => addFrame('firstFrame', f)} accept="image/png,image/jpeg,image/webp" />}
+          />
+          <PromptBlock label="首帧 Prompt" text={shot.imagePrompt} />
+        </div>
+
+        {/* ── Last Frame Column ── */}
+        <div className="flex flex-col">
+          <MediaColumn label="尾帧" hasContent={!!primaryLast?.blob}
+            media={primaryLast?.blob ? (
+              <img key={primaryLast.id} src={imgUrl(primaryLast.blob)!} className="w-full h-full object-contain bg-black/40 animate-fadeIn" alt="尾帧" />
+            ) : (
+              <EmptyUploader icon="🖼" label="尾帧" onUpload={f => addFrame('lastFrame', f)} accept="image/png,image/jpeg,image/webp" />
+            )}
+            controls={<VariantRow items={lastFrames} onSelect={setPrimary} onRemove={removeMedia} onAdd={f => addFrame('lastFrame', f)} accept="image/png,image/jpeg,image/webp" />}
+          />
+          <PromptBlock label="尾帧 Prompt" text={shot.imagePrompt} />
         </div>
       </div>
-      {lightbox && <Lightbox imageBlob={lightbox.blob} title={lightbox.title} onClose={() => setLightbox(null)} />}
     </div>
+  );
+}
+
+/* ── Sub-components ── */
+
+function MediaColumn({ label, hasContent, media, controls }: { label: string; hasContent: boolean; media: React.ReactNode; controls?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col">
+      <div className={`relative rounded-lg overflow-hidden border group/media w-full ${hasContent ? 'border-[var(--border2)] bg-black/20' : 'border-dashed border-[var(--border2)] bg-[var(--card2)]'}`}
+        style={{ aspectRatio: '16/9' }}>
+        {media}
+      </div>
+      {controls}
+    </div>
+  );
+}
+
+function PromptBlock({ label, text }: { label: string; text?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-0.5 px-1">
+      <button className="text-[10px] text-[var(--muted)] hover:text-[var(--text)] flex items-center gap-0.5"
+        onClick={() => setOpen(!open)}>
+        <span className="leading-none">{open ? '▼' : '▶'}</span> {label}
+      </button>
+      {open && <div className="mt-1 text-[10px] text-[var(--text2)] leading-relaxed bg-[var(--card2)] rounded p-1.5 whitespace-pre-wrap break-all">{text || '暂无'}</div>}
+    </div>
+  );
+}
+
+function VariantRow({ items, primaryId, onSelect, onRemove, onAdd, accept, multiple }: {
+  items: any[]; primaryId?: string; onSelect: (id: string) => void; onRemove: (id: string) => void;
+  onAdd: (f: any) => void; accept: string; multiple?: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const handleFiles = (files: FileList | null) => {
+    if (!files?.length) return;
+    if (multiple) onAdd(Array.from(files));
+    else if (files[0]) onAdd(files[0]);
+  };
+  return (
+    <div className="flex items-center gap-1 flex-wrap mt-1.5 px-1">
+      {items.map((item, i) => {
+        const isActive = item.id === primaryId || (primaryId === undefined && i === 0);
+        return (
+          <div key={item.id} className="flex items-center group/var">
+            <button className={`text-[9px] px-1.5 py-0.5 rounded-full transition-all duration-200 ${isActive ? 'bg-[var(--accent-solid)] text-white' : 'bg-[var(--card2)] text-[var(--text3)] hover:text-[var(--text)]'}`}
+              onClick={() => onSelect(item.id)}>
+              {item.letter || String.fromCharCode(65 + i)}
+            </button>
+            <button className="text-[7px] text-[var(--muted)] hover:text-red-400 ml-0.5 opacity-0 group-hover/var:opacity-100 transition-opacity"
+              onClick={e => { e.stopPropagation(); onRemove(item.id); }}>✕</button>
+          </div>
+        );
+      })}
+      <button className="text-[9px] px-1.5 py-0.5 text-[var(--muted)] hover:text-[var(--text)] rounded-full border border-dashed border-[var(--border2)]"
+        onClick={() => ref.current?.click()}>+</button>
+      <input ref={ref} type="file" accept={accept} multiple={multiple} className="hidden"
+        onChange={e => { handleFiles(e.target.files); e.target.value = ''; }} />
+    </div>
+  );
+}
+
+function EmptyUploader({ icon, label, onUpload, accept, multiple }: {
+  icon: string; label: string; onUpload: any; accept: string; multiple?: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button className="absolute inset-0 flex flex-col items-center justify-center text-[var(--muted)] hover:text-[var(--text)] hover:bg-white/[0.02] transition-colors"
+        onClick={() => ref.current?.click()}>
+        <span className="text-lg mb-0.5 opacity-30">{icon}</span>
+        <span className="text-[10px]">{label}</span>
+      </button>
+      <input ref={ref} type="file" accept={accept} multiple={multiple} className="hidden"
+        onChange={e => { onUpload(multiple ? Array.from(e.target.files||[]) : (e.target.files?.[0])); e.target.value = ''; }} />
+    </>
   );
 }

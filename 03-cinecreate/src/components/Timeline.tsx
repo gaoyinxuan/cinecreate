@@ -90,7 +90,6 @@ export default function Timeline({ shots, sequences, activeSeqId, scrollContaine
               </div>
             )}
             {(!activeSeqId && seq && isCollapsed) ? null : (group.shots||[]).map((s, li) => {
-              const primary = s.variants?.find((v:any)=>v.isPrimary) || s.variants?.[0];
               const isActive = s.id === activeShotId;
               const isDragging = s.id === dragShotId;
               const isOver = s.id === dragOverId;
@@ -109,9 +108,8 @@ export default function Timeline({ shots, sequences, activeSeqId, scrollContaine
                   <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${isActive?'bg-[var(--accent-solid)] text-white':'bg-[var(--border)] text-[var(--dim)]'}`}>{shotGlobalNum[s.id] || li+1}</span>
                   <div className="min-w-0 flex-1">
                     <div className="text-[var(--text2)] truncate">{s.title || `Shot ${shotGlobalNum[s.id] || li+1}`}</div>
-                    <div className="text-xs text-[var(--muted)]">{s.startTime||'--:--'}{s.duration?` · ${s.duration}`:''}</div>
+                    <div className="text-[10px] text-[var(--muted)]">{[s.shotType, s.duration].filter(Boolean).join(' · ') || '--'}</div>
                   </div>
-                  {primary?.imageBlob && <div className="w-10 h-6 rounded overflow-hidden shrink-0 bg-[var(--card2)]"><img src={URL.createObjectURL(primary.imageBlob)} className="w-full h-full object-cover" alt="" onLoad={e=>{setTimeout(()=>URL.revokeObjectURL((e.target as HTMLImageElement).src),5000);}} /></div>}
                 </div>
               );
             })}

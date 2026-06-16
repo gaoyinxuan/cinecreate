@@ -10,15 +10,14 @@ import OnboardingGuide, { useOnboarding } from './OnboardingGuide';
 const api = (window as any).electronAPI;
 const DS = 'https://api.deepseek.com/v1/chat/completions';
 
-interface Message { role: 'user'|'assistant'; content: string; timestamp: string; }
+interface Message { role: 'user'|'assistant'; content: string; timestamp: string; type?: 'guide'; }
 
 const PHASES = ['故事设定','角色设定','场景规划','镜头制作'];
 const ASSET_KEYS = ['story','characters','scenes','shots','sequences'];
 
 const SYSTEM_PROMPTS: Record<number,string> = {
   1: `你是AI导演/编剧。当前阶段：故事设定。
-【重要】聊天区只显示自然语言，禁止JSON/代码块。资产数据放<json>标签。
-【重要】聊天区只显示自然语言，禁止JSON/代码块。资产数据放<json>标签。
+【重要】聊天区只显示自然语言，不要出现代码块或裸JSON。资产数据必须放最后的<json>...</json>标签中。
 
 视觉基调仅包含：视觉媒介（超写实电影/真人电影/影视级CG/日漫/美漫/二次元动画/吉卜力风格/新海诚风格/厚涂插画/游戏CG）、参考作品（1部）。
 不要写光线、色彩、镜头语言——这些由阶段四镜头制作时补充。
@@ -44,11 +43,13 @@ const SYSTEM_PROMPTS: Record<number,string> = {
 
 ---
 
-多个角色用---分隔。禁止JSON直接显示、禁止表格、禁止Emoji。
-最后用<json>[{"name":"","role":"","shortDesc":"","visualImage":"","coreTemperament":"","prompt":""}]</json>输出资产数据。
-主角prompt=完整三视图提示词(正面/侧面/背面)+视觉形象+核心气质。配角prompt=视觉形象+核心气质。`,3: `你是AI场景规划师。当前阶段：场景规划。
+多个角色用---分隔。不要使用表格、不要使用Emoji。
+【重要】所有内容必须使用中文，包括prompt字段。prompt是中文生图提示词，禁止英文。
+【必须】最后用<json>...</json>标签包裹资产数据，JSON仅出现在标签内：
+<json>[{"name":"","role":"","shortDesc":"","visualImage":"","coreTemperament":"","prompt":""}]</json>
+主角prompt=中文三视图提示词(正面/侧面/背面)+视觉形象+核心气质。配角prompt=视觉形象+核心气质。`,3: `你是AI场景规划师。当前阶段：场景规划。
 
-【重要】聊天区用清晰的结构化格式展示完整规划，禁止JSON/代码块。资产数据放<json>标签。
+【重要】聊天区用清晰的结构化格式展示完整规划。不要出现代码块或裸JSON。资产数据必须放最后的<json>...</json>标签中。
 
 场景描述要丰富，包含环境、氛围、光线、色调、镜头语言等。
 
@@ -65,9 +66,19 @@ const SYSTEM_PROMPTS: Record<number,string> = {
   4: `你是AI镜头制作师。当前阶段：镜头Prompt生成。
 
 【重要】聊天区用清晰结构展示完整镜头信息。禁止JSON/代码块。资产数据放<json>标签。
+【核心约束】shotNumber和sceneName来自场景规划，你必须直接使用系统传入的值，禁止修改。
+【核心约束】禁止修改镜头事件、角色、动作、场景内容，仅允许扩写制作层参数。
 
 一次只生成1个Shot。模式：静态/对话→single_frame，运动/转场→start_end_frame。
 Prompt必须融合角色定妆+场景环境+视觉基调。
+
+制作层扩写内容：
+· 运镜手法（推拉摇移跟升降、手持、稳定器等）
+· 景别确认（远景/全景/中景/近景/特写/大特写）
+· 构图方案（三分法、对称、引导线、框架式等）
+· 光线与色彩影调（自然光/戏剧光、暖调/冷调、高调/低调）
+· 生图Prompt（融合角色定妆+场景+景别+构图+光线的完整中文Prompt）
+· 视频Prompt（融合运镜+画面内容的完整中文Prompt）
 
 【图片Prompt结构】必须包含：
 【景别】【构图】【画面内容】
@@ -75,10 +86,10 @@ Prompt必须融合角色定妆+场景环境+视觉基调。
 【视频Prompt结构】必须包含：
 【景别】【构图】【运镜手法】【画面内容】如有台词旁白则增加【台词】【旁白】
 
-最后用 <json>{"shotNumber":1,"sceneName":"场景名","duration":"5s","shotType":"景别","atmosphere":"色彩影调","composition":"构图","cameraMovement":"运镜","visualContent":"画面内容","dialogue":"台词","narration":"旁白","generationMode":"single_frame|start_end_frame","imagePrompts":[{"label":"首帧","prompt":"完整中文Prompt"}],"videoPrompt":"完整视频Prompt"}</json> 标记。single_frame时imagePrompts仅1项。`
+最后用<json>{"shotNumber":系统传入的shotNumber,"sceneName":"系统传入的sceneName","duration":"规划中的时长","shotType":"景别","atmosphere":"色彩影调","composition":"构图","cameraMovement":"运镜","visualContent":"画面内容","dialogue":"台词","narration":"旁白","generationMode":"single_frame|start_end_frame","imagePrompts":[{"label":"首帧","prompt":"完整中文Prompt"}],"videoPrompt":"完整视频Prompt"}</json>标记。single_frame时imagePrompts仅1项。`
 };
 
-export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: { projectId: string; draftId?: string|null; onDraftCreated?: (id:string)=>void }) {
+export default function DraftWorkspace({ projectId, draftId, onDraftCreated, onImportToStoryboard }: { projectId: string; draftId?: string|null; onDraftCreated?: (id:string)=>void; onImportToStoryboard?: (assets: any) => Promise<any> }) {
   const [draft, setDraft] = useState<any>(null);
   const [msgs, setMsgs] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -86,6 +97,8 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
   const [charExpanded, setCharExpanded] = useState<Record<string,boolean>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [showImportPopover, setShowImportPopover] = useState(false);
+  const [importToast, setImportToast] = useState<string | null>(null);
   const [editStoryData, setEditStoryData] = useState<any>(null);
   const [editSceneData, setEditSceneData] = useState<{idx:number, data:any, shots?:any[]} | null>(null);
   const [editingAsset, setEditingAsset] = useState<string | null>(null);
@@ -117,6 +130,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
 
   const p = (s:any) => typeof s==='string' ? JSON.parse(s||'[]') : (s||[]);
   function a(text:string): Message { return { role:'assistant', content: text, timestamp: new Date().toISOString() }; }
+  function g(text:string): Message { return { role:'assistant', content: text, timestamp: new Date().toISOString(), type:'guide' }; }
   const INSPIRATION_ROWS = [
     {label:'题材', tags:['修仙','赛博朋克','末日废土','东方奇幻']},
     {label:'风格', tags:['电影感','动漫风','国风美学','写实摄影']},
@@ -144,7 +158,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
   const save = useCallback(async (messages: Message[]) => { msgsRef.current = messages; if (!draft?.id) return; clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => db.dts.update(draft.id, { conversation: messages }).catch(()=>{}), 500); }, [draft]);
   useEffect(() => () => { clearTimeout(saveTimer.current); if (draft?.id && msgsRef.current.length > 0) db.dts.update(draft.id, { conversation: msgsRef.current }).catch(() => {}); }, [draft]);
 
-  const addMsg = (role:'user'|'assistant', text:string) => { if (role === 'user') setSavedIdx(null); setMsgs(prev => { const next = [...prev, {role,content:text,timestamp:new Date().toISOString()}]; save(next); if (draft?.id) db.dts.update(draft.id, { conversation: next }).catch(()=>{}); return next; }); };
+  const addMsg = (role:'user'|'assistant', text:string, msgType?:'guide') => { if (role === 'user') setSavedIdx(null); setMsgs(prev => { const msg: Message = {role,content:text,timestamp:new Date().toISOString()}; if (msgType) msg.type = msgType; const next = [...prev, msg]; save(next); if (draft?.id) db.dts.update(draft.id, { conversation: next }).catch(()=>{}); return next; }); };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return; const key = getApiKey(); if (!key) { setShowKey(true); return; }
@@ -187,38 +201,43 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
                 ...sh, duration: Math.round(toSec(sh.duration) * scale) + 's'
               }))
             }));
-            addMsg('assistant', `ℹ️ 已自动调整场景时长以匹配故事总时长（${storyDur}秒）`);
+            addMsg('assistant', `ℹ️ 已自动调整场景时长以匹配故事总时长（${storyDur}秒）`, 'guide');
           }
         }
         assets.sequences = seqs;
+        // Global renumber: flatten all shots across scenes into global sequential numbering
+        let globalNum = 1;
+        for (const g of seqs) {
+          for (const sh of (g.shots||[])) {
+            sh.shotNumber = globalNum++;
+          }
+        }
       }
     }
-    else if (step === 4 && json) { const s = json; const shot = { id: 'shot'+Date.now(), sceneName: s.sceneName||'', shotNumber: s.shotNumber||((assets.shots?.length||0)+1), duration: s.duration||'5s', shotType: s.shotType||'中景', atmosphere: s.atmosphere||'', composition: s.composition||'', cameraMovement: s.cameraMovement||'', visualContent: s.visualContent||'', dialogue: s.dialogue||'', narration: s.narration||'', generationMode: s.generationMode==='start_end_frame'?'start_end_frame':'single_frame', imagePrompts: (s.imagePrompts||[]).map((ip:any) => ({ label: ip.label||'首帧', prompt: ip.prompt||ip.promptCN||'' })), videoPrompt: s.videoPrompt||s.videoPromptCN||'' }; const existing = Array.isArray(assets.shots) ? [...assets.shots] : []; const ei = existing.findIndex((x:any) => x.sceneName === shot.sceneName && x.shotNumber === shot.shotNumber); if (ei >= 0) existing[ei] = shot; else existing.push(shot); assets.shots = existing; }
-    const updated = { ...draft, confirmedAssets: assets }; setDraft(updated); await db.dts.update(draft.id, { confirmedAssets: assets }).catch(()=>{}); setSavedIdx(msgIdx); if (step === 4) { const nextNum = (assets.shots?.length||0)+1; addMsg('assistant', '✅ 已保存Shot#'+(nextNum-1)+'。请继续生成Shot#'+nextNum+'，或告诉我需要调整的内容。'); }
+    else if (step === 4 && json) { const s = json; const allPlan = (() => { const all: any[] = []; for (const seq of (assets.sequences||[])) { const scene = (assets.scenes||[])[seq.sceneIndex]; for (const sh of (seq.shots||[])) { all.push({ ...sh, sceneName: scene?.name||'' }); } } return all; })(); const planIdx = (assets.shots?.length||0); const planned = allPlan[planIdx]; const shot = { id: 'shot'+Date.now(), sceneName: planned?.sceneName||s.sceneName||'', shotNumber: planned?.shotNumber||s.shotNumber||((assets.shots?.length||0)+1), duration: planned?.duration||s.duration||'5s', shotType: planned?.shotType||s.shotType||'中景', atmosphere: s.atmosphere||'', composition: s.composition||'', cameraMovement: s.cameraMovement||'', visualContent: s.visualContent||'', dialogue: s.dialogue||'', narration: s.narration||'', generationMode: s.generationMode==='start_end_frame'?'start_end_frame':'single_frame', imagePrompts: (s.imagePrompts||[]).map((ip:any) => ({ label: ip.label||'首帧', prompt: ip.prompt||ip.promptCN||'' })), videoPrompt: s.videoPrompt||s.videoPromptCN||'' }; const existing = Array.isArray(assets.shots) ? [...assets.shots] : []; const ei = existing.findIndex((x:any) => x.sceneName === shot.sceneName && x.shotNumber === shot.shotNumber); if (ei >= 0) existing[ei] = shot; else existing.push(shot); assets.shots = existing; }
+    const updated = { ...draft, confirmedAssets: assets }; setDraft(updated); await db.dts.update(draft.id, { confirmedAssets: assets }).catch(()=>{}); setSavedIdx(msgIdx); if (step === 4) { addMsg('assistant', '✅ 已保存Shot#'+(assets.shots?.length||0)+'。点击下方按钮继续生成下一个镜头。', 'guide'); }
   };
 
   const generateNextShot = async () => {
     if (!draft?.id || loading) return; const key = getApiKey(); if (!key) { setShowKey(true); return; }
-    const assets = parseAssets(draft?.confirmedAssets);
-    const nextNum = (assets.shots?.length||0) + 1;
-    addMsg('user', `生成镜头${nextNum}`);
+    const curAssets = parseAssets(draft?.confirmedAssets);
+    const allShots = (() => { const all: any[] = []; for (const seq of (curAssets.sequences||[])) { const scene = (curAssets.scenes||[])[seq.sceneIndex]; for (const sh of (seq.shots||[])) { all.push({ ...sh, sceneName: scene?.name||'' }); } } return all; })();
+    const currentIdx = (curAssets.shots||[]).length;
+    const planned = allShots[currentIdx];
+    if (!planned) { addMsg('assistant', '所有镜头已生成完毕。', 'guide'); return; }
+    addMsg('user', `生成 Shot${planned.shotNumber}（${planned.sceneName}）`);
     setLoading(true);
     try {
       const ctxParts: string[] = [];
-      if (assets.story?.title) ctxParts.push(`【故事】${assets.story.title}\n时长：${assets.story.duration||''}\n视觉基调：${JSON.stringify(assets.story.visualTone||{})}\n世界观：${assets.story.worldBuilding||''}\n简介：${assets.story.summary||''}`);
-      if (assets.characters?.length) ctxParts.push(`【角色】\n${assets.characters.map((c:any)=>`${c.name}(${c.role})：${c.shortDesc||''}\n定妆Prompt：${c.prompt?.slice(0,200)}`).join('\n\n')}`);
-      if (assets.scenes?.length) {
-        const seqs = assets.sequences || [];
-        const sceneIdx = Math.floor((nextNum-1) / Math.max(1, seqs.flatMap((g:any)=>g.shots||[]).length / Math.max(1, assets.scenes.length)));
-        const scene = assets.scenes[Math.min(sceneIdx, assets.scenes.length-1)];
-        if (scene) ctxParts.push(`【当前场景】${scene.name}\n${scene.description||''}`);
-      }
-      if (assets.shots?.length) {
-        const done = assets.shots.map((s:any)=>`Shot${s.shotNumber}(${s.shotType||''},${s.duration||''})`).join(', ');
+      if (curAssets.story?.title) ctxParts.push(`【故事】${curAssets.story.title}\n时长：${curAssets.story.duration||''}\n视觉基调：${JSON.stringify(curAssets.story.visualTone||{})}\n世界观：${curAssets.story.worldBuilding||''}\n简介：${curAssets.story.summary||''}`);
+      if (curAssets.characters?.length) ctxParts.push(`【角色】\n${curAssets.characters.map((c:any)=>`${c.name}(${c.role})：${c.shortDesc||''}\n定妆Prompt：${c.prompt?.slice(0,200)}`).join('\n\n')}`);
+      ctxParts.push(`【当前镜头】Shot${planned.shotNumber}\n【所属场景】${planned.sceneName}\n【镜头规划】景别：${planned.shotType||''} | 时长：${planned.duration||''} | 作用：${planned.purpose||''}${planned.transition?' | 转场：'+planned.transition:''}`);
+      if (curAssets.shots?.length) {
+        const done = curAssets.shots.map((s:any)=>`Shot${s.shotNumber}(${s.shotType||''},${s.duration||''})`).join(', ');
         ctxParts.push(`【已完成镜头】${done}`);
       }
       const ctx = ctxParts.join('\n\n');
-      const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`}, body: JSON.stringify({ model:'deepseek-chat', messages: [{ role:'system', content: SYSTEM_PROMPTS[4]+'\n【已有资产】\n'+ctx }, { role:'user', content: `请生成Shot${nextNum}的镜头内容。` }], temperature:0.8, max_tokens: 8192 }) });
+      const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`}, body: JSON.stringify({ model:'deepseek-chat', messages: [{ role:'system', content: SYSTEM_PROMPTS[4]+'\n【已有资产】\n'+ctx }, { role:'user', content: `请基于以上规划，生成Shot${planned.shotNumber}的镜头制作内容。只扩写运镜、景别、构图、光线、生图Prompt、视频Prompt，禁止修改镜头事件、角色、动作、场景内容。shotNumber和sceneName使用规划值。` }], temperature:0.8, max_tokens: 8192 }) });
       const data = await res.json(); addMsg('assistant', data.choices?.[0]?.message?.content || '');
     } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); }
     finally { setLoading(false); }
@@ -226,8 +245,10 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
 
   const advancePhase = async () => {
     if (!draft?.id || step >= 4 || loading) return; setSavedIdx(null); const nextStep = step + 1; const updated = { ...draft, currentStep: nextStep }; setDraft(updated); await db.dts.update(draft.id, { currentStep: nextStep }).catch(()=>{}); const key = getApiKey(); if (!key) { setShowKey(true); return; }
-    const guides: Record<number,string> = { 2:'故事设定已经完成。根据当前故事内容，我为你设计了核心角色。下面是第一版角色方案，你可以确认保存或调整：', 3:'角色设定已经完成。接下来规划场景和分镜。下面是场景规划方案：', 4:'场景规划已经完成。现在开始镜头Prompt生成，我将按顺序逐个生成：' };
-    addMsg('assistant', guides[nextStep]); setLoading(true);
+    const guides: Record<number,string> = { 2:'故事设定已经完成。根据当前故事内容，我为你设计了核心角色。下面是第一版角色方案，你可以确认保存或调整：', 3:'角色设定已经完成。接下来规划场景和分镜。下面是场景规划方案：', 4:'场景规划已确认。点击下方按钮逐个生成镜头，Shot1 将按规划自动带入场景和镜头信息：' };
+    addMsg('assistant', guides[nextStep], 'guide');
+    if (nextStep === 4) return; // Phase 4: no auto AI call — shots generated via button
+    setLoading(true);
     try { const assets = parseAssets(draft?.confirmedAssets); const ctxParts: string[] = []; if (assets.story?.title) ctxParts.push(`【故事】${assets.story.title}\n时长：${assets.story.duration||''}\n视觉基调：${JSON.stringify(assets.story.visualTone||{})}\n世界观：${assets.story.worldBuilding||''}\n简介：${assets.story.summary||''}`); if (assets.characters?.length) ctxParts.push(`【角色】\n${assets.characters.map((c:any)=>`${c.name}(${c.role})：${c.shortDesc||''}\n定妆Prompt：${c.prompt?.slice(0,200)}`).join('\n\n')}`); const ctx = ctxParts.join('\n\n'); const res = await fetch(DS, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`}, body: JSON.stringify({ model:'deepseek-chat', messages: [{ role:'system', content: SYSTEM_PROMPTS[nextStep] + '\n' + (ctx ? '【已有资产】\n' + ctx : '') }, { role:'user', content: `请基于以上已确认的资产，生成${PHASES[nextStep-1]}的内容。` }], temperature:0.8, max_tokens: 8192 }) }); const data = await res.json(); addMsg('assistant', data.choices?.[0]?.message?.content || ''); } catch(e:any) { addMsg('assistant', '❌ 网络错误: '+(e.message||'')); } finally { setLoading(false); }
   };
 
@@ -239,6 +260,8 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
 
   function parseAssets(raw: any) { if (!raw) return { story:null, characters:[], scenes:[], sequences:[], shots:[] }; const data = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return {}; } })() : raw; if (typeof data !== 'object') return { story:null, characters:[], scenes:[], sequences:[], shots:[] }; return { story: data.story||null, characters: data.characters||[], scenes: data.scenes||[], sequences: data.sequences||[], shots: data.shots||[] }; }
   const assets = parseAssets(draft?.confirmedAssets); const step = draft?.currentStep || 1;
+  /** Flatten sequences into globally-ordered shot list with resolved scene names */
+  function getPlannedShots() { const all: any[] = []; for (const seq of (assets.sequences||[])) { const scene = (assets.scenes||[])[seq.sceneIndex]; for (const sh of (seq.shots||[])) { all.push({ ...sh, sceneName: scene?.name||'' }); } } return all; }
 
   const optimizePrompt = (item: any, label?: string) => { let content = ''; if (item?.title) { content = [`【${label||'故事设定'}】`, item.title ? `名称：${item.title}` : '', item.duration ? `时长：${item.duration}` : '', item.visualTone?.medium ? `视觉媒介：${item.visualTone.medium}` : '', item.worldBuilding ? `世界观：${item.worldBuilding}` : '', item.summary ? `简介：${item.summary}` : ''].filter(Boolean).join('\n'); } else if (item?.name && item?.role) { content = `【角色：${item.name}（${item.role}）】\n定妆Prompt：${item.prompt||''}`; } else if (item?.name && item?.description !== undefined) { const seq = (assets.sequences||[]).find((g:any) => g.sceneIndex === (assets.scenes||[]).indexOf(item)); const shotsDesc = (seq?.shots||[]).map((sh:any) => `Shot${sh.shotNumber}(${sh.duration},${sh.shotType},${sh.purpose},→${sh.transition||'切至'})`).join(' | '); content = `【场景：${item.name}】\n描述：${item.description||''}${shotsDesc ? '\n分镜：'+shotsDesc : ''}`; } else if (item?.shotNumber !== undefined) { const imgs = (item.imagePrompts||[]).map((ip:any) => `${ip.label}Prompt：${ip.prompt||''}`).join('\n'); content = `【Shot${item.shotNumber}（${item.sceneName||''}，${item.duration}，${item.shotType}，${item.generationMode==='start_end_frame'?'首尾帧':'首帧'}）】\n构图：${item.composition||''}\n运镜：${item.cameraMovement||''}\n画面：${item.visualContent||''}\n${item.dialogue?'台词：'+item.dialogue+'\n':''}${imgs}\n视频Prompt：${item.videoPrompt||''}`; } else if (item?.text) { content = item.text.slice(0, 800); } if (content) setInput(`以下是我的${label||'内容'}，请帮我优化：\n\n${content}`); else setInput(`请帮我生成${label||'新的'}内容。`); };
 
@@ -256,6 +279,13 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {importToast && (
+        <div className="toast-enter fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-[var(--card)] border border-[var(--accent-text)]/20 rounded-xl px-4 py-2.5 shadow-2xl text-xs text-[var(--text2)]">
+          {importToast.split('|').map((part, i) => (
+            <span key={i}>{i > 0 && <span className="text-[var(--muted)] mx-1">|</span>}{part.trim()}</span>
+          ))}
+        </div>
+      )}
       <div className="bg-[var(--bg2)] border-b border-[var(--border)] flex items-center gap-3 px-6 py-2.5">
         <button className="text-xs w-5 h-5 rounded-full border border-[var(--border2)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--dim)] flex items-center justify-center shrink-0" onClick={showGuide} title="查看引导">?</button>
         <span className="text-base font-bold text-[var(--text)]">{draft?.name||'草稿'}</span><span className="text-xs text-[var(--muted)]">|</span><span className="text-xs text-[var(--accent-text)] font-semibold">{PHASES[step-1]}</span>
@@ -263,7 +293,7 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
       </div>
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             {/* Welcome — always visible */}
             <div className="max-w-2xl mx-auto">
               <div className="text-center mb-6">
@@ -314,31 +344,122 @@ export default function DraftWorkspace({ projectId, draftId, onDraftCreated }: {
               )}
             </div>
             {/* Messages */}
-            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-center'}`}><div className={`rounded-2xl px-4 py-3 text-sm ${m.role==='user'?'max-w-[85%] bg-[var(--accent-solid)] text-white':'max-w-2xl bg-[var(--card)] text-[var(--text)] border border-[var(--border)]'}`}><div dangerouslySetInnerHTML={{__html: renderMsgContent(m)}} />{!loading && m.role === 'assistant' && i === msgs.length-1 && !!extractJSON(m.content) && (
+            {msgs.map((m, i) => (<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-center'}`}>
+  <div className={`rounded-2xl px-4 text-sm ${
+    m.role==='user'
+      ? 'max-w-[85%] bg-[var(--accent-solid)] text-white py-3'
+      : m.type==='guide'
+        ? 'max-w-2xl bg-[var(--surface)] text-[var(--text2)] border border-[var(--border2)] border-l-2 border-l-[var(--accent-text)]/40 py-2.5 text-xs'
+        : 'max-w-2xl bg-[var(--card)] text-[var(--text)] border border-[var(--border)] py-3'
+  }`}><div dangerouslySetInnerHTML={{__html: renderMsgContent(m)}} />{!loading && m.role === 'assistant' && !m.type && i === msgs.length-1 && !!extractJSON(m.content) && (
   savedIdx === i
     ? (step === 4
-      ? <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-2">
-          <div className="text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div>
-          <div className="flex justify-center gap-2">
-            <button className="px-3 py-1.5 bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors"
-              onClick={() => { setSavedIdx(null); generateNextShot(); }}>生成下一个镜头</button>
-            <button className="px-3 py-1.5 bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] text-xs rounded-lg transition-colors"
-              onClick={() => setSavedIdx(null)}>编辑</button>
+        ? <div className="mt-3 pt-3 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</span>
+              <button className="px-2 py-1 bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] text-xs rounded-lg transition-colors"
+                onClick={() => setSavedIdx(null)}>编辑</button>
+            </div>
           </div>
-        </div>
-      : <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div>)
+        : <div className="mt-2 text-center text-xs text-[var(--accent-text)]/60">✓ 已保存到资产库</div>)
     : <div className="mt-3 pt-3 border-t border-[var(--border)]"><div className="flex justify-center"><button className="px-4 py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold rounded-lg transition-colors" onClick={() => confirmAsset(i)}>✓ 确认保存到资产库</button></div></div>
 )}</div></div>))}
             {loading && <div className="text-center text-xs text-[var(--muted)] animate-pulse">AI 思考中...</div>}<div ref={chatEnd} />
           </div>
           {step < 4 && !loading && msgs.length > 1 && (<div className="px-4 py-2 flex justify-center"><button className="px-4 py-1.5 text-xs text-[var(--accent-text)] hover:text-white hover:bg-[var(--accent-solid)] rounded-lg border-2 border-[var(--accent-text)]/30 transition-colors" onClick={advancePhase}>进入下一阶段：{PHASES[step]} →</button></div>)}
+                {step === 4 && !loading && msgs.length > 1 && getPlannedShots().length > 0 && (<div className="px-4 py-2 flex justify-center"><button className="px-4 py-1.5 text-xs text-[var(--accent-text)] hover:text-white hover:bg-[var(--accent-solid)] rounded-lg border-2 border-[var(--accent-text)]/30 transition-colors" onClick={generateNextShot}>生成下一个镜头：Shot{getPlannedShots()[assets.shots?.length||0]?.shotNumber} →</button></div>)}
           <div className="p-3 border-t border-[var(--border)]"><div className="relative"><textarea className="w-full bg-[var(--card2)] border border-[var(--border2)] rounded-xl px-4 py-3 pr-12 text-sm text-[var(--text)] outline-none focus:border-gold-400 resize-none" style={{height: input.length > 200 ? '120px' : input.length > 80 ? '84px' : '76px', transition: 'height 0.2s'}} placeholder={step===1?'描述你的创意、故事想法或参考作品...\n例如：末日爆发后，机器人骑着鸵鸟穿越废土':step===2?'描述角色需求，或修改已生成的角色设定...':step===3?'描述场景需求，或调整分镜规划...':'描述镜头需求，或调整 Prompt 细节...'} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); }}} /><button className={`absolute right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition-all ${loading?'bg-[var(--card2)] text-[var(--muted)]':'bg-[var(--accent-solid)] hover:bg-[var(--accent-hover)] text-white'}`} style={{bottom:24}} disabled={loading} onClick={handleSend} title="发送">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14.5 1.5L1 7.5L6.5 9.5L8.5 15L14.5 1.5Z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M6.5 9.5L14.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button></div></div>
         </div>
-        <div className="w-[38%] min-w-[280px] shrink-0 border-l border-[var(--border)] overflow-y-auto p-3 space-y-2 bg-[var(--surface)]">
+        <div className="flex-[0_0_38%] min-w-[280px] max-w-[38%] border-l border-[var(--border)] overflow-y-auto overflow-x-hidden p-3 space-y-2 bg-[var(--surface)]">
           <div className="flex items-center gap-2 mb-1 px-1"><span className="text-xs text-[var(--dim)] font-semibold">资产库</span><div className="flex-1" /><div className="flex gap-0.5">{[1,2,3,4].map(i => (<div key={i} className={`w-2 h-2 rounded-full ${i < step ? 'bg-[#D6B36A]' : i === step ? 'bg-[#D6B36A]' : 'bg-white'}`} />))}</div></div>
-          {assetList.map((it) => { const isActive = it.type === 'storyboard' ? step === 3 : (ASSET_KEYS.indexOf(it.key)+1) === step; const arr = it.type === 'storyboard' ? [] : (it.isArray && Array.isArray(it.data) ? it.data : (it.data && (it.data.title||it.data.name||it.data.text||it.data.shotNumber!==undefined) ? [it.data] : [])); const hasData = it.type === 'story' ? !!it.data?.title : it.type === 'storyboard' ? (!!it.data.scenes?.length || !!it.data.sequences?.length) : arr.length > 0; const isExpanded = expandedAsset === it.key; const isEditing = editingAsset?.startsWith(it.key); return (<div key={it.key} className={`rounded-lg overflow-hidden transition-colors bg-[var(--card)] ${isActive ? 'border-2 border-[#D6B36A]' : 'border border-[var(--border)]'}`}><div className="flex items-center gap-1.5 p-3 cursor-pointer hover:bg-white/[0.02]" onClick={() => setExpandedAsset(isExpanded ? null : it.key)}><span className="text-xs">{isExpanded ? '▼' : '▶'}</span><span className={`text-xs flex-1 ${isActive ? 'text-[var(--text)] font-semibold' : 'text-[var(--text3)]'}`}>{it.label}</span>{hasData && <span className="text-xs text-[var(--accent-text)]/60">✓</span>}{isActive && <span className="text-xs text-[var(--accent-text)]/60">当前</span>}{it.type !== 'story' && <span className="text-xs text-[var(--muted)]">{it.type === 'storyboard' ? (it.data.scenes||[]).length+'项' : arr.length ? arr.length+'项' : ''}</span>}</div>{isExpanded && <ExpandedAsset item={it} arr={arr} isEditing={isEditing} editText={editText} setEditText={setEditText} saveAsset={saveAsset} startEditAsset={startEditAsset} optimizePrompt={optimizePrompt} setEditingAsset={setEditingAsset} charExpanded={charExpanded} setCharExpanded={setCharExpanded} doCopy={doCopy} copied={copied} editStoryData={editStoryData} setEditStoryData={setEditStoryData} saveStoryEdit={saveStoryEdit} editSceneData={editSceneData} setEditSceneData={setEditSceneData} saveSceneEdit={saveSceneEdit} buildFullPrompt={buildFullPrompt} assets={assets} />}</div>)})}
+          {assetList.map((it) => { const isActive = it.type === 'storyboard' ? step === 3 : (ASSET_KEYS.indexOf(it.key)+1) === step; const arr = it.type === 'storyboard' ? [] : (it.isArray && Array.isArray(it.data) ? it.data : (it.data && (it.data.title||it.data.name||it.data.text||it.data.shotNumber!==undefined) ? [it.data] : [])); const hasData = it.type === 'story' ? !!it.data?.title : it.type === 'storyboard' ? (!!it.data.scenes?.length || !!it.data.sequences?.length) : arr.length > 0; const isExpanded = expandedAsset === it.key; const isEditing = editingAsset?.startsWith(it.key); return (<div key={it.key} className={`rounded-lg overflow-hidden transition-colors bg-[var(--card)] ${isActive ? 'border-2 border-[#D6B36A]' : 'border border-[var(--border)]'}`}><div className="flex items-center gap-1.5 p-3 cursor-pointer hover:bg-white/[0.02]" onClick={() => {
+    const panel = document.querySelector('[class*="flex-\[0_0_38%"]');
+    const r = panel?.getBoundingClientRect();
+    console.log('%c[ASSET-EXPAND] %c' + it.label + '%c isExpanded=' + isExpanded + ' → ' + !isExpanded, 'color:#D6B36A;font-weight:bold', 'color:#fff', 'color:#aaa');
+    console.log('  panel rect:', r ? JSON.stringify({w:Math.round(r.width),l:Math.round(r.left),r:Math.round(r.right)}) : 'null');
+    console.log('  arr length:', (Array.isArray(it.data) ? it.data.length : (it.data?.title||it.data?.name ? 1 : 0)));
+    if (panel) {
+      const cs = getComputedStyle(panel);
+      console.log('  panel CSS:', {width:cs.width, minWidth:cs.minWidth, maxWidth:cs.maxWidth, flexBasis:cs.flexBasis, flexGrow:cs.flexGrow, flexShrink:cs.flexShrink});
+    }
+    // Log CSS computed values for the panel
+    if (panel) {
+      const cs = getComputedStyle(panel);
+      console.log('  panel CSS:', {width:cs.width, minWidth:cs.minWidth, maxWidth:cs.maxWidth, flex:cs.flex, flexBasis:cs.flexBasis, flexGrow:cs.flexGrow, flexShrink:cs.flexShrink});
+      // Log parent row style
+      const parent = panel.parentElement;
+      if (parent) {
+        const pcs = getComputedStyle(parent);
+        console.log('  parent row CSS:', {display:pcs.display, width:pcs.width, overflow:pcs.overflow});
+      }
+    }
+    setExpandedAsset(isExpanded ? null : it.key);
+    requestAnimationFrame(() => {
+      const r2 = panel?.getBoundingClientRect();
+      console.log('  after rAF panel rect:', r2 ? JSON.stringify({w:Math.round(r2.width),l:Math.round(r2.left),r:Math.round(r2.right)}) : 'null');
+      // Find widest child in the panel
+      if (panel) {
+        const children = panel.children;
+        let maxW = 0, maxEl = '';
+        for (let i = 0; i < children.length; i++) {
+          const cw = children[i].getBoundingClientRect().width;
+          if (cw > maxW) { maxW = cw; maxEl = children[i].className?.slice(0,60) || children[i].tagName; }
+        }
+        console.log('  widest child:', {w:Math.round(maxW), el:maxEl});
+        // For character section, measure card widths
+        if (it.key === 'characters') {
+          const cards = panel.querySelectorAll('.space-y-2 > div');
+          console.log('  character cards count:', cards.length);
+          cards.forEach((card, i) => {
+            const cr = card.getBoundingClientRect();
+            console.log('    card['+i+']:', {w:Math.round(cr.width)});
+            // Check expanded content
+            const ec = card.querySelector('[class*="mt-3"]');
+            if (ec) console.log('      expanded w:', Math.round(ec.getBoundingClientRect().width));
+            const prompt = card.querySelector('[class*="max-h-40"]');
+            if (prompt) console.log('      prompt w:', Math.round(prompt.getBoundingClientRect().width), 'textLen:', (prompt.textContent||'').length);
+          });
+        }
+      }
+    });
+  }}><span className="text-xs">{isExpanded ? '▼' : '▶'}</span><span className={`text-xs flex-1 ${isActive ? 'text-[var(--text)] font-semibold' : 'text-[var(--text3)]'}`}>{it.label}</span>{hasData && <span className="text-xs text-[var(--accent-text)]/60">✓</span>}{isActive && <span className="text-xs text-[var(--accent-text)]/60">当前</span>}{it.type !== 'story' && <span className="text-xs text-[var(--muted)]">{it.type === 'storyboard' ? (it.data.scenes||[]).length+'项' : arr.length ? arr.length+'项' : ''}</span>}</div>
+{isExpanded && it.key === 'shots' && step === 4 && (assets.shots||[]).length > 0 && onImportToStoryboard && (
+  <div className="px-3 pb-2 relative">
+    <button className="w-full text-xs py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white font-semibold rounded-lg transition-colors"
+      onClick={() => setShowImportPopover(true)}>
+      导入分镜
+    </button>
+    {showImportPopover && (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/30" onClick={() => setShowImportPopover(false)}>
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-4 w-72" onClick={e => e.stopPropagation()}>
+          <div className="text-xs text-[var(--text)] font-semibold mb-2">将根据文稿中的镜头制作内容同步分镜结构。</div>
+          <div className="text-[11px] text-[var(--text2)] space-y-0.5 mb-3">
+            <div className="text-[var(--accent-text)]">会更新：</div>
+            <div>· 序列</div><div>· 镜头信息</div><div>· Prompt</div>
+            <div className="text-[var(--accent-text)] mt-1">不会影响：</div>
+            <div>· 视频</div><div>· 首帧图片</div><div>· 尾帧图片</div><div>· 已保存素材</div>
+          </div>
+          <div className="flex gap-2">
+            <button className="flex-1 text-xs py-1.5 bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] rounded-lg"
+              onClick={() => setShowImportPopover(false)}>取消</button>
+            <button className="flex-1 text-xs py-1.5 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white font-semibold rounded-lg"
+              onClick={async () => {
+                setShowImportPopover(false);
+                const result = await onImportToStoryboard({ story: assets.story, scenes: assets.scenes, sequences: assets.sequences, shots: assets.shots });
+                if (result) {
+                  setImportToast('已同步文稿镜头制作内容 | 更新：' + (result.sequences||0) + '个序列 ' + (result.shotsCreated||0) + '个镜头 | 保留：' + (result.preservedVideos||0) + '个视频 ' + (result.preservedImages||0) + '张图片');
+                  setTimeout(() => setImportToast(null), 4000);
+                }
+              }}>确认导入</button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+{isExpanded && <ExpandedAsset item={it} arr={arr} isEditing={isEditing} editText={editText} setEditText={setEditText} saveAsset={saveAsset} startEditAsset={startEditAsset} optimizePrompt={optimizePrompt} setEditingAsset={setEditingAsset} charExpanded={charExpanded} setCharExpanded={setCharExpanded} doCopy={doCopy} copied={copied} editStoryData={editStoryData} setEditStoryData={setEditStoryData} saveStoryEdit={saveStoryEdit} editSceneData={editSceneData} setEditSceneData={setEditSceneData} saveSceneEdit={saveSceneEdit} buildFullPrompt={buildFullPrompt} assets={assets} />}</div>)})}
         </div>
       </div>
       {showKey && <InlinePrompt title="DeepSeek API Key" onConfirm={k=>{ setServiceKey(k); if(api)api.setApiKey(k); setShowKey(false); setKeySet(true); }} onCancel={()=>setShowKey(false)} />}
@@ -404,26 +525,88 @@ function renderMsgContent(msg: Message): string {
     html += '</div>';
     return html;
   }
-  let html = renderMd(text);
-  if (json.scenes) {
-    // Scenes
-    html += '<div class="text-[var(--text)] font-semibold mb-1">🎬 '+json.scenes.length+' 个场景</div>';
-    json.scenes.slice(0,3).forEach((s:any) => {
-      html += '<div class="text-[var(--text2)]">· '+esc(s.name||'')+'</div>';
+  // Scenes — structured scene cards with shot sequences (global numbering)
+  if (json.scenes && Array.isArray(json.scenes)) {
+    let html = '<div class="space-y-4">';
+    // Assign global sequential shotNumbers across all scenes
+    let gNum = 1;
+    const globalNum = new Map<string,number>();
+    for (let si = 0; si < json.scenes.length; si++) {
+      const seq = (json.sequences||[]).find((g:any) => g.sceneIndex === si);
+      for (let shi = 0; shi < (seq?.shots||[]).length; shi++) {
+        globalNum.set(si+'-'+shi, gNum++);
+      }
+    }
+    json.scenes.forEach((s:any, i:number) => {
+      const seq = (json.sequences||[]).find((g:any) => g.sceneIndex === i);
+      const shots: any[] = seq?.shots || [];
+      html += '<div class="'+(i>0?'pt-4 border-t border-[var(--border)]':'')+'">';
+      html += '<div class="text-lg font-bold text-[var(--text)]">'+esc(s.name||'场景'+(i+1))+'</div>';
+      html += '<span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full mt-1 inline-block">'+shots.length+' 个镜头</span>';
+      if (s.description) {
+        html += '<div class="mt-3"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">场景描述</div>';
+        html += '<div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(s.description)+'</div></div>';
+      }
+      if (shots.length > 0) {
+        html += '<div class="mt-3"><div class="text-xs text-[var(--muted)] mb-2 uppercase tracking-wide">分镜序列</div>';
+        html += '<div class="space-y-1">';
+        shots.forEach((sh:any, shi:number) => {
+          const sn = globalNum.get(i+'-'+shi) || sh.shotNumber;
+          html += '<div class="flex items-center gap-2 text-xs bg-[var(--surface)] rounded px-2.5 py-1.5">';
+          html += '<span class="text-[var(--accent-text)] font-mono font-semibold shrink-0">Shot'+sn+'</span>';
+          html += '<span class="text-[var(--text2)] shrink-0">'+esc(sh.duration||'')+'</span>';
+          html += '<span class="text-[var(--text3)] shrink-0">'+esc(sh.shotType||'')+'</span>';
+          html += '<span class="text-[var(--dim)] shrink-0">|</span>';
+          html += '<span class="text-[var(--text2)] min-w-0 truncate">'+esc(sh.purpose||'')+'</span>';
+          if (sh.transition) html += '<span class="text-[var(--dim)] shrink-0">→ '+esc(sh.transition)+'</span>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      }
+      html += '</div>';
     });
-  } else if (Array.isArray(json) && json[0]?.shotNumber !== undefined) {
-    // Shots
-    html += '<div class="text-[var(--text)] font-semibold mb-1">🎥 '+json.length+' 个镜头</div>';
-    json.slice(0,5).forEach((s:any) => {
-      html += '<div class="text-[var(--text2)]">· Shot'+s.shotNumber+' '+esc(s.sceneName||'')+' '+esc(s.shotType||'')+'</div>';
-    });
-  } else {
-    html += '<div class="text-[var(--accent-text)]/60">✓ 已识别资产数据</div>';
+    html += '</div>';
+    return html;
   }
-  html += '</div>';
+  // Shots — structured shot cards (phase 4)
+  const shotsArr: any[]|null = Array.isArray(json) && json[0]?.shotNumber !== undefined ? json
+    : (json.shotNumber !== undefined && !Array.isArray(json) ? [json] : null);
+  if (shotsArr) {
+    let html = '<div class="space-y-4">';
+    shotsArr.forEach((s:any, i:number) => {
+      html += '<div class="'+(i>0?'pt-4 border-t border-[var(--border)]':'')+'">';
+      html += '<div class="text-lg font-bold text-[var(--text)]">Shot'+s.shotNumber+' · '+esc(s.sceneName||'')+'</div>';
+      html += '<span class="text-xs px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent-text)] rounded-full mt-1 inline-block">'+esc(s.shotType||'')+' · '+esc(s.duration||'')+' · '+(s.generationMode==='start_end_frame'?'首尾帧':'首帧')+'</span>';
+      if (s.atmosphere) html += '<div class="mt-3"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">色彩影调</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(s.atmosphere)+'</div></div>';
+      if (s.composition) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">构图</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(s.composition)+'</div></div>';
+      if (s.cameraMovement) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">运镜</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(s.cameraMovement)+'</div></div>';
+      if (s.visualContent) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">画面内容</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(s.visualContent)+'</div></div>';
+      if (s.dialogue) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">台词</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(s.dialogue)+'</div></div>';
+      if (s.narration) html += '<div class="mt-2"><div class="text-xs text-[var(--muted)] mb-1 uppercase tracking-wide">旁白</div><div class="text-sm text-[var(--text2)] leading-relaxed">'+esc(s.narration)+'</div></div>';
+      if (s.imagePrompts?.length) {
+        html += '<div class="mt-4 pt-3 border-t border-[var(--border)]">';
+        s.imagePrompts.forEach((ip:any) => {
+          html += '<div class="mt-2"><div class="text-xs text-[var(--accent-text)] font-semibold mb-1">'+esc(ip.label||'首帧')+' Prompt</div>';
+          html += '<div class="text-xs text-[var(--text2)] leading-relaxed bg-[var(--surface)] rounded-lg p-3 whitespace-pre-wrap">'+esc(ip.prompt||'')+'</div></div>';
+        });
+        html += '</div>';
+      }
+      if (s.videoPrompt) {
+        html += '<div class="mt-4 pt-3 border-t border-[var(--border)]">';
+        html += '<div class="text-xs text-[var(--accent-text)] font-semibold mb-1">视频 Prompt</div>';
+        html += '<div class="text-xs text-[var(--text2)] leading-relaxed bg-[var(--surface)] rounded-lg p-3 whitespace-pre-wrap">'+esc(s.videoPrompt)+'</div></div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+  // Fallback: markdown + unknown asset indicator
+  let html = renderMd(text);
+  html += '<div class="text-[var(--accent-text)]/60 text-xs mt-2">✓ 已识别资产数据</div>';
   return html;
 }
-function esc(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s: any) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function renderMd(text: string) { return text.replace(/^### (.+)$/gm, '<div class="text-sm text-[var(--text)] font-semibold mt-3 mb-1">$1</div>').replace(/^## (.+)$/gm, '<div class="text-base text-[var(--text)] font-bold mt-4 mb-2 border-b border-[var(--border2)] pb-1">$1</div>').replace(/^# (.+)$/gm, '<div class="text-lg text-[var(--text)] font-bold mt-4 mb-2">$1</div>').replace(/\*\*(.+?)\*\*/g, '<strong class="text-[var(--text)]">$1</strong>').replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>').replace(/^---$/gm, '<hr class="border-[var(--border2)] my-3"/>').replace(/^- (.+)$/gm, '<div class="ml-2 text-[var(--text2)]">• $1</div>'); }
 
@@ -433,9 +616,22 @@ function ExpandedAsset({ item, arr, isEditing, editText, setEditText, saveAsset,
   if (isEditing) { return (<div className="border-t border-[var(--border)] p-3 space-y-3"><textarea className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--text2)] font-mono outline-none focus:border-gold-400 resize-none" rows={8} value={editText} onChange={(e:any) => setEditText(e.target.value)} /><div className="flex gap-2"><button className="flex-1 text-xs px-2 py-1 bg-[#D6B36A] hover:bg-[var(--accent-hover)] text-white rounded" onClick={saveAsset}>保存</button><button className="text-xs px-2 py-1 text-[var(--muted)] hover:text-[var(--text2)] rounded" onClick={() => setEditingAsset(null)}>取消</button></div></div>); }
   return (<div className="border-t border-[var(--border)] p-3 space-y-3">
     {item.type === 'story' && item.data?.title ? (<div className="space-y-3">{item.data.title && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3"><div className="text-xs text-[var(--muted)] font-semibold mb-1">故事名称</div><div className="text-sm font-bold text-[var(--text)]">{item.data.title}</div></div>}<div className="grid grid-cols-2 gap-2">{(item.data.duration || item.data.targetDuration) && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="text-xs text-[var(--muted)] font-semibold mb-0.5">视频时长</div><div className="text-xs text-[var(--text2)]">{item.data.duration || item.data.targetDuration}</div></div>}<div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="text-xs text-[var(--muted)] font-semibold mb-0.5">视觉媒介</div><div className="text-xs text-[var(--text2)]">{item.data.visualTone?.medium || item.data.visualType || '未设定'}</div></div></div>{(item.data.visualTone?.reference || (item.data.visualTone?.references||[])[0]) && (<div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="text-xs text-[var(--muted)] font-semibold mb-0.5">参考作品</div><div className="text-xs text-[var(--text2)]">{item.data.visualTone?.reference || item.data.visualTone?.references[0]}</div></div>)}{(item.data.summary || item.data.logline) && <div className="bg-[var(--surface)] border border-[var(--accent-text)]/15 rounded-lg p-3"><div className="text-xs text-[var(--muted)] font-semibold mb-1">故事简介</div><div className="text-xs text-[var(--text2)] leading-relaxed">{item.data.summary || item.data.logline || '暂无'}</div></div>}{item.data.worldBuilding && (<div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3"><div className="text-xs text-[var(--muted)] font-semibold mb-1">世界观设定</div><div className="text-xs text-[var(--text2)] leading-relaxed">{item.data.worldBuilding}</div></div>)}<div className="flex gap-2"><button className="text-xs px-3 py-1.5 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] rounded border border-[var(--border)]" onClick={() => startEditAsset(item.key)}>编辑故事设定</button><button className="text-xs px-3 py-1.5 bg-[var(--accent-solid)]/10 hover:bg-[var(--accent-solid)]/20 text-[var(--accent-text)] rounded border border-[var(--accent-text)]/15" onClick={() => optimizePrompt(item.data, item.label)}>AI 优化</button></div></div>)
-    : item.type === 'character' && arr.length > 0 ? (<div className="space-y-2">{arr.map((c: any, ci: number) => { const ck = item.key + '-' + ci; const isOpen = !!charExpanded[ck]; return (<div key={ci} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5"><div className="flex items-center gap-1.5 cursor-pointer min-w-0" onClick={() => setCharExpanded({...charExpanded, [ck]: !isOpen})}><span className="text-xs shrink-0">{isOpen ? '▼' : '▶'}</span><span className="text-xs font-semibold text-[var(--text)] shrink-0">{c.name}</span><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--card)] text-[var(--text3)] shrink-0">{c.role}</span>{c.shortDesc && <span className="text-xs text-[var(--muted)] truncate">{c.shortDesc}</span>}</div>{isOpen && (<div className="mt-3 space-y-3"><div><div className="text-xs text-[var(--muted)] mb-1">定妆Prompt</div><div className="text-xs text-[var(--text2)] leading-relaxed whitespace-pre-wrap bg-[var(--bg)] rounded p-2">{c.prompt}</div><button className={`text-xs mt-1 px-2 py-0.5 rounded border ${copied === c.prompt?.slice(0,20) ? 'border-[var(--accent-text)]/30 text-[var(--accent-text)] bg-[var(--accent-bg)]' : 'border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)]'}`} onClick={() => doCopy(c.prompt)}>{copied === c.prompt?.slice(0,20) ? '已复制 ✓' : '复制Prompt'}</button></div><div className="flex gap-2 pt-1 border-t border-[var(--border)]"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={() => startEditAsset(item.key, c, ci)}>编辑角色</button><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/15 hover:bg-[var(--accent-solid)]/25 text-[var(--text)] rounded" onClick={() => optimizePrompt(c, item.label)}>AI 优化</button></div></div>)}</div>)})}</div>)
+    : item.type === 'character' && arr.length > 0 ? (<div className="space-y-2">{arr.map((c: any, ci: number) => { const ck = item.key + '-' + ci; const isOpen = !!charExpanded[ck]; return (<div key={ci} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 overflow-hidden"><div className="flex items-center gap-1.5 cursor-pointer min-w-0" onClick={() => {
+    const panel = document.querySelector('[class*="flex-\[0_0_38%"]');
+    const panelRect = panel?.getBoundingClientRect();
+    console.log('%c[CHAR-TOGGLE] %c' + c.name + '%c isOpen=' + isOpen + ' → ' + !isOpen, 'color:#D6B36A;font-weight:bold', 'color:#fff', 'color:#aaa');
+    console.log('  asset-panel rect:', panelRect ? JSON.stringify({w:Math.round(panelRect.width),l:Math.round(panelRect.left),r:Math.round(panelRect.right)}) : 'null');
+    console.log('  char-expanded keys:', JSON.stringify(Object.keys(charExpanded).filter(k => charExpanded[k])));
+    setCharExpanded({...charExpanded, [ck]: !isOpen});
+    requestAnimationFrame(() => {
+      const panel2 = document.querySelector('[class*="w-\[38%"]');
+      const r2 = panel2?.getBoundingClientRect();
+      console.log('  after rAF panel rect:', r2 ? JSON.stringify({w:Math.round(r2.width),l:Math.round(r2.left),r:Math.round(r2.right)}) : 'null');
+    });
+  }}><span className="text-xs shrink-0">{isOpen ? '▼' : '▶'}</span><span className="text-xs font-semibold text-[var(--text)] shrink-0">{c.name}</span><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--card)] text-[var(--text3)] shrink-0">{c.role}</span>{c.shortDesc && <span className="text-xs text-[var(--muted)] truncate">{c.shortDesc}</span>}</div>{isOpen && (<div className="mt-3 space-y-3"><div><div className="text-xs text-[var(--muted)] mb-1">定妆Prompt</div><div className="text-xs text-[var(--text2)] leading-relaxed whitespace-pre-wrap break-all bg-[var(--bg)] rounded p-2 max-h-40 overflow-y-auto">{c.prompt}</div><button className={`text-xs mt-1 px-2 py-0.5 rounded border ${copied === c.prompt?.slice(0,20) ? 'border-[var(--accent-text)]/30 text-[var(--accent-text)] bg-[var(--accent-bg)]' : 'border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)]'}`} onClick={() => doCopy(c.prompt)}>{copied === c.prompt?.slice(0,20) ? '已复制 ✓' : '复制Prompt'}</button></div><div className="flex gap-2 pt-1 border-t border-[var(--border)]"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={() => startEditAsset(item.key, c, ci)}>编辑角色</button><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/15 hover:bg-[var(--accent-solid)]/25 text-[var(--text)] rounded" onClick={() => optimizePrompt(c, item.label)}>AI 优化</button></div></div>)}</div>)})}</div>)
     : item.type === 'storyboard' ? (<div className="space-y-2">{(item.data.scenes||[]).length > 0 && (() => { const allShots = (item.data.sequences||[]).flatMap((g:any) => g.shots||[]); const totalSec = allShots.reduce((sum:number, sh:any) => sum + (parseInt(sh.duration)||0), 0); return <div className="text-xs text-[var(--muted)]">预计总时长 {Math.floor(totalSec/60)}m{totalSec%60}s · {allShots.length}个镜头 · {item.data.scenes.length}个场景</div>; })()}{(item.data.scenes||[]).length > 0 ? (item.data.scenes||[]).map((s: any, i: number) => { const seq = (item.data.sequences||[]).find((g:any) => g.sceneIndex === i); const shots = seq?.shots || []; return (<div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5"><span className="text-xs font-semibold text-[var(--text)]">{s.name}</span><span className="text-xs text-[var(--muted)] ml-2">{shots.length}个镜头</span><div className="text-xs text-[var(--text2)] mt-1">{s.description}</div>{shots.length > 0 && (<div className="space-y-1 mt-2">{shots.map((sh: any) => (<div key={sh.shotNumber} className="text-xs bg-[var(--bg)] rounded px-2 py-1"><span className="text-[var(--accent-text)] font-mono font-semibold">Shot{sh.shotNumber}</span><span className="text-[var(--text2)] ml-1">{sh.duration}</span><span className="text-[var(--text3)] ml-1">{sh.shotType}</span><span className="text-[var(--dim)] mx-1">|</span><span className="text-[var(--text2)]">{sh.purpose}</span>{sh.transition && <span className="text-[var(--dim)] ml-1">→ {sh.transition}</span>}</div>))}</div>)}<div className="flex gap-2 mt-2"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={(e) => { e.stopPropagation(); startEditAsset('storyboard', s, i); }}>修改场景</button><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/10 hover:bg-[var(--accent-solid)]/20 text-[var(--text)] rounded" onClick={(e) => { e.stopPropagation(); optimizePrompt(s, '场景'); }}>AI 优化</button></div></div>)}) : (<p className="text-xs text-[var(--muted)]">暂无内容 · 场景列表与分镜规划</p>)}</div>)
-    : item.type === 'shot' && arr.length > 0 ? (<div className="space-y-1.5">{[...arr].sort((a: any, b: any) => (a.shotNumber||0) - (b.shotNumber||0)).map((shot: any) => { const sk = 'shot-' + shot.id; const isOpen = !!charExpanded[sk]; return (<div key={shot.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="flex items-center gap-2 cursor-pointer" onClick={() => setCharExpanded({...charExpanded, [sk]: !isOpen})}><span className="text-xs">{isOpen ? '▼' : '▶'}</span><span className="text-xs text-[var(--accent-text)] font-mono">Shot{shot.shotNumber}</span><span className="text-xs text-[var(--text2)]">{shot.sceneName}</span><span className="text-xs text-[var(--muted)]">{shot.duration} · {shot.shotType} · {shot.generationMode==='start_end_frame'?'首尾帧':'首帧'}</span></div>{isOpen && <div className="mt-2 space-y-3 border-t border-[var(--border)] pt-2"><div className="bg-[var(--bg)] rounded-lg p-3 text-xs border border-[var(--border)]"><div className="text-[var(--muted)] font-semibold mb-2">基础设定</div>{assets.characters?.map((c:any) => (<div key={c.name} className="text-[var(--text2)] mb-1">· {c.name}（{c.role}）：{c.shortDesc}</div>))}{shot.sceneName && (() => { const scene = (assets.scenes||[]).find((s:any) => s.name === shot.sceneName); return scene ? <div className="text-[var(--text3)] mt-2 pt-2 border-t border-[var(--border)]">场景：{scene.description?.slice(0,200)}</div> : null; })()}</div><div className="bg-[var(--bg)] rounded-lg p-3 text-xs border border-[var(--border)]"><div className="text-[var(--muted)] font-semibold mb-2">氛围与画质</div><div className="text-[var(--text2)]">风格核心：{assets.story?.visualTone?.medium||''} · {assets.story?.visualTone?.reference||''}</div>{shot.atmosphere && <div className="text-[var(--text3)] mt-1">色彩影调：{shot.atmosphere}</div>}</div>{shot.imagePrompts?.map((ip: any, i: number) => (<div key={i} className="border border-[var(--accent-text)]/15 rounded-lg p-3 text-xs bg-[var(--accent-bg)]"><div className="flex items-center justify-between mb-2"><span className="text-[var(--accent-text)] font-semibold text-xs">{ip.label}Prompt</span><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/15 hover:bg-[var(--accent-solid)]/25 text-[var(--accent-text)] rounded hover:bg-[var(--accent-solid)]/20 text-[var(--accent-text)] rounded" onClick={() => doCopy(buildFullPrompt(shot, 'image'))}>复制完整Prompt</button></div><div className="text-[var(--text2)] whitespace-pre-wrap max-h-40 overflow-y-auto">{ip.prompt}</div></div>))}{shot.videoPrompt && <div className="border border-[var(--accent-text)]/10 rounded-lg p-3 text-xs bg-[var(--accent-bg)]"><div className="flex items-center justify-between mb-2"><span className="text-[var(--accent-text)] font-semibold text-xs">视频Prompt</span><button className="text-xs px-2 py-1 bg-[var(--accent-bg)] hover:bg-[var(--accent-solid)]/15 text-[var(--accent-text)] rounded rounded" onClick={() => doCopy(buildFullPrompt(shot, 'video'))}>复制完整Prompt</button></div><div className="text-[var(--text2)] whitespace-pre-wrap max-h-40 overflow-y-auto">{shot.videoPrompt}</div></div>}<div className="flex gap-2 pt-1 border-t border-[var(--border)]"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={() => startEditAsset(item.key, shot, arr.indexOf(shot))}>修改分镜</button><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/10 hover:bg-[var(--accent-solid)]/20 text-[var(--text)] rounded" onClick={() => optimizePrompt(shot, '分镜')}>AI 优化</button></div></div>}</div>)})}</div>)
+    : item.type === 'shot' && arr.length > 0 ? (<div className="space-y-1.5">
+          {[...arr].sort((a: any, b: any) => (a.shotNumber||0) - (b.shotNumber||0)).map((shot: any) => { const sk = 'shot-' + shot.id; const isOpen = !!charExpanded[sk]; return (<div key={shot.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2"><div className="flex items-center gap-2 cursor-pointer" onClick={() => setCharExpanded({...charExpanded, [sk]: !isOpen})}><span className="text-xs">{isOpen ? '▼' : '▶'}</span><span className="text-xs text-[var(--accent-text)] font-mono">Shot{shot.shotNumber}</span><span className="text-xs text-[var(--text2)]">{shot.sceneName}</span><span className="text-xs text-[var(--muted)]">{shot.duration} · {shot.shotType} · {shot.generationMode==='start_end_frame'?'首尾帧':'首帧'}</span></div>{isOpen && <div className="mt-2 space-y-3 border-t border-[var(--border)] pt-2"><div className="bg-[var(--bg)] rounded-lg p-3 text-xs border border-[var(--border)]"><div className="text-[var(--muted)] font-semibold mb-2">基础设定</div>{assets.characters?.map((c:any) => (<div key={c.name} className="text-[var(--text2)] mb-1">· {c.name}（{c.role}）：{c.shortDesc}</div>))}{shot.sceneName && (() => { const scene = (assets.scenes||[]).find((s:any) => s.name === shot.sceneName); return scene ? <div className="text-[var(--text3)] mt-2 pt-2 border-t border-[var(--border)]">场景：{scene.description?.slice(0,200)}</div> : null; })()}</div><div className="bg-[var(--bg)] rounded-lg p-3 text-xs border border-[var(--border)]"><div className="text-[var(--muted)] font-semibold mb-2">氛围与画质</div><div className="text-[var(--text2)]">风格核心：{assets.story?.visualTone?.medium||''} · {assets.story?.visualTone?.reference||''}</div>{shot.atmosphere && <div className="text-[var(--text3)] mt-1">色彩影调：{shot.atmosphere}</div>}</div>{shot.imagePrompts?.map((ip: any, i: number) => (<div key={i} className="border border-[var(--accent-text)]/15 rounded-lg p-3 text-xs bg-[var(--accent-bg)]"><div className="flex items-center justify-between mb-2"><span className="text-[var(--accent-text)] font-semibold text-xs">{ip.label}Prompt</span><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/15 hover:bg-[var(--accent-solid)]/25 text-[var(--accent-text)] rounded hover:bg-[var(--accent-solid)]/20 text-[var(--accent-text)] rounded" onClick={() => doCopy(buildFullPrompt(shot, 'image'))}>复制完整Prompt</button></div><div className="text-[var(--text2)] whitespace-pre-wrap max-h-40 overflow-y-auto">{ip.prompt}</div></div>))}{shot.videoPrompt && <div className="border border-[var(--accent-text)]/10 rounded-lg p-3 text-xs bg-[var(--accent-bg)]"><div className="flex items-center justify-between mb-2"><span className="text-[var(--accent-text)] font-semibold text-xs">视频Prompt</span><button className="text-xs px-2 py-1 bg-[var(--accent-bg)] hover:bg-[var(--accent-solid)]/15 text-[var(--accent-text)] rounded rounded" onClick={() => doCopy(buildFullPrompt(shot, 'video'))}>复制完整Prompt</button></div><div className="text-[var(--text2)] whitespace-pre-wrap max-h-40 overflow-y-auto">{shot.videoPrompt}</div></div>}<div className="flex gap-2 pt-1 border-t border-[var(--border)]"><button className="text-xs px-2 py-1 bg-[var(--card)] hover:bg-[var(--border)] text-[var(--text3)] hover:text-[var(--text)] rounded" onClick={() => startEditAsset(item.key, shot, arr.indexOf(shot))}>修改分镜</button><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/10 hover:bg-[var(--accent-solid)]/20 text-[var(--text)] rounded" onClick={() => optimizePrompt(shot, '分镜')}>AI 优化</button></div></div>}</div>)})}</div>)
     : arr.length > 0 ? (<div>{arr.map((d: any, di: number) => (<div key={di} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 mb-2"><span className="text-xs text-[var(--text2)] font-medium">{item.label} #{di+1}</span><div className="text-xs text-[var(--text2)] leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto mt-1">{typeof d.text === 'string' ? d.text.slice(0, 500) : JSON.stringify(d)}</div></div>))}</div>)
     : (<div className="space-y-2"><p className="text-xs text-[var(--muted)]">暂无内容 · {item.hint}</p><button className="text-xs px-2 py-1 bg-[var(--accent-solid)]/15 hover:bg-[var(--accent-solid)]/25 text-[var(--text)] rounded" onClick={() => startEditAsset(item.key)}>✎ 手动创建</button></div>)}
   </div>);

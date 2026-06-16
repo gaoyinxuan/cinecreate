@@ -21,9 +21,10 @@ function createWindow() {
   const rendererPath = path.join(__dirname, '../renderer/index.html');
   if (!fs.existsSync(rendererPath)) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
+    
   } else {
     mainWindow.loadFile(rendererPath);
+    
   }
 }
 

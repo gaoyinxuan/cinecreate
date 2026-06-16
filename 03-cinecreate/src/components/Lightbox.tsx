@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 
 interface Props { imageBlob: Blob; title?: string; onClose: () => void; }
 export default function Lightbox({ imageBlob, title, onClose }: Props) {
-  const url = useMemo(() => URL.createObjectURL(imageBlob), [imageBlob]);
+  const url = useMemo(() => imageBlob ? URL.createObjectURL(imageBlob) : '', [imageBlob]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key==='Escape') onClose(); }; document.addEventListener('keydown',h); return ()=>document.removeEventListener('keydown',h); }, [onClose]);
   return (

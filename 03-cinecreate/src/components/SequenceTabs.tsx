@@ -15,6 +15,7 @@ export default function SequenceTabs({ sequences, activeSeqId, onSelect, onCreat
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Sequence | null>(null);
   const toast = useToast();
 
   const startRename = (s: Sequence) => { setEditId(s.id); setEditName(s.name); };
@@ -22,10 +23,8 @@ export default function SequenceTabs({ sequences, activeSeqId, onSelect, onCreat
     const n = editName.trim(); if (!n) { toast('名称不能为空'); return; }
     onRename(id, n); setEditId(null);
   };
-  const handleDelete = async (s: Sequence) => {
-    const ok = api ? await api.confirm('删除序列及其中所有分镜？', '删除确认') : window.confirm('删除序列及其中所有分镜？');
-    if (ok) onDelete(s.id);
-  };
+  const handleDelete = (s: Sequence) => setDeleteTarget(s);
+  const confirmDelete = () => { if (deleteTarget) { onDelete(deleteTarget.id); setDeleteTarget(null); } };
   const handleCreate = (name: string) => { onCreate(name); setShowCreate(false); };
 
   return (
@@ -56,6 +55,18 @@ export default function SequenceTabs({ sequences, activeSeqId, onSelect, onCreat
       })}
       <button className="shrink-0 text-[var(--muted)] hover:text-gold-500 text-lg px-2" onClick={() => setShowCreate(true)}>+</button>
       {showCreate && <InlinePrompt title="输入序列名称" onConfirm={handleCreate} onCancel={() => setShowCreate(false)} />}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/30" onClick={() => setDeleteTarget(null)}>
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-72" onClick={e => e.stopPropagation()}>
+            <div className="text-sm text-[var(--text)] font-semibold mb-1">删除序列</div>
+            <div className="text-xs text-[var(--text2)] mb-4">确定删除「{deleteTarget.name}」及其中的 {shotsBySeq[deleteTarget.id]?.length || 0} 个分镜？此操作不可撤销。</div>
+            <div className="flex gap-2">
+              <button className="flex-1 text-xs py-2 bg-[var(--card2)] border border-[var(--border)] text-[var(--text2)] hover:text-[var(--text)] rounded-lg" onClick={() => setDeleteTarget(null)}>取消</button>
+              <button className="flex-1 text-xs py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg" onClick={confirmDelete}>确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

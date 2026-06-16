@@ -55,7 +55,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
       onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) addVariant(Array.from(e.dataTransfer.files)); }}>
       {primary && (
         <div className="relative rounded-lg overflow-hidden bg-[var(--card2)] border border-[var(--border2)] cursor-pointer group/img" style={{ aspectRatio: '16/9' }}
-          onClick={() => onLightbox(primary.imageBlob!, primary.label)}>
+          onClick={() => primary.imageBlob && onLightbox(primary.imageBlob, primary.label)}>
           {primary.imageBlob && <img src={imgUrl(primary.imageBlob)!} className="w-full h-full object-cover group-hover/img:opacity-80" alt="" />}
           <span className="absolute top-2 left-2 bg-[var(--accent-solid)] text-white text-xs font-bold px-2 py-0.5 rounded-full">{primary.label}</span>
           {otherVariants.length >= 1 && (
@@ -79,7 +79,7 @@ export default function VariantGallery({ variants, onUpdate, onLightbox, onCompa
           const isP = v.isPrimary;
           return (
             <div key={v.id} className={`relative shrink-0 w-24 rounded-lg overflow-hidden border-2 transition-colors group/var ${isP ? 'border-gold-500' : 'border-transparent hover:border-[var(--border2)]'}`}>
-              <div className="aspect-video bg-[var(--card2)] cursor-pointer" onClick={() => onLightbox(v.imageBlob!, v.label)}>
+              <div className="aspect-video bg-[var(--card2)] cursor-pointer" onClick={() => v.imageBlob && onLightbox(v.imageBlob, v.label)}>
                 {v.imageBlob && <img src={imgUrl(v.imageBlob)!} className="w-full h-full object-cover" alt="" />}
               </div>
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/var:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">

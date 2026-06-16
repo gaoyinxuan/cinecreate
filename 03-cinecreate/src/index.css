@@ -41,3 +41,5 @@ button:focus:not(:focus-visible){outline:none}button:focus-visible{outline:2px s
 .compare-img-enter{animation:compare-img-float .4s cubic-bezier(.16,1,.3,1) both}
 @keyframes toast-in{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .toast-enter{animation:toast-in .25s ease}
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+.animate-fadeIn{animation:fade-in .2s ease}
