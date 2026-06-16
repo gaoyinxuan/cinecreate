@@ -612,7 +612,7 @@ export default function App() {
         ) : null}
         </div>
       </div>
-      {showStoryOnboard && (
+      {showStoryOnboard && viewMode === 'storyboard' && (
         <OnboardingGuide title="分镜管理" storageKey="onboard-storyboard" onClose={dismissStoryOnboard}
           buttons={[{label:'开始管理分镜',primary:true,onClick:dismissStoryOnboard}]}>
           <p>分镜模块是项目最终资产管理区。你可以在这里保存故事内容、角色设定、分镜规划、Prompt 资产、图片/视频素材。</p>
