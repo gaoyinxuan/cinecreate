@@ -83,13 +83,17 @@ nav .hamburger{display:none;background:none;border:none;color:var(--text);font-s
 .flow-arrow{font-size:1.1rem;color:var(--text3);padding:0 10px;flex-shrink:0}
 
 /* ── Screenshots ── */
-.screenshots .head{text-align:center;margin-bottom:48px}
+.screenshots .head{text-align:center;margin-bottom:64px}
 .screenshots .head h2{font-size:2.2rem;font-weight:800;letter-spacing:-.02em}
-.shots-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:920px;margin:0 auto}
-.shot-card{border-radius:12px;overflow:hidden;background:var(--card);border:1px solid var(--border);cursor:pointer;transition:all .2s;position:relative}
-.shot-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.06)}
-.shot-card img{width:100%;display:block}
-.shot-card .cap{padding:14px 18px;font-size:.8rem;color:var(--text2);border-top:1px solid var(--border)}
+.preview-list{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.preview-row{display:flex;align-items:center;gap:48px;cursor:pointer;transition:opacity .2s}
+.preview-row:hover{opacity:.9}
+.preview-img{flex:0 0 62%;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 24px rgba(0,0,0,.04);transition:box-shadow .2s}
+.preview-row:hover .preview-img{box-shadow:0 4px 32px rgba(0,0,0,.08)}
+.preview-img img{width:100%;display:block}
+.preview-text{flex:1;min-width:0}
+.preview-text h3{font-size:1.25rem;font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
+.preview-text p{font-size:.88rem;color:var(--text2);line-height:1.7;max-width:320px}
 
 /* ── Download ── */
 .download .head{text-align:center;margin-bottom:48px}
@@ -151,6 +155,10 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
   .features .grid{grid-template-columns:1fr}
   .features .head h2,.workflow .head h2,.screenshots .head h2,.download .head h2{font-size:1.6rem}
   .shots-grid{grid-template-columns:1fr}
+  .preview-row{flex-direction:column;gap:20px}
+  .preview-img{flex:0 0 auto;width:100%}
+  .preview-text p{max-width:100%}
+  .preview-list{gap:40px}
   .flow{flex-direction:column;gap:0}
   .flow-arrow{transform:rotate(90deg);padding:2px 0}
   .dl-card{width:100%}
@@ -241,8 +249,8 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
       <div class="feature-card reveal reveal-d4">
         <span class="icon">📦</span>
         <h4 class="zh">素材中转站</h4><h4 class="en">Transfer Station</h4>
-        <p class="zh">右侧浮动面板，随时拖拽导入、Ctrl+V 粘贴、分类管理。素材在工具和分镜之间快速中转。</p>
-        <p class="en">Floating right panel for drag-drop import, Ctrl+V paste, category management. Quick transfer between tools and storyboard.</p>
+        <p class="zh">右侧浮动面板，Ctrl+V 粘贴截图、分类筛选、拖拽到分镜。素材在工具和分镜之间快速中转。</p>
+        <p class="en">Floating right panel. Ctrl+V paste, category filtering, drag to storyboard. Quick transfer between tools and shots.</p>
       </div>
     </div>
   </div>
@@ -269,14 +277,30 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
     <div class="head reveal">
       <h2><span class="zh">界面预览</span><span class="en">Preview</span></h2>
     </div>
-    <div class="shots-grid">
-      <div class="shot-card reveal reveal-d1" onclick="openLightbox('screenshots/welcome.png')">
-        <img src="screenshots/welcome.png?v=c3a144c3" alt="Welcome" loading="lazy">
-        <div class="cap"><span class="zh">欢迎页 — 素材展示与工作流引导</span><span class="en">Welcome — media showcase &amp; workflow guide</span></div>
+    <div class="preview-list">
+      <div class="preview-row reveal reveal-d1" onclick="openLightbox('screenshots/01.png')">
+        <div class="preview-img"><img src="screenshots/01.png?v=c3a144c3" alt="文稿创作" loading="lazy"></div>
+        <div class="preview-text">
+          <h3 class="zh">文稿创作</h3><h3 class="en">Draft Workspace</h3>
+          <p class="zh">AI 驱动的四阶段对话式创作流程。从故事设定、角色设计、场景规划到镜头 Prompt 生成，结构化资产一键保存。</p>
+          <p class="en">AI-powered four-stage conversational workflow. Story, characters, scenes, and shot prompts — save structured assets in one click.</p>
+        </div>
       </div>
-      <div class="shot-card reveal reveal-d2" onclick="openLightbox('screenshots/workspace.png')">
-        <img src="screenshots/workspace.png?v=c3a144c3" alt="Workspace" loading="lazy">
-        <div class="cap"><span class="zh">文稿工作台 — AI 对话创作 + 资产库</span><span class="en">Draft Workspace — AI chat + asset library</span></div>
+      <div class="preview-row reveal reveal-d2" onclick="openLightbox('screenshots/02.png')">
+        <div class="preview-img"><img src="screenshots/02.png?v=c3a144c3" alt="工具面板" loading="lazy"></div>
+        <div class="preview-text">
+          <h3 class="zh">工具面板</h3><h3 class="en">Tool Panel</h3>
+          <p class="zh">内嵌 WebView 集成主流 AI 平台。GPT Image、Seedream、Gemini、Kling 一键切换，WebView 持久化不重载。</p>
+          <p class="en">Built-in WebView with persistent sessions. One-click switching between GPT Image, Seedream, Gemini, Kling and more.</p>
+        </div>
+      </div>
+      <div class="preview-row reveal reveal-d3" onclick="openLightbox('screenshots/03.png')">
+        <div class="preview-img"><img src="screenshots/03.png?v=c3a144c3" alt="分镜管理" loading="lazy"></div>
+        <div class="preview-text">
+          <h3 class="zh">分镜管理</h3><h3 class="en">Storyboard</h3>
+          <p class="zh">视频优先三栏布局。方案对比、首尾帧管理、Prompt 折叠、时间轴导航。文稿导入一键同步镜头结构。</p>
+          <p class="en">Video-first three-column layout. Variant switching, frame management, collapsible prompts, timeline navigation. Import drafts in one click.</p>
+        </div>
       </div>
     </div>
   </div>
