@@ -1,10 +1,45 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Shot } from '../types';
 
 let uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
+const api = (window as any).electronAPI;
 
 interface Props { shot: Shot; shotNo: number; onChange: (s: Shot) => void; onDelete: () => void; }
 export default function ShotCard({ shot, shotNo, onChange, onDelete }: Props) {
+  const [hydrated, setHydrated] = useState(false);
+
+  // Load blobs from blobIds on mount (for sample projects / DB-loaded shots)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const updated = { ...shot };
+      let changed = false;
+      // Load source asset blobs
+      if (updated.sourceAssets?.length) {
+        const loaded = await Promise.all(updated.sourceAssets.map(async a => {
+          if (a.blobId && !a.blob && api) {
+            try { const buf = await api.loadBlob(a.blobId); if (buf && !cancelled) return { ...a, blob: new Blob([buf]) }; } catch {}
+          }
+          return a;
+        }));
+        if (!cancelled) { updated.sourceAssets = loaded; changed = true; }
+      }
+      // Load video output blobs
+      if (updated.videoOutputs?.length) {
+        const loaded = await Promise.all(updated.videoOutputs.map(async v => {
+          if (v.blobId && !v.blob && api) {
+            try { const buf = await api.loadBlob(v.blobId); if (buf && !cancelled) return { ...v, blob: new Blob([buf]) }; } catch {}
+          }
+          return v;
+        }));
+        if (!cancelled) { updated.videoOutputs = loaded; changed = true; }
+      }
+      if (changed && !cancelled) { onChange(updated); }
+      if (!cancelled) setHydrated(true);
+    })();
+    return () => { cancelled = true; };
+  }, [shot.id]); // Only on mount / shot change
+
   const videos = shot.videoOutputs || [];
   const assets = shot.sourceAssets || [];
   const primaryVideo = videos.find(v => v.isPrimary) || videos[0];
