@@ -41,6 +41,8 @@ nav .logo-en{font-size:1rem;font-weight:700;color:var(--text);letter-spacing:.02
 nav .logo-zh{font-size:.58rem;font-weight:500;color:var(--text3);letter-spacing:.04em}
 nav .links{display:flex;gap:28px;font-size:.82rem;color:var(--text2);font-weight:500;align-items:center}
 nav .links a:hover{color:var(--text)}
+nav .nav-link{font-size:.82rem;color:var(--text2);font-weight:500;transition:color .15s}
+nav .nav-link:hover{color:var(--text)}
 nav .lang{font-size:.78rem;color:var(--text2);cursor:pointer;font-weight:500;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-family:inherit;transition:all .15s}
 nav .lang:hover{color:var(--text);border-color:#ccc}
 nav .hamburger{display:none;background:none;border:none;color:var(--text);font-size:1.4rem;cursor:pointer}
@@ -149,11 +151,10 @@ footer .links{display:flex;gap:24px;justify-content:center;margin-bottom:14px}
       <svg width="32" height="32" viewBox="0 0 256 256" fill="none" class="logo-mark"><circle cx="128" cy="128" r="72" stroke="#1a1a1a" stroke-width="34" fill="none" stroke-dasharray="350 103" stroke-dashoffset="25" stroke-linecap="round"/><path d="M148 112L148 144L174 128Z" fill="#111"/></svg>
       <span class="logo-en">CineCreate</span>
     </a>
-    <div class="links">
-      <a href="#download-section" class="zh">下载</a><a href="#download-section" class="en">Download</a>
-      <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener">GitHub</a>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
+    <div class="links"></div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <a href="#download-section" class="zh nav-link">下载</a><a href="#download-section" class="en nav-link">Download</a>
+      <a href="https://github.com/gaoyinxuan/project_001" target="_blank" rel="noopener" class="nav-link">GitHub</a>
       <button class="lang" onclick="tl()">EN</button>
       <button class="hamburger" onclick="toggleMenu()">☰</button>
     </div>
