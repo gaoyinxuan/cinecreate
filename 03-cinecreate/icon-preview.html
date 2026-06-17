@@ -1,0 +1,38 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Icon Generator</title>
+<style>body{font-family:sans-serif;background:#111;color:#fff;padding:40px;text-align:center}
+canvas{display:block;margin:0 auto 20px;border-radius:12px}
+button{padding:12px 28px;font-size:16px;cursor:pointer;background:#D6B36A;color:#111;border:none;border-radius:8px;font-weight:bold;margin:4px}
+.done{color:#4c4;margin-top:16px}</style></head><body>
+<h2>CineCreate Icon Generator</h2>
+<canvas id="c" width="256" height="256"></canvas>
+<button onclick="download(256)">Download 256px PNG</button>
+<button onclick="download(48)">Download 48px PNG</button>
+<button onclick="download(32)">Download 32px PNG</button>
+<button onclick="download(16)">Download 16px PNG</button>
+<button onclick="downloadICO()" style="background:#fff;color:#111">Download .ICO (256px)</button><p>Save all 4, or right-click the canvas → Save image as</p>
+<script>
+const cv=document.getElementById('c');
+const ctx=cv.getContext('2d');
+ctx.fillStyle='#111';ctx.beginPath();ctx.roundRect(0,0,256,256,56);ctx.fill();
+ctx.strokeStyle='#fff';ctx.lineWidth=34;ctx.lineCap='round';
+ctx.setLineDash([350,103]);ctx.lineDashOffset=25;
+ctx.beginPath();ctx.arc(128,128,72,0,Math.PI*2);ctx.stroke();
+ctx.setLineDash([]);ctx.fillStyle='#fff';
+ctx.beginPath();ctx.moveTo(148,112);ctx.lineTo(148,144);ctx.lineTo(174,128);ctx.closePath();ctx.fill();
+function download(sz){const c2=document.createElement('canvas');c2.width=c2.height=sz;c2.getContext('2d').drawImage(cv,0,0,256,256,0,0,sz,sz);const a=document.createElement('a');a.download='icon-'+sz+'.png';a.href=c2.toDataURL();a.click()}
+
+function downloadICO(){
+  const c2=document.createElement('canvas');c2.width=c2.height=256;
+  c2.getContext('2d').drawImage(cv,0,0);
+  c2.toBlob(blob=>{
+    blob.arrayBuffer().then(buf=>{
+      const hdr=new Uint8Array(22);
+      new DataView(hdr.buffer).setUint16(0,0,1);new DataView(hdr.buffer).setUint16(2,1,1);new DataView(hdr.buffer).setUint16(4,1,1);
+      hdr[6]=0;hdr[7]=0;hdr[8]=0;hdr[9]=0;hdr[10]=1;hdr[11]=0;hdr[12]=32;hdr[13]=0;
+      new DataView(hdr.buffer).setUint32(14,buf.byteLength,1);new DataView(hdr.buffer).setUint32(18,22,1);
+      const ico=new Blob([hdr,buf],{type:'image/x-icon'});
+      const a=document.createElement('a');a.download='icon.ico';a.href=URL.createObjectURL(ico);a.click();
+    });
+  });
+}
+</script></body></html>

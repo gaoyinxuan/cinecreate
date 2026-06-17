@@ -16,6 +16,7 @@
   "build": {
     "appId": "com.ai-storyboard.app",
     "productName": "CineCreate",
+    "icon": "public/icon.ico",
     "directories": {
       "output": "release"
     },
